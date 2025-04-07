@@ -7,43 +7,43 @@ use super::{
     variable_definition::VariableDefinition, while_statement::WhileStatement,
 };
 
-enum Node {
-    Program(Vec<Definition>),
-    Variable(Variable),
-    Expression(Expression),
-    Statement(Statement),
-    TypeExpression(TypeExpression),
-    ParameterDefinition(ParameterDefinition),
-    VariableDefinition(VariableDefinition),
+pub enum Node<'a> {
+    Program(Vec<Definition<'a>>),
+    Variable(Variable<'a>),
+    Expression(Expression<'a>),
+    Statement(Statement<'a>),
+    TypeExpression(TypeExpression<'a>),
+    ParameterDefinition(ParameterDefinition<'a>),
+    VariableDefinition(VariableDefinition<'a>),
 }
 
-enum Definition {
-    ProcedureDefinition(ProcedureDefinition),
-    TypeDefinition(TypeDefinition),
+pub enum Definition<'a> {
+    ProcedureDefinition(ProcedureDefinition<'a>),
+    TypeDefinition(TypeDefinition<'a>),
 }
 
-enum Variable {
+pub enum Variable<'a> {
     NamedVariable(String),
-    ArrayAccess(ArrayAccess),
+    ArrayAccess(ArrayAccess<'a>),
 }
 
-enum TypeExpression {
-    ArrayTypeExpression(ArrayTypeExpression),
+pub enum TypeExpression<'a> {
+    ArrayTypeExpression(ArrayTypeExpression<'a>),
     NamedTypeExpression(String),
 }
 
-enum Expression {
-    BinaryExpression(BinaryExpression),
-    UnaryExpression(UnaryExpression),
+pub enum Expression<'a> {
+    BinaryExpression(BinaryExpression<'a>),
+    UnaryExpression(UnaryExpression<'a>),
     IntLiteral(i64),
-    VariableExpression(Variable),
+    VariableExpression(Variable<'a>),
 }
 
-enum Statement {
-    AssignStatement(AssignStatement),
-    IfStatement(IfStatement),
-    WhileStatement(WhileStatement),
-    CallStatement(CallStatement),
+pub enum Statement<'a> {
+    AssignStatement(AssignStatement<'a>),
+    IfStatement(IfStatement<'a>),
+    WhileStatement(WhileStatement<'a>),
+    CallStatement(CallStatement<'a>),
     EmptyStatement,
-    CompoundStatement(Vec<Statement>),
+    CompoundStatement(Vec<Statement<'a>>),
 }
