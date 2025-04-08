@@ -1,6 +1,6 @@
 use super::absyn::TypeExpression;
 
-pub struct TypeDefinition<'a> {
+pub struct TypeDefinition {
     pub name: String,
-    pub type_expression: TypeExpression<'a>,
+    pub type_expression: TypeExpression,
 }

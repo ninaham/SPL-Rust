@@ -1,6 +1,6 @@
 use super::absyn::{Expression, Variable};
 
-pub struct AssignStatement<'a> {
-    pub target: &'a Variable<'a>,
-    pub value: &'a Expression<'a>,
+pub struct AssignStatement {
+    pub target: Variable,
+    pub value: Expression,
 }

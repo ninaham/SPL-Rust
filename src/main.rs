@@ -1,7 +1,12 @@
+//use parser::parser::alphanumeric;
+
 pub mod absyn;
 pub mod parser;
 pub mod tokens;
 
 fn main() {
-    println!("Hello, world!");
+    //let (rem, m) = alphanumeric("asd_").unwrap();
+
+    //println!("rem: {}", rem);
+    //println!("m: {}", m);
 }

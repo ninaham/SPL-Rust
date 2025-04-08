@@ -1,9 +1,9 @@
 use super::absyn::Expression;
 
-pub struct BinaryExpression<'a> {
+pub struct BinaryExpression {
     pub operator: Operator,
-    pub left: &'a Expression<'a>,
-    pub right: &'a Expression<'a>,
+    pub left: Expression,
+    pub right: Expression,
 }
 
 pub enum Operator {

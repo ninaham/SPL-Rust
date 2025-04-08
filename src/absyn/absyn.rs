@@ -7,43 +7,43 @@ use super::{
     variable_definition::VariableDefinition, while_statement::WhileStatement,
 };
 
-pub enum Node<'a> {
-    Program(Vec<Definition<'a>>),
-    Variable(Variable<'a>),
-    Expression(Expression<'a>),
-    Statement(Statement<'a>),
-    TypeExpression(TypeExpression<'a>),
-    ParameterDefinition(ParameterDefinition<'a>),
-    VariableDefinition(VariableDefinition<'a>),
+pub enum Node {
+    Program(Vec<Box<Definition>>),
+    Variable(Box<Variable>),
+    Expression(Box<Expression>),
+    Statement(Box<Statement>),
+    TypeExpression(Box<TypeExpression>),
+    ParameterDefinition(Box<ParameterDefinition>),
+    VariableDefinition(Box<VariableDefinition>),
 }
 
-pub enum Definition<'a> {
-    ProcedureDefinition(ProcedureDefinition<'a>),
-    TypeDefinition(TypeDefinition<'a>),
+pub enum Definition {
+    ProcedureDefinition(Box<ProcedureDefinition>),
+    TypeDefinition(Box<TypeDefinition>),
 }
 
-pub enum Variable<'a> {
+pub enum Variable {
     NamedVariable(String),
-    ArrayAccess(ArrayAccess<'a>),
+    ArrayAccess(Box<ArrayAccess>),
 }
 
-pub enum TypeExpression<'a> {
-    ArrayTypeExpression(ArrayTypeExpression<'a>),
+pub enum TypeExpression {
+    ArrayTypeExpression(Box<ArrayTypeExpression>),
     NamedTypeExpression(String),
 }
 
-pub enum Expression<'a> {
-    BinaryExpression(BinaryExpression<'a>),
-    UnaryExpression(UnaryExpression<'a>),
+pub enum Expression {
+    BinaryExpression(Box<BinaryExpression>),
+    UnaryExpression(Box<UnaryExpression>),
     IntLiteral(i64),
-    VariableExpression(Variable<'a>),
+    VariableExpression(Box<Variable>),
 }
 
-pub enum Statement<'a> {
-    AssignStatement(AssignStatement<'a>),
-    IfStatement(IfStatement<'a>),
-    WhileStatement(WhileStatement<'a>),
-    CallStatement(CallStatement<'a>),
+pub enum Statement {
+    AssignStatement(Box<AssignStatement>),
+    IfStatement(Box<IfStatement>),
+    WhileStatement(Box<WhileStatement>),
+    CallStatement(Box<CallStatement>),
     EmptyStatement,
-    CompoundStatement(Vec<Statement<'a>>),
+    CompoundStatement(Vec<Box<Statement>>),
 }

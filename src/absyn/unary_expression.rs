@@ -1,8 +1,8 @@
 use super::absyn::Expression;
 
-pub struct UnaryExpression<'a> {
+pub struct UnaryExpression {
     pub operator: UnaryOperator,
-    pub operand: &'a Expression<'a>,
+    pub operand: Expression,
 }
 
 pub enum UnaryOperator {

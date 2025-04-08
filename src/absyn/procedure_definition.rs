@@ -1,8 +1,11 @@
-use super::{absyn::Statement, parameter_definition::ParameterDefinition, variable_definition::VariableDefinition};
+use super::{
+    absyn::Statement, parameter_definition::ParameterDefinition,
+    variable_definition::VariableDefinition,
+};
 
-pub struct ProcedureDefinition<'a> {
+pub struct ProcedureDefinition {
     pub name: String,
-    pub parameters: Vec<ParameterDefinition<'a>>,
-    pub body: Vec<Statement<'a>>,
-    pub variales: Vec<VariableDefinition<'a>>,
+    pub parameters: Vec<ParameterDefinition>,
+    pub body: Vec<Statement>,
+    pub variales: Vec<VariableDefinition>,
 }

@@ -1,6 +1,6 @@
 use super::absyn::Expression;
 
-pub struct CallStatement<'a> {
+pub struct CallStatement {
     pub name: String,
-    pub arguments: Vec<Expression<'a>>,
+    pub arguments: Vec<Expression>,
 }
