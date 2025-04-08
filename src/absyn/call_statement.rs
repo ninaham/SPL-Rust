@@ -1,6 +1,8 @@
+use std::collections::LinkedList;
+
 use super::absyn::Expression;
 
 pub struct CallStatement {
     pub name: String,
-    pub arguments: Vec<Expression>,
+    pub arguments: LinkedList<Expression>,
 }

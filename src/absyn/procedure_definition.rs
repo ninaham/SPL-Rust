@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use super::{
     absyn::Statement, parameter_definition::ParameterDefinition,
     variable_definition::VariableDefinition,
@@ -5,7 +7,7 @@ use super::{
 
 pub struct ProcedureDefinition {
     pub name: String,
-    pub parameters: Vec<ParameterDefinition>,
-    pub body: Vec<Statement>,
-    pub variales: Vec<VariableDefinition>,
+    pub parameters: LinkedList<ParameterDefinition>,
+    pub body: LinkedList<Statement>,
+    pub variales: LinkedList<VariableDefinition>,
 }

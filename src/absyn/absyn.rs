@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use super::{
     array_access::ArrayAccess, array_type_expression::ArrayTypeExpression,
     assign_statement::AssignStatement, binary_expression::BinaryExpression,
@@ -8,7 +10,7 @@ use super::{
 };
 
 pub enum Node {
-    Program(Vec<Box<Definition>>),
+    Program(LinkedList<Box<Definition>>),
     Variable(Box<Variable>),
     Expression(Box<Expression>),
     Statement(Box<Statement>),
@@ -45,5 +47,5 @@ pub enum Statement {
     WhileStatement(Box<WhileStatement>),
     CallStatement(Box<CallStatement>),
     EmptyStatement,
-    CompoundStatement(Vec<Box<Statement>>),
+    CompoundStatement(LinkedList<Box<Statement>>),
 }
