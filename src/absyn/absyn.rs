@@ -9,6 +9,7 @@ use super::{
     variable_definition::VariableDefinition, while_statement::WhileStatement,
 };
 
+#[derive(Debug)]
 pub enum Node {
     Program(LinkedList<Box<Definition>>),
     Variable(Box<Variable>),
@@ -19,21 +20,25 @@ pub enum Node {
     VariableDefinition(Box<VariableDefinition>),
 }
 
+#[derive(Debug)]
 pub enum Definition {
     ProcedureDefinition(Box<ProcedureDefinition>),
     TypeDefinition(Box<TypeDefinition>),
 }
 
+#[derive(Debug)]
 pub enum Variable {
     NamedVariable(String),
     ArrayAccess(Box<ArrayAccess>),
 }
 
+#[derive(Debug)]
 pub enum TypeExpression {
     ArrayTypeExpression(Box<ArrayTypeExpression>),
     NamedTypeExpression(String),
 }
 
+#[derive(Debug)]
 pub enum Expression {
     BinaryExpression(Box<BinaryExpression>),
     UnaryExpression(Box<UnaryExpression>),
@@ -41,6 +46,7 @@ pub enum Expression {
     VariableExpression(Box<Variable>),
 }
 
+#[derive(Debug)]
 pub enum Statement {
     AssignStatement(Box<AssignStatement>),
     IfStatement(Box<IfStatement>),

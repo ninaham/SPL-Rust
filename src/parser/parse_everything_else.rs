@@ -4,13 +4,17 @@ use nom::{IResult, Parser, branch::alt};
 
 use crate::{
     absyn::{
-        absyn::{Expression, Statement, TypeExpression, Variable},
+        absyn::{Definition, Expression, Node, Statement, TypeExpression, Variable},
+        array_access::ArrayAccess,
         array_type_expression::ArrayTypeExpression,
         assign_statement::AssignStatement,
+        binary_expression::{BinaryExpression, Operator},
+        call_statement::CallStatement,
         if_statement::IfStatement,
         parameter_definition::ParameterDefinition,
         procedure_definition::ProcedureDefinition,
         type_definition::TypeDefinition,
+        unary_expression::UnaryExpression,
         variable_definition::VariableDefinition,
         while_statement::WhileStatement,
     },
@@ -21,11 +25,51 @@ use crate::{
 };
 
 use super::{
-    token_parser::{array, r#else, r#if, r#ref},
+    token_parser::{
+        array, r#else, ge, gt, r#if, le, lt, minus, ne, plus, r#ref, slash, star, whitespace0,
+    },
     tokens::Tokens,
 };
 
-pub fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
+pub fn parse(input: &str) -> Node {
+    let (rem, n) = match program(input) {
+        Ok(x) => x,
+        Result::Err(e) => panic!("Parser Error: {:?}", e),
+    };
+    if !rem.is_empty() {
+        panic!("input not empty, remaining: {}", rem)
+    }
+
+    n
+}
+
+fn program(input: &str) -> IResult<&str, Node> {
+    let (rem, gd) = global_definition_list(input)?;
+    let gd = gd.into_iter().map(Box::new).collect();
+    Ok((rem, Node::Program(gd)))
+}
+
+fn global_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
+    alt([empty_definition_list, non_empty_definition_list]).parse(input)
+}
+
+fn empty_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
+    Ok((input, LinkedList::from([])))
+}
+
+fn non_empty_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
+    let (rem, _) = whitespace0(input)?;
+    let (rem, dhead) = global_definition(rem)?;
+    let (rem, mut dtail) = global_definition_list(rem)?;
+    dtail.push_front(dhead);
+    Ok((rem, dtail))
+}
+
+fn global_definition(input: &str) -> IResult<&str, Definition> {
+    alt([procedure_definition, type_definition]).parse(input)
+}
+
+fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
     let (rem, _) = var(input)?;
     let (rem, m1) = ident(rem)?;
     let name = match m1 {
@@ -44,7 +88,7 @@ pub fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
     ))
 }
 
-pub fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
+fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
     let (rem, _) = array(input)?;
     let (rem, _) = lbrack(rem)?;
     let (rem, intlit) = intlit(rem)?;
@@ -62,7 +106,7 @@ pub fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
     Ok((rem, TypeExpression::ArrayTypeExpression(Box::new(ate))))
 }
 
-pub fn named_type_expression(input: &str) -> IResult<&str, TypeExpression> {
+fn named_type_expression(input: &str) -> IResult<&str, TypeExpression> {
     let (rem, name) = ident(input)?;
     let name = match name {
         Tokens::Ident(name) => name,
@@ -72,11 +116,11 @@ pub fn named_type_expression(input: &str) -> IResult<&str, TypeExpression> {
     Ok((rem, TypeExpression::NamedTypeExpression(name)))
 }
 
-pub fn type_expression(input: &str) -> IResult<&str, TypeExpression> {
+fn type_expression(input: &str) -> IResult<&str, TypeExpression> {
     alt([named_type_expression, array_type_expression]).parse(input)
 }
 
-pub fn type_definition(input: &str) -> IResult<&str, TypeDefinition> {
+fn type_definition(input: &str) -> IResult<&str, Definition> {
     let (rem, _) = r#type(input)?;
     let (rem, ident) = ident(rem)?;
     let name = match ident {
@@ -91,10 +135,10 @@ pub fn type_definition(input: &str) -> IResult<&str, TypeDefinition> {
         type_expression: te,
     };
 
-    Ok((rem, type_def))
+    Ok((rem, Definition::TypeDefinition(Box::new(type_def))))
 }
 
-pub fn procedure_definition(input: &str) -> IResult<&str, ProcedureDefinition> {
+fn procedure_definition(input: &str) -> IResult<&str, Definition> {
     let (rem, _) = proc(input)?;
     let (rem, ident) = ident(rem)?;
     let name = match ident {
@@ -115,14 +159,14 @@ pub fn procedure_definition(input: &str) -> IResult<&str, ProcedureDefinition> {
         variales: vl,
     };
 
-    Ok((rem, pd))
+    Ok((rem, Definition::ProcedureDefinition(Box::new(pd))))
 }
 
-pub fn parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
+fn parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
     alt([non_empty_parameter_list, empty_parameter_list]).parse(input)
 }
 
-pub fn empty_parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
+fn empty_parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
     Ok((input, LinkedList::from([])))
 }
 
@@ -155,7 +199,7 @@ fn non_ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
     Ok((rem, pd))
 }
 
-pub fn parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
+fn parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
     let res = alt([non_ref_parameter, ref_parameter]).parse(input)?;
     Ok((res.0, LinkedList::from([res.1])))
 }
@@ -178,56 +222,58 @@ fn ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
     Ok((rem, pd))
 }
 
-pub fn variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefinition>> {
+fn variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefinition>> {
     alt([empty_variable_list, non_empty_variable_list]).parse(input)
 }
 
-pub fn empty_variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefinition>> {
+fn empty_variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefinition>> {
     Ok((input, LinkedList::from([])))
 }
 
-pub fn non_empty_variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefinition>> {
+fn non_empty_variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefinition>> {
     let (rem, vd) = variable_definition(input)?;
     let (rem, mut vl) = variable_list(rem)?;
     vl.push_front(vd);
     Ok((rem, vl))
 }
 
-pub fn statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
+fn statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
     alt([empty_statement_list, non_empty_statement_list]).parse(input)
 }
 
-pub fn empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
+fn empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
     Ok((input, LinkedList::from([])))
 }
 
-pub fn non_empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
+fn non_empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
     let (rem, st) = statement(input)?;
     let (rem, mut stl) = statement_list(rem)?;
     stl.push_front(st);
     Ok((rem, stl))
 }
 
-pub fn statement(input: &str) -> IResult<&str, Statement> {
+fn statement(input: &str) -> IResult<&str, Statement> {
     alt([
         empty_statement,
         if_statement,
         while_statement,
         compound_statement,
+        assign_statement,
+        call_statement,
     ])
     .parse(input)
 }
 
-pub fn empty_statement(input: &str) -> IResult<&str, Statement> {
+fn empty_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = semic(input)?;
     Ok((rem, Statement::EmptyStatement))
 }
 
-pub fn if_statement(input: &str) -> IResult<&str, Statement> {
+fn if_statement(input: &str) -> IResult<&str, Statement> {
     alt([if_statement_with_else, if_statement_without_else]).parse(input)
 }
 
-pub fn if_statement_without_else(input: &str) -> IResult<&str, Statement> {
+fn if_statement_without_else(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = r#if(input)?;
     let (rem, _) = lparen(rem)?;
     let (rem, ex) = expression(rem)?;
@@ -240,7 +286,7 @@ pub fn if_statement_without_else(input: &str) -> IResult<&str, Statement> {
     Ok((rem, Statement::IfStatement(Box::new(if_stmt))))
 }
 
-pub fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
+fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
     let (rem, st) = if_statement_without_else(input)?;
     let (rem, _) = r#else(rem)?;
     let (rem, else_part) = statement(rem)?;
@@ -254,11 +300,7 @@ pub fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
     Ok((rem, Statement::IfStatement(is)))
 }
 
-pub fn expression(input: &str) -> IResult<&str, Expression> {
-    todo!()
-}
-
-pub fn while_statement(input: &str) -> IResult<&str, Statement> {
+fn while_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = r#while(input)?;
     let (rem, _) = lparen(rem)?;
     let (rem, cond) = expression(rem)?;
@@ -271,7 +313,7 @@ pub fn while_statement(input: &str) -> IResult<&str, Statement> {
     Ok((rem, Statement::WhileStatement(Box::new(while_stmt))))
 }
 
-pub fn compound_statement(input: &str) -> IResult<&str, Statement> {
+fn compound_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = lcurl(input)?;
     let (rem, stl) = statement_list(rem)?;
     let (rem, _) = rcurl(rem)?;
@@ -279,7 +321,7 @@ pub fn compound_statement(input: &str) -> IResult<&str, Statement> {
     Ok((rem, Statement::CompoundStatement(stl)))
 }
 
-pub fn assign_statement(input: &str) -> IResult<&str, Statement> {
+fn assign_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, var) = variable(input)?;
     let (rem, _) = asgn(rem)?;
     let (rem, exp) = expression(rem)?;
@@ -292,13 +334,288 @@ pub fn assign_statement(input: &str) -> IResult<&str, Statement> {
     Ok((rem, Statement::AssignStatement(Box::new(asgn_statement))))
 }
 
-pub fn call_statement(input: &str) -> IResult<&str, Statement> {
+fn call_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, ident) = ident(input)?;
+    let name = match ident {
+        Tokens::Ident(name) => name,
+        _ => panic!(),
+    };
     let (rem, _) = lparen(rem)?;
-    //let (rem, arguments)
-    todo!()
+    let (rem, arguments) = argument_list(rem)?;
+    let (rem, _) = rparen(rem)?;
+    let (rem, _) = semic(rem)?;
+    let call_statement = CallStatement { name, arguments };
+
+    Ok((rem, Statement::CallStatement(Box::new(call_statement))))
 }
 
-pub fn variable(input: &str) -> IResult<&str, Variable> {
-    todo!()
+fn argument_list(input: &str) -> IResult<&str, LinkedList<Expression>> {
+    alt([non_empty_argument_list, empty_argument_list]).parse(input)
+}
+
+fn empty_argument_list(input: &str) -> IResult<&str, LinkedList<Expression>> {
+    Ok((input, LinkedList::from([])))
+}
+
+fn non_empty_argument_list(input: &str) -> IResult<&str, LinkedList<Expression>> {
+    alt([expression_head, more_than_one_argument]).parse(input)
+}
+
+fn expression_head(input: &str) -> IResult<&str, LinkedList<Expression>> {
+    let (rem, exp) = expression(input)?;
+    Ok((rem, LinkedList::from([exp])))
+}
+
+fn more_than_one_argument(input: &str) -> IResult<&str, LinkedList<Expression>> {
+    let (rem, mut ehead) = expression_head(input)?;
+    let (rem, _) = comma(rem)?;
+    let (rem, mut etail) = non_empty_argument_list(rem)?;
+    etail.push_front(ehead.pop_back().unwrap());
+    Ok((rem, etail))
+}
+
+fn variable(input: &str) -> IResult<&str, Variable> {
+    alt([array_access, named_var]).parse(input)
+}
+
+fn array_access(input: &str) -> IResult<&str, Variable> {
+    let (rem, arr) = variable(input)?;
+    let (rem, _) = lbrack(rem)?;
+    let (rem, exp) = expression(rem)?;
+    let (rem, _) = rbrack(rem)?;
+
+    let array_access = ArrayAccess {
+        array: arr,
+        index: exp,
+    };
+
+    Ok((rem, Variable::ArrayAccess(Box::new(array_access))))
+}
+
+fn named_var(input: &str) -> IResult<&str, Variable> {
+    let (rem, ident) = ident(input)?;
+    let name = match ident {
+        Tokens::Ident(name) => name,
+        _ => panic!(),
+    };
+
+    Ok((rem, Variable::NamedVariable(name)))
+}
+
+fn expression(input: &str) -> IResult<&str, Expression> {
+    expression0(input)
+}
+
+fn expression0(input: &str) -> IResult<&str, Expression> {
+    alt([
+        le_expression,
+        lt_expression,
+        gt_expression,
+        ge_expression,
+        expression1,
+    ])
+    .parse(input)
+}
+
+fn le_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression0(input)?;
+    let (rem, _) = le(rem)?;
+    let (rem, right) = expression1(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Lse,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn lt_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression0(input)?;
+    let (rem, _) = lt(rem)?;
+    let (rem, right) = expression1(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Lst,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn gt_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression0(input)?;
+    let (rem, _) = gt(rem)?;
+    let (rem, right) = expression1(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Grt,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn ge_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression0(input)?;
+    let (rem, _) = ge(rem)?;
+    let (rem, right) = expression1(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Gre,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn expression1(input: &str) -> IResult<&str, Expression> {
+    alt([eq_expression, ne_expression, expression2]).parse(input)
+}
+
+fn eq_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression1(input)?;
+    let (rem, _) = eq(rem)?;
+    let (rem, right) = expression2(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Equ,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn ne_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression1(input)?;
+    let (rem, _) = ne(rem)?;
+    let (rem, right) = expression2(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Neq,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn expression2(input: &str) -> IResult<&str, Expression> {
+    alt([plus_expression, minus_expression, expression3]).parse(input)
+}
+
+fn expression3(input: &str) -> IResult<&str, Expression> {
+    alt([star_expression, slash_expression, expression4]).parse(input)
+}
+
+fn star_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression3(input)?;
+    let (rem, _) = star(rem)?;
+    let (rem, right) = expression4(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Mul,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn slash_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression3(input)?;
+    let (rem, _) = slash(rem)?;
+    let (rem, right) = expression4(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Div,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn plus_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression2(input)?;
+    let (rem, _) = plus(rem)?;
+    let (rem, right) = expression3(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Add,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn minus_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, left) = expression2(input)?;
+    let (rem, _) = minus(rem)?;
+    let (rem, right) = expression3(rem)?;
+    let binary_expression = BinaryExpression {
+        operator: Operator::Sub,
+        left,
+        right,
+    };
+    Ok((
+        rem,
+        Expression::BinaryExpression(Box::new(binary_expression)),
+    ))
+}
+
+fn expression4(input: &str) -> IResult<&str, Expression> {
+    alt([unary_expression, expression5]).parse(input)
+}
+
+fn unary_expression(input: &str) -> IResult<&str, Expression> {
+    let (rem, _) = minus(input)?;
+    let (rem, exp) = expression4(rem)?;
+    let unary_expression = UnaryExpression {
+        operator: crate::absyn::unary_expression::UnaryOperator::Minus,
+        operand: exp,
+    };
+
+    Ok((rem, Expression::UnaryExpression(Box::new(unary_expression))))
+}
+
+fn intlit_exp(input: &str) -> IResult<&str, Expression> {
+    let (rem, i) = intlit(input)?;
+    let i = match i {
+        Tokens::Intlit(i) => i,
+        _ => panic!(),
+    };
+
+    Ok((rem, Expression::IntLiteral(i)))
+}
+
+fn variable_exp(input: &str) -> IResult<&str, Expression> {
+    let (rem, i) = variable(input)?;
+    Ok((rem, Expression::VariableExpression(Box::new(i))))
+}
+
+fn parentheses_exp(input: &str) -> IResult<&str, Expression> {
+    let (rem, _) = lparen(input)?;
+    let (rem, ex) = expression(rem)?;
+    let (rem, _) = rparen(rem)?;
+    Ok((rem, ex))
+}
+
+fn expression5(input: &str) -> IResult<&str, Expression> {
+    alt([intlit_exp, variable_exp, parentheses_exp]).parse(input)
 }

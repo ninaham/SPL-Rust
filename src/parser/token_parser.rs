@@ -2,7 +2,7 @@ use nom::{
     IResult, Parser,
     branch::alt,
     bytes::complete::tag,
-    character::complete::{anychar, digit1, hex_digit1, satisfy},
+    character::complete::{anychar, digit1, hex_digit1, multispace0, multispace1, satisfy},
     multi::many0,
     sequence::preceded,
 };
@@ -178,6 +178,16 @@ pub fn int(input: &str) -> IResult<&str, Tokens> {
 pub fn newline(input: &str) -> IResult<&str, Tokens> {
     let (rem, _) = tag("\\n")(input)?;
     Ok((rem, Tokens::Intlit(10)))
+}
+
+pub fn whitespace0(input: &str) -> IResult<&str, ()> {
+    let res = multispace0(input)?;
+    Ok((res.0, ()))
+}
+
+pub fn whitespace1(input: &str) -> IResult<&str, ()> {
+    let res = multispace1(input)?;
+    Ok((res.0, ()))
 }
 
 pub fn character(input: &str) -> IResult<&str, Tokens> {
