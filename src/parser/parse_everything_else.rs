@@ -37,31 +37,27 @@ pub fn parse(input: &str) -> Node {
         Result::Err(e) => panic!("Parser Error: {:?}", e),
     };
     if !rem.is_empty() {
-        panic!("input not empty, remaining: {}", rem)
+        panic!("input not empty")
     }
 
     n
 }
 
 fn program(input: &str) -> IResult<&str, Node> {
-    println!("Parsing program");
     let (rem, gd) = global_definition_list(input)?;
     let gd = gd.into_iter().map(Box::new).collect();
     Ok((rem, Node::Program(gd)))
 }
 
 fn global_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
-    println!("Parsing global definition list");
     alt([non_empty_definition_list, empty_definition_list]).parse(input)
 }
 
 fn empty_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
-    println!("Parsing empty definition list");
     Ok((input, LinkedList::from([])))
 }
 
 fn non_empty_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
-    println!("Parsing non-empty definition list");
     let (rem, _) = whitespace0(input)?;
     let (rem, dhead) = global_definition(rem)?;
     let (rem, _) = whitespace0(rem)?;
@@ -100,14 +96,20 @@ fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
 
 fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
     let (rem, _) = array(input)?;
+    let (rem, _) = whitespace0(rem)?;
     let (rem, _) = lbrack(rem)?;
+    let (rem, _) = whitespace0(rem)?;
     let (rem, intlit) = intlit(rem)?;
+
     let intlit = match intlit {
         Tokens::Intlit(i) => i,
         _ => panic!(),
     };
+    let (rem, _) = whitespace0(rem)?;
     let (rem, _) = rbrack(rem)?;
+    let (rem, _) = whitespace0(rem)?;
     let (rem, _) = of(rem)?;
+    let (rem, _) = whitespace1(rem)?;
     let (rem, te) = type_expression(rem)?;
     let ate = ArrayTypeExpression {
         array_size: intlit as usize,
@@ -117,7 +119,6 @@ fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
 }
 
 fn named_type_expression(input: &str) -> IResult<&str, TypeExpression> {
-    println!("Parsing named type expression");
     let (rem, name) = ident(input)?;
     let name = match name {
         Tokens::Ident(name) => name,
@@ -128,19 +129,24 @@ fn named_type_expression(input: &str) -> IResult<&str, TypeExpression> {
 }
 
 fn type_expression(input: &str) -> IResult<&str, TypeExpression> {
-    println!("Parsing type expression");
-    alt([named_type_expression, array_type_expression]).parse(input)
+    
+    alt([array_type_expression, named_type_expression]).parse(input)
 }
 
 fn type_definition(input: &str) -> IResult<&str, Definition> {
+    
     let (rem, _) = r#type(input)?;
+    let (rem, _) = whitespace1(rem)?;
     let (rem, ident) = ident(rem)?;
+    let (rem, _) = whitespace0(rem)?;
     let name = match ident {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
     let (rem, _) = eq(rem)?;
+    let (rem, _) = whitespace0(rem)?;
     let (rem, te) = type_expression(rem)?;
+    let (rem, _) = whitespace0(rem)?;
     let (rem, _) = semic(rem)?;
     let type_def = TypeDefinition {
         name,
@@ -151,7 +157,6 @@ fn type_definition(input: &str) -> IResult<&str, Definition> {
 }
 
 fn procedure_definition(input: &str) -> IResult<&str, Definition> {
-    println!("Parsing procedure definition");
     let (rem, _) = proc(input)?;
     let (rem, _) = whitespace1(rem)?;
     let (rem, ident) = ident(rem)?;
@@ -184,22 +189,18 @@ fn procedure_definition(input: &str) -> IResult<&str, Definition> {
 }
 
 fn parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
-    println!("Parsing parameter list");
     alt([non_empty_parameter_list, empty_parameter_list]).parse(input)
 }
 
 fn empty_parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
-    println!("Parsing empty parameter list");
     Ok((input, LinkedList::from([])))
 }
 
 fn non_empty_parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
-    println!("Parsing non-empty parameter list");
     alt([more_than_one_parameter, parameter]).parse(input)
 }
 
 fn more_than_one_parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
-    println!("Parsing more than one parameter");
     let (rem, mut phead) = parameter(input)?;
     let (rem, _) = whitespace0(rem)?;
     let (rem, _) = comma(rem)?;
@@ -210,7 +211,6 @@ fn more_than_one_parameter(input: &str) -> IResult<&str, LinkedList<ParameterDef
 }
 
 fn non_ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
-    println!("Parsing non-ref parameter");
     let (rem, ident) = ident(input)?;
     let name = match ident {
         Tokens::Ident(name) => name,
@@ -230,13 +230,11 @@ fn non_ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
 }
 
 fn parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
-    println!("Parsing parameter");
     let res = alt([non_ref_parameter, ref_parameter]).parse(input)?;
     Ok((res.0, LinkedList::from([res.1])))
 }
 
 fn ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
-    println!("Parsing ref parameter");
     let (rem, _) = r#ref(input)?;
     let (rem, _) = whitespace1(rem)?;
     let (rem, ident) = ident(rem)?;
@@ -275,7 +273,6 @@ fn non_empty_variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefi
 }
 
 fn statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
-    println!("Parsing statement list");
     alt([non_empty_statement_list, empty_statement_list]).parse(input)
 }
 
@@ -284,7 +281,6 @@ fn empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
 }
 
 fn non_empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
-    println!("Parsing non-empty statement list");
     let (rem, st) = statement(input)?;
     let (rem, _) = whitespace0(rem)?;
     let (rem, mut stl) = statement_list(rem)?;
@@ -293,7 +289,6 @@ fn non_empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>>
 }
 
 fn statement(input: &str) -> IResult<&str, Statement> {
-    println!("Parsing statement");
     alt([
         empty_statement,
         if_statement,
@@ -306,14 +301,11 @@ fn statement(input: &str) -> IResult<&str, Statement> {
 }
 
 fn empty_statement(input: &str) -> IResult<&str, Statement> {
-    println!("Parsing empty statement");
     let (rem, _) = semic(input)?;
-    println!("Empty statement: {}", rem);
     Ok((rem, Statement::EmptyStatement))
 }
 
 fn if_statement(input: &str) -> IResult<&str, Statement> {
-    println!("Parsing if statement");
     alt([if_statement_with_else, if_statement_without_else]).parse(input)
 }
 
@@ -336,7 +328,6 @@ fn if_statement_without_else(input: &str) -> IResult<&str, Statement> {
 }
 
 fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
-    println!("Parsing if statement with else {}", input);
     let (rem, _) = r#if(input)?;
     let (rem, _) = whitespace1(rem)?;
     let (rem, _) = lparen(rem)?;
@@ -360,7 +351,6 @@ fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
 }
 
 fn while_statement(input: &str) -> IResult<&str, Statement> {
-    println!("Parsing while statement");
     let (rem, _) = r#while(input)?;
     let (rem, _) = whitespace1(rem)?;
     let (rem, _) = lparen(rem)?;
@@ -388,7 +378,6 @@ fn compound_statement(input: &str) -> IResult<&str, Statement> {
 }
 
 fn assign_statement(input: &str) -> IResult<&str, Statement> {
-    println!("Parsing assign statement");
     let (rem, var) = variable(input)?;
     let (rem, _) = whitespace0(rem)?;
     let (rem, _) = asgn(rem)?;
@@ -424,7 +413,6 @@ fn call_statement(input: &str) -> IResult<&str, Statement> {
 }
 
 fn argument_list(input: &str) -> IResult<&str, LinkedList<Expression>> {
-    println!("Parsing argument list");
     alt([non_empty_argument_list, empty_argument_list]).parse(input)
 }
 
@@ -433,7 +421,6 @@ fn empty_argument_list(input: &str) -> IResult<&str, LinkedList<Expression>> {
 }
 
 fn non_empty_argument_list(input: &str) -> IResult<&str, LinkedList<Expression>> {
-    println!("Parsing non-empty argument list");
     alt([more_than_one_argument, expression_head]).parse(input)
 }
 
@@ -443,7 +430,6 @@ fn expression_head(input: &str) -> IResult<&str, LinkedList<Expression>> {
 }
 
 fn more_than_one_argument(input: &str) -> IResult<&str, LinkedList<Expression>> {
-    println!("Parsing more than one argument");
     let (rem, mut ehead) = expression_head(input)?;
     let (rem, _) = whitespace0(rem)?;
     let (rem, _) = comma(rem)?;
@@ -492,12 +478,10 @@ fn named_var(input: &str) -> IResult<&str, Variable> {
 }
 
 fn expression(input: &str) -> IResult<&str, Expression> {
-    println!("Parsing expression");
     expression0(input)
 }
 
 fn expression0(input: &str) -> IResult<&str, Expression> {
-    println!("Parsing expression0");
     alt([
         le_expression,
         lt_expression,

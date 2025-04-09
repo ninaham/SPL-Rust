@@ -11,7 +11,6 @@ use nom::{
 use super::tokens::Tokens;
 
 pub fn r#if(input: &str) -> IResult<&str, Tokens> {
-    println!("if");
     let res = tag("if")(input)?;
     Ok((res.0, Tokens::If))
 }
@@ -22,7 +21,6 @@ pub fn r#type(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn proc(input: &str) -> IResult<&str, Tokens> {
-    println!("proc");
     let res = tag("proc")(input)?;
     Ok((res.0, Tokens::Proc))
 }
@@ -48,25 +46,21 @@ pub fn var(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn r#else(input: &str) -> IResult<&str, Tokens> {
-    println!("else");
     let res = tag("else")(input)?;
     Ok((res.0, Tokens::Else))
 }
 
 pub fn r#while(input: &str) -> IResult<&str, Tokens> {
-    println!("while");
     let res = tag("while")(input)?;
     Ok((res.0, Tokens::While))
 }
 
 pub fn lparen(input: &str) -> IResult<&str, Tokens> {
-    println!("lparen");
     let res = tag("(")(input)?;
     Ok((res.0, Tokens::Lparen))
 }
 
 pub fn rparen(input: &str) -> IResult<&str, Tokens> {
-    println!("rparen, {}", input);
     let res = tag(")")(input)?;
     Ok((res.0, Tokens::Rparen))
 }
@@ -82,13 +76,11 @@ pub fn rbrack(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn lcurl(input: &str) -> IResult<&str, Tokens> {
-    println!("lcurl");
     let res = tag("{")(input)?;
     Ok((res.0, Tokens::Lcurl))
 }
 
 pub fn rcurl(input: &str) -> IResult<&str, Tokens> {
-    println!("rcurl");
     let res = tag("}")(input)?;
     Ok((res.0, Tokens::Rcurl))
 }
@@ -144,19 +136,16 @@ pub fn slash(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn colon(input: &str) -> IResult<&str, Tokens> {
-    println!("colon");
     let res = tag(":")(input)?;
     Ok((res.0, Tokens::Colon))
 }
 
 pub fn comma(input: &str) -> IResult<&str, Tokens> {
-    println!("comma");
     let res = tag(",")(input)?;
     Ok((res.0, Tokens::Comma))
 }
 
 pub fn semic(input: &str) -> IResult<&str, Tokens> {
-    println!("semicolon {}", input);
     let res = tag(";")(input)?;
     Ok((res.0, Tokens::Semic))
 }
@@ -188,7 +177,7 @@ pub fn int(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn newline(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = tag("\\n")(input)?;
+    let (rem, _) = tag("'\\n'")(input)?;
     Ok((rem, Tokens::Intlit(10)))
 }
 
@@ -218,5 +207,5 @@ pub fn hex_num(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn intlit(input: &str) -> IResult<&str, Tokens> {
-    alt([int, hex_num, character]).parse(input)
+    alt([hex_num, int, character]).parse(input)
 }
