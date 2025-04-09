@@ -1,13 +1,13 @@
 use super::absyn::Expression;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BinaryExpression {
     pub operator: Operator,
     pub left: Expression,
     pub right: Expression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operator {
     Add,
     Sub,

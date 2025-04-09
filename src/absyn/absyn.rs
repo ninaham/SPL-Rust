@@ -26,7 +26,7 @@ pub enum Definition {
     TypeDefinition(Box<TypeDefinition>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Variable {
     NamedVariable(String),
     ArrayAccess(Box<ArrayAccess>),
@@ -38,7 +38,7 @@ pub enum TypeExpression {
     NamedTypeExpression(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     BinaryExpression(Box<BinaryExpression>),
     UnaryExpression(Box<UnaryExpression>),

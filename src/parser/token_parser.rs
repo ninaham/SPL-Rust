@@ -3,6 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, digit1, hex_digit1, multispace0, multispace1, satisfy},
+    combinator::verify,
     multi::many0,
     sequence::preceded,
 };
@@ -10,6 +11,7 @@ use nom::{
 use super::tokens::Tokens;
 
 pub fn r#if(input: &str) -> IResult<&str, Tokens> {
+    println!("if");
     let res = tag("if")(input)?;
     Ok((res.0, Tokens::If))
 }
@@ -20,6 +22,7 @@ pub fn r#type(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn proc(input: &str) -> IResult<&str, Tokens> {
+    println!("proc");
     let res = tag("proc")(input)?;
     Ok((res.0, Tokens::Proc))
 }
@@ -45,21 +48,25 @@ pub fn var(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn r#else(input: &str) -> IResult<&str, Tokens> {
+    println!("else");
     let res = tag("else")(input)?;
     Ok((res.0, Tokens::Else))
 }
 
 pub fn r#while(input: &str) -> IResult<&str, Tokens> {
+    println!("while");
     let res = tag("while")(input)?;
     Ok((res.0, Tokens::While))
 }
 
 pub fn lparen(input: &str) -> IResult<&str, Tokens> {
+    println!("lparen");
     let res = tag("(")(input)?;
     Ok((res.0, Tokens::Lparen))
 }
 
 pub fn rparen(input: &str) -> IResult<&str, Tokens> {
+    println!("rparen, {}", input);
     let res = tag(")")(input)?;
     Ok((res.0, Tokens::Rparen))
 }
@@ -75,12 +82,14 @@ pub fn rbrack(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn lcurl(input: &str) -> IResult<&str, Tokens> {
+    println!("lcurl");
     let res = tag("{")(input)?;
     Ok((res.0, Tokens::Lcurl))
 }
 
 pub fn rcurl(input: &str) -> IResult<&str, Tokens> {
-    let res = tag("{")(input)?;
+    println!("rcurl");
+    let res = tag("}")(input)?;
     Ok((res.0, Tokens::Rcurl))
 }
 
@@ -135,16 +144,19 @@ pub fn slash(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn colon(input: &str) -> IResult<&str, Tokens> {
+    println!("colon");
     let res = tag(":")(input)?;
     Ok((res.0, Tokens::Colon))
 }
 
 pub fn comma(input: &str) -> IResult<&str, Tokens> {
+    println!("comma");
     let res = tag(",")(input)?;
     Ok((res.0, Tokens::Comma))
 }
 
 pub fn semic(input: &str) -> IResult<&str, Tokens> {
+    println!("semicolon {}", input);
     let res = tag(";")(input)?;
     Ok((res.0, Tokens::Semic))
 }
@@ -155,7 +167,7 @@ pub fn asgn(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn ident_first_char(input: &str) -> IResult<&str, char> {
-    satisfy(|c| c.is_alphabetic() || c == '_')(input)
+    verify(anychar, |c: &char| c.is_alphabetic() || *c == '_').parse(input)
 }
 
 pub fn ident_later_chars(input: &str) -> IResult<&str, String> {
@@ -172,7 +184,7 @@ pub fn ident(input: &str) -> IResult<&str, Tokens> {
 
 pub fn int(input: &str) -> IResult<&str, Tokens> {
     let res = digit1(input)?;
-    Ok((res.0, Tokens::Intlit(res.0.parse::<i64>().unwrap())))
+    Ok((res.0, Tokens::Intlit(res.1.parse::<i64>().unwrap())))
 }
 
 pub fn newline(input: &str) -> IResult<&str, Tokens> {
@@ -191,8 +203,10 @@ pub fn whitespace1(input: &str) -> IResult<&str, ()> {
 }
 
 pub fn character(input: &str) -> IResult<&str, Tokens> {
-    let res = anychar(input)?;
-    Ok((res.0, Tokens::Intlit(res.1 as i64)))
+    let (rem, _) = tag("'")(input)?;
+    let res = anychar(rem)?;
+    let (rem, _) = tag("'")(res.0)?;
+    Ok((rem, Tokens::Intlit(res.1 as i64)))
 }
 
 pub fn hex_num(input: &str) -> IResult<&str, Tokens> {
