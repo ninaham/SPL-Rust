@@ -1,11 +1,5 @@
 use nom::{
-    IResult, Parser,
-    branch::alt,
-    bytes::complete::tag,
-    character::complete::{anychar, digit1, hex_digit1, multispace0, multispace1, satisfy},
-    combinator::verify,
-    multi::many0,
-    sequence::preceded,
+    branch::alt, bytes::complete::tag, character::complete::{anychar, digit1, hex_digit1, multispace1, not_line_ending, satisfy}, combinator::verify, multi::many0, sequence::{pair, preceded}, IResult, Parser
 };
 
 use super::tokens::Tokens;
@@ -181,13 +175,9 @@ pub fn newline(input: &str) -> IResult<&str, Tokens> {
     Ok((rem, Tokens::Intlit(10)))
 }
 
-pub fn whitespace0(input: &str) -> IResult<&str, ()> {
-    let res = multispace0(input)?;
-    Ok((res.0, ()))
-}
-
-pub fn whitespace1(input: &str) -> IResult<&str, ()> {
-    let res = multispace1(input)?;
+pub fn parse_whitespace(input: &str) -> IResult<&str, ()> {
+    let comment: fn(_) -> _ = comment;
+    let res = many0(alt([multispace1, comment])).parse(input)?;
     Ok((res.0, ()))
 }
 
@@ -207,5 +197,15 @@ pub fn hex_num(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn intlit(input: &str) -> IResult<&str, Tokens> {
-    alt([hex_num, int, character]).parse(input)
+    alt([hex_num, int, character, newline]).parse(input)
+}
+
+/*pub fn comment<'a>(input: &'a str) -> IResult<&'a str, &'a str> {
+    let res = many0(one_comment).parse(input)?;
+    Ok((res.0, ""))
+}*/
+
+pub fn comment(input: &str) -> IResult<&str, &str> {
+    let res = pair(tag("//"), not_line_ending).parse(input)?;
+    Ok((res.0, ""))
 }
