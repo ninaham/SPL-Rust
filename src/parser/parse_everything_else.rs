@@ -10,7 +10,7 @@ use nom::{
 
 use crate::{
     absyn::{
-        absyn::{Definition, Expression, Node, Statement, TypeExpression, Variable},
+        absyn::{Definition, Expression, Program, Statement, TypeExpression, Variable},
         array_access::ArrayAccess,
         array_type_expression::ArrayTypeExpression,
         assign_statement::AssignStatement,
@@ -37,7 +37,7 @@ use super::{
     tokens::Tokens,
 };
 
-pub fn parse(input: &str) -> Node {
+pub fn parse(input: &str) -> Program {
     let (rem, n) = match program(input) {
         Ok(x) => x,
         Result::Err(e) => panic!("Parser Error: {:?}", e),
@@ -49,10 +49,10 @@ pub fn parse(input: &str) -> Node {
     n
 }
 
-fn program(input: &str) -> IResult<&str, Node> {
+fn program(input: &str) -> IResult<&str, Program> {
     let (rem, gd) = global_definition_list(input)?;
     let gd = gd.into_iter().map(Box::new).collect();
-    Ok((rem, Node::Program(gd)))
+    Ok((rem, Program { definitions: gd }))
 }
 
 fn global_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
@@ -425,110 +425,76 @@ fn expression(input: &str) -> IResult<&str, Expression> {
 }
 
 fn expression0(input: &str) -> IResult<&str, Expression> {
-    alt([
-        binary_expression0,
-        expression1,
-    ])
-    .parse(input)
-}
-
-fn binary_expression0(input: &str) -> IResult<&str, Expression> {
-    let (rem, left) = expression1(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
-    let (rem, op) = alt([le, lt, ge, gt]).parse(rem)?;
-    let operator = match op {
-        Tokens::Le => Operator::Lse,
-        Tokens::Lt => Operator::Lst,
-        Tokens::Gt => Operator::Grt,
-        Tokens::Ge => Operator::Gre,
-        _ => panic!(),
-        
-    };
-    let (rem, right) = expression0(rem)?;
-    let binary_expression = BinaryExpression {
-        operator,
-        left,
-        right,
-    };
-    Ok((
-        rem,
-        Expression::BinaryExpression(Box::new(binary_expression)),
-    ))
-}
-
-fn expression1(input: &str) -> IResult<&str, Expression> {
-    alt([binary_expression1, expression2]).parse(input)
-}
-
-fn binary_expression1(input: &str) -> IResult<&str, Expression> {
-    let (rem, left) = expression2(input)?;
-    let (rem, op) = alt([eq, ne]).parse(rem)?;
-    let operator = match op {
-        Tokens::Eq => Operator::Equ,
-        Tokens::Ne => Operator::Neq,
-        _ => panic!(),
-        
-    };
-    let (rem, right) = expression1(rem)?;
-    let binary_expression = BinaryExpression {
-        operator,
-        left,
-        right,
-    };
-    Ok((
-        rem,
-        Expression::BinaryExpression(Box::new(binary_expression)),
-    ))
+    let (mut inp, mut expr) = expression2(input)?;
+    loop {
+        if let Ok((rem, op)) = alt([eq, ne, le, lt, ge, gt]).parse(inp) {
+            let (rem, right) = expression2(rem)?;
+            expr = Expression::BinaryExpression(Box::new(BinaryExpression {
+                operator: match op {
+                    Tokens::Eq => Operator::Equ,
+                    Tokens::Ne => Operator::Neq,
+                    Tokens::Le => Operator::Lse,
+                    Tokens::Lt => Operator::Lst,
+                    Tokens::Ge => Operator::Gre,
+                    Tokens::Gt => Operator::Grt,
+                    _ => unreachable!(),
+                    
+                },
+                left: expr,
+                right,
+            }));
+            inp = rem;
+        } else {
+            break;
+        }
+    }
+    Ok((inp, expr))
 }
 
 fn expression2(input: &str) -> IResult<&str, Expression> {
-    alt([binary_expression2, expression3]).parse(input)
-}
-
-fn binary_expression2(input: &str) -> IResult<&str, Expression> {
-    let (rem, left) = expression3(input)?;
-    let (rem, op) = alt([plus, minus]).parse(rem)?;
-    let operator = match op {
-        Tokens::Plus => Operator::Add,
-        Tokens::Minus => Operator::Sub,
-        _ => panic!(),
-        
-    };
-    let (rem, right) = expression2(rem)?;
-    let binary_expression = BinaryExpression {
-        operator,
-        left,
-        right,
-    };
-    Ok((
-        rem,
-        Expression::BinaryExpression(Box::new(binary_expression)),
-    ))
+    let (mut inp, mut expr) = expression3(input)?;
+    loop {
+        if let Ok((rem, op)) = alt([plus, minus]).parse(inp) {
+            let (rem, right) = expression3(rem)?;
+            expr = Expression::BinaryExpression(Box::new(BinaryExpression {
+                operator: match op {
+                    Tokens::Plus => Operator::Add,
+                    Tokens::Minus => Operator::Sub,
+                    _ => unreachable!(),
+                    
+                },
+                left: expr,
+                right,
+            }));
+            inp = rem;
+        } else {
+            break;
+        }
+    }
+    Ok((inp, expr))
 }
 
 fn expression3(input: &str) -> IResult<&str, Expression> {
-    alt([binary_expression3, expression4]).parse(input)
-}
-
-fn binary_expression3(input: &str) -> IResult<&str, Expression> {
-    let (rem, left) = expression4(input)?;
-    let (rem, op) = alt([star, slash]).parse(rem)?;
-    let operator = match op {
-        Tokens::Star => Operator::Mul,
-        Tokens::Slash => Operator::Div,
-        _ => panic!(),
-        
-    };
-    let (rem, right) = expression3(rem)?;
-    let binary_expression = BinaryExpression {
-        operator,
-        left,
-        right,
-    };
-    Ok((
-        rem,
-        Expression::BinaryExpression(Box::new(binary_expression)),
-    ))
+    let (mut inp, mut expr) = expression4(input)?;
+    loop {
+        if let Ok((rem, op)) = alt([star, slash]).parse(inp) {
+            let (rem, right) = expression4(rem)?;
+            expr = Expression::BinaryExpression(Box::new(BinaryExpression {
+                operator: match op {
+                    Tokens::Star => Operator::Mul,
+                    Tokens::Slash => Operator::Div,
+                    _ => unreachable!(),
+                    
+                },
+                left: expr,
+                right,
+            }));
+            inp = rem;
+        } else {
+            break;
+        }
+    }
+    Ok((inp, expr))
 }
 
 fn expression4(input: &str) -> IResult<&str, Expression> {

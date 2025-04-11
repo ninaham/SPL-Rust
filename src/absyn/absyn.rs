@@ -1,23 +1,12 @@
 use std::collections::LinkedList;
 
 use super::{
-    array_access::ArrayAccess, array_type_expression::ArrayTypeExpression,
-    assign_statement::AssignStatement, binary_expression::BinaryExpression,
-    call_statement::CallStatement, if_statement::IfStatement,
-    parameter_definition::ParameterDefinition, procedure_definition::ProcedureDefinition,
-    type_definition::TypeDefinition, unary_expression::UnaryExpression,
-    variable_definition::VariableDefinition, while_statement::WhileStatement,
+    array_access::ArrayAccess, array_type_expression::ArrayTypeExpression, assign_statement::AssignStatement, binary_expression::BinaryExpression, call_statement::CallStatement, if_statement::IfStatement, procedure_definition::ProcedureDefinition, type_definition::TypeDefinition, unary_expression::UnaryExpression, while_statement::WhileStatement
 };
 
 #[derive(Debug)]
-pub enum Node {
-    Program(LinkedList<Box<Definition>>),
-    Variable(Box<Variable>),
-    Expression(Box<Expression>),
-    Statement(Box<Statement>),
-    TypeExpression(Box<TypeExpression>),
-    ParameterDefinition(Box<ParameterDefinition>),
-    VariableDefinition(Box<VariableDefinition>),
+pub struct Program {
+    pub definitions: LinkedList<Box<Definition>>,
 }
 
 #[derive(Debug)]
