@@ -32,7 +32,7 @@ pub enum Variable {
     ArrayAccess(Box<ArrayAccess>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TypeExpression {
     ArrayTypeExpression(Box<ArrayTypeExpression>),
     NamedTypeExpression(String),
