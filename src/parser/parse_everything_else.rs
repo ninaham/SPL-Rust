@@ -31,9 +31,7 @@ use crate::{
 };
 
 use super::{
-    token_parser::{
-        array, r#else, ge, gt, r#if, le, lt, minus, ne, parse_whitespace, plus, r#ref, slash, star,
-    },
+    token_parser::{array, r#else, ge, gt, r#if, le, lt, minus, ne, plus, r#ref, slash, star},
     tokens::Tokens,
 };
 
@@ -438,7 +436,6 @@ fn expression0(input: &str) -> IResult<&str, Expression> {
                     Tokens::Ge => Operator::Gre,
                     Tokens::Gt => Operator::Grt,
                     _ => unreachable!(),
-                    
                 },
                 left: expr,
                 right,
@@ -461,7 +458,6 @@ fn expression2(input: &str) -> IResult<&str, Expression> {
                     Tokens::Plus => Operator::Add,
                     Tokens::Minus => Operator::Sub,
                     _ => unreachable!(),
-                    
                 },
                 left: expr,
                 right,
@@ -484,7 +480,6 @@ fn expression3(input: &str) -> IResult<&str, Expression> {
                     Tokens::Star => Operator::Mul,
                     Tokens::Slash => Operator::Div,
                     _ => unreachable!(),
-                    
                 },
                 left: expr,
                 right,
