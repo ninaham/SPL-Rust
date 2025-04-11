@@ -60,14 +60,11 @@ fn global_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> 
 }
 
 fn empty_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
-    let (rem, _) = parse_whitespace(input)?;
-    Ok((rem, LinkedList::from([])))
+    Ok((input, LinkedList::from([])))
 }
 
 fn non_empty_definition_list(input: &str) -> IResult<&str, LinkedList<Definition>> {
-    let (rem, _) = parse_whitespace(input)?;
-    let (rem, dhead) = global_definition(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
+    let (rem, dhead) = global_definition(input)?;
     let (rem, mut dtail) = global_definition_list(rem)?;
     dtail.push_front(dhead);
     Ok((rem, dtail))
@@ -79,17 +76,13 @@ fn global_definition(input: &str) -> IResult<&str, Definition> {
 
 fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
     let (rem, _) = var(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, m1) = ident(rem)?;
     let name = match m1 {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = colon(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, te) = type_expression(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = semic(rem)?;
     Ok((
         rem,
@@ -102,20 +95,15 @@ fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
 
 fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
     let (rem, _) = array(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = lbrack(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, intlit) = intlit(rem)?;
 
     let intlit = match intlit {
         Tokens::Intlit(i) => i,
         _ => panic!(),
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = rbrack(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = of(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, te) = type_expression(rem)?;
     let ate = ArrayTypeExpression {
         array_size: intlit as usize,
@@ -139,21 +127,15 @@ fn type_expression(input: &str) -> IResult<&str, TypeExpression> {
 }
 
 fn type_definition(input: &str) -> IResult<&str, Definition> {
-    let (rem, _) = parse_whitespace(input)?;
-    let (rem, _) = r#type(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
+    let (rem, _) = r#type(input)?;
     let (rem, ident) = ident(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let name = match ident {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
     let (rem, _) = eq(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, te) = type_expression(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = semic(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let type_def = TypeDefinition {
         name,
         type_expression: te,
@@ -164,27 +146,18 @@ fn type_definition(input: &str) -> IResult<&str, Definition> {
 
 fn procedure_definition(input: &str) -> IResult<&str, Definition> {
     let (rem, _) = proc(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, ident) = ident(rem)?;
     let name = match ident {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = lparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, pl) = parameter_list(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = rparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = lcurl(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, vl) = variable_list(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, stl) = statement_list(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = rcurl(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let pd = ProcedureDefinition {
         name,
         parameters: pl,
@@ -209,9 +182,7 @@ fn non_empty_parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDe
 
 fn more_than_one_parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
     let (rem, mut phead) = parameter(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = comma(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, mut ptail) = non_empty_parameter_list(rem)?;
     ptail.push_front(phead.pop_back().unwrap());
     Ok((rem, ptail))
@@ -223,9 +194,7 @@ fn non_ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = colon(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, te) = type_expression(rem)?;
     let pd = ParameterDefinition {
         name,
@@ -243,16 +212,12 @@ fn parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
 
 fn ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
     let (rem, _) = r#ref(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, ident) = ident(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let name = match ident {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = colon(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, te) = type_expression(rem)?;
     let pd = ParameterDefinition {
         name,
@@ -273,7 +238,6 @@ fn empty_variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefiniti
 
 fn non_empty_variable_list(input: &str) -> IResult<&str, LinkedList<VariableDefinition>> {
     let (rem, vd) = variable_definition(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, mut vl) = variable_list(rem)?;
     vl.push_front(vd);
     Ok((rem, vl))
@@ -289,7 +253,6 @@ fn empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
 
 fn non_empty_statement_list(input: &str) -> IResult<&str, LinkedList<Statement>> {
     let (rem, st) = statement(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, mut stl) = statement_list(rem)?;
     stl.push_front(st);
     Ok((rem, stl))
@@ -309,7 +272,6 @@ fn statement(input: &str) -> IResult<&str, Statement> {
 
 fn empty_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = semic(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     Ok((rem, Statement::EmptyStatement))
 }
 
@@ -319,15 +281,10 @@ fn if_statement(input: &str) -> IResult<&str, Statement> {
 
 fn if_statement_without_else(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = r#if(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = lparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, ex) = expression(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = rparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, st) = statement(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let if_stmt = IfStatement {
         condition: ex,
         then_branch: st,
@@ -338,19 +295,12 @@ fn if_statement_without_else(input: &str) -> IResult<&str, Statement> {
 
 fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = r#if(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = lparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, ex) = expression(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = rparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, then_part) = statement(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = r#else(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, else_part) = statement(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let if_stmt = IfStatement {
         condition: ex,
         then_branch: then_part,
@@ -362,15 +312,10 @@ fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
 
 fn while_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = r#while(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = lparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, cond) = expression(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = rparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, st) = statement(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let while_stmt = WhileStatement {
         condition: cond,
         body: st,
@@ -380,24 +325,17 @@ fn while_statement(input: &str) -> IResult<&str, Statement> {
 
 fn compound_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, _) = lcurl(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, stl) = statement_list(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = rcurl(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let stl = stl.into_iter().map(Box::new).collect();
     Ok((rem, Statement::CompoundStatement(stl)))
 }
 
 fn assign_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, var) = variable(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = asgn(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, exp) = expression(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = semic(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let asgn_statement = AssignStatement {
         target: var,
         value: exp,
@@ -411,15 +349,10 @@ fn call_statement(input: &str) -> IResult<&str, Statement> {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = lparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, arguments) = argument_list(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = rparen(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = semic(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let call_statement = CallStatement { name, arguments };
 
     Ok((rem, Statement::CallStatement(Box::new(call_statement))))
@@ -444,9 +377,7 @@ fn expression_head(input: &str) -> IResult<&str, LinkedList<Expression>> {
 
 fn more_than_one_argument(input: &str) -> IResult<&str, LinkedList<Expression>> {
     let (rem, mut ehead) = expression_head(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, _) = comma(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, mut etail) = non_empty_argument_list(rem)?;
     etail.push_front(ehead.pop_back().unwrap());
     Ok((rem, etail))
@@ -480,8 +411,7 @@ fn variable(input: &str) -> IResult<&str, Variable> {
 }
 
 fn named_var(input: &str) -> IResult<&str, Variable> {
-    let (rem, _) = parse_whitespace(input)?;
-    let (rem, ident) = ident(rem)?;
+    let (rem, ident) = ident(input)?;
     let name = match ident {
         Tokens::Ident(name) => name,
         _ => panic!(),
@@ -514,7 +444,6 @@ fn binary_expression0(input: &str) -> IResult<&str, Expression> {
         _ => panic!(),
         
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, right) = expression0(rem)?;
     let binary_expression = BinaryExpression {
         operator,
@@ -533,7 +462,6 @@ fn expression1(input: &str) -> IResult<&str, Expression> {
 
 fn binary_expression1(input: &str) -> IResult<&str, Expression> {
     let (rem, left) = expression2(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, op) = alt([eq, ne]).parse(rem)?;
     let operator = match op {
         Tokens::Eq => Operator::Equ,
@@ -541,7 +469,6 @@ fn binary_expression1(input: &str) -> IResult<&str, Expression> {
         _ => panic!(),
         
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, right) = expression1(rem)?;
     let binary_expression = BinaryExpression {
         operator,
@@ -560,7 +487,6 @@ fn expression2(input: &str) -> IResult<&str, Expression> {
 
 fn binary_expression2(input: &str) -> IResult<&str, Expression> {
     let (rem, left) = expression3(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, op) = alt([plus, minus]).parse(rem)?;
     let operator = match op {
         Tokens::Plus => Operator::Add,
@@ -568,7 +494,6 @@ fn binary_expression2(input: &str) -> IResult<&str, Expression> {
         _ => panic!(),
         
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, right) = expression2(rem)?;
     let binary_expression = BinaryExpression {
         operator,
@@ -587,7 +512,6 @@ fn expression3(input: &str) -> IResult<&str, Expression> {
 
 fn binary_expression3(input: &str) -> IResult<&str, Expression> {
     let (rem, left) = expression4(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, op) = alt([star, slash]).parse(rem)?;
     let operator = match op {
         Tokens::Star => Operator::Mul,
@@ -595,7 +519,6 @@ fn binary_expression3(input: &str) -> IResult<&str, Expression> {
         _ => panic!(),
         
     };
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, right) = expression3(rem)?;
     let binary_expression = BinaryExpression {
         operator,
@@ -614,7 +537,6 @@ fn expression4(input: &str) -> IResult<&str, Expression> {
 
 fn unary_expression(input: &str) -> IResult<&str, Expression> {
     let (rem, _) = minus(input)?;
-    let (rem, _) = parse_whitespace(rem)?;
     let (rem, exp) = expression4(rem)?;
     let unary_expression = UnaryExpression {
         operator: crate::absyn::unary_expression::UnaryOperator::Minus,
