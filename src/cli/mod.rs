@@ -1,4 +1,9 @@
 use clap::{ArgGroup, Parser};
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref CLI_INPUT: Cli = Cli::parse();
+}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -14,6 +19,7 @@ use clap::{ArgGroup, Parser};
             ])
     )
 )]
+
 pub struct Cli {
     /// Phase 1: Scans for tokens and prints them.
     #[arg(long)]

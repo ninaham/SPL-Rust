@@ -2,9 +2,11 @@
 
 use std::fs;
 
+use cli::CLI_INPUT;
 use parser::parse_everything_else::parse;
 
 pub mod absyn;
+pub mod cli;
 pub mod parser;
 
 fn main() {
@@ -19,5 +21,6 @@ fn main() {
         .unwrap();
         let _n = parse(test.as_str());
         //println!("{:#?}", n);
+        println!("{:#?}", *CLI_INPUT);
     }
 }
