@@ -8,6 +8,7 @@ use parser::parse_everything_else::parse;
 pub mod absyn;
 pub mod cli;
 pub mod parser;
+pub mod semant;
 pub mod table;
 
 fn main() {
