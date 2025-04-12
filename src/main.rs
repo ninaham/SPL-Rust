@@ -8,6 +8,7 @@ use parser::parse_everything_else::parse;
 pub mod absyn;
 pub mod cli;
 pub mod parser;
+pub mod table;
 
 fn main() {
     for entry in fs::read_dir("./spl-testfiles/runtime_tests/").unwrap() {
