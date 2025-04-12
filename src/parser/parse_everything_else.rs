@@ -25,15 +25,11 @@ use crate::{
         while_statement::WhileStatement,
     },
     parser::token_parser::{
-        asgn, colon, comma, eq, ident, intlit, lbrack, lcurl, lparen, of, proc, rbrack, rcurl,
-        rparen, semic, r#type, var, r#while,
+        ident, intlit
     },
 };
 
-use super::{
-    token_parser::{array, r#else, ge, gt, r#if, le, lt, minus, ne, plus, r#ref, slash, star},
-    tokens::Tokens,
-};
+use super::{token_parser::{eq, ge, gt, le, lt, minus, ne, parse_tag, plus, slash, star}, tokens::Tokens};
 
 pub fn parse(input: &str) -> Program {
     let (rem, n) = match program(input) {
@@ -73,15 +69,15 @@ fn global_definition(input: &str) -> IResult<&str, Definition> {
 }
 
 fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
-    let (rem, _) = var(input)?;
+    let (rem, _) = parse_tag(input, "var")?;
     let (rem, m1) = ident(rem)?;
     let name = match m1 {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = colon(rem)?;
+    let (rem, _) = parse_tag(rem, ":")?;
     let (rem, te) = type_expression(rem)?;
-    let (rem, _) = semic(rem)?;
+    let (rem, _) = parse_tag(rem, ";")?;
     Ok((
         rem,
         VariableDefinition {
@@ -92,16 +88,16 @@ fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
 }
 
 fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
-    let (rem, _) = array(input)?;
-    let (rem, _) = lbrack(rem)?;
+    let (rem, _) = parse_tag(input, "array")?;
+    let (rem, _) = parse_tag(rem, "[")?;
     let (rem, intlit) = intlit(rem)?;
 
     let intlit = match intlit {
         Tokens::Intlit(i) => i,
         _ => panic!(),
     };
-    let (rem, _) = rbrack(rem)?;
-    let (rem, _) = of(rem)?;
+    let (rem, _) = parse_tag(rem, "]")?;
+    let (rem, _) = parse_tag(rem, "of")?;
     let (rem, te) = type_expression(rem)?;
     let ate = ArrayTypeExpression {
         array_size: intlit as usize,
@@ -125,15 +121,15 @@ fn type_expression(input: &str) -> IResult<&str, TypeExpression> {
 }
 
 fn type_definition(input: &str) -> IResult<&str, Definition> {
-    let (rem, _) = r#type(input)?;
+    let (rem, _) = parse_tag(input, "type")?;
     let (rem, ident) = ident(rem)?;
     let name = match ident {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = eq(rem)?;
+    let (rem, _) = parse_tag(rem, "=")?;
     let (rem, te) = type_expression(rem)?;
-    let (rem, _) = semic(rem)?;
+    let (rem, _) = parse_tag(rem, ";")?;
     let type_def = TypeDefinition {
         name,
         type_expression: te,
@@ -143,19 +139,19 @@ fn type_definition(input: &str) -> IResult<&str, Definition> {
 }
 
 fn procedure_definition(input: &str) -> IResult<&str, Definition> {
-    let (rem, _) = proc(input)?;
+    let (rem, _) = parse_tag(input, "proc")?;
     let (rem, ident) = ident(rem)?;
     let name = match ident {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = lparen(rem)?;
+    let (rem, _) = parse_tag(rem, "(")?;
     let (rem, pl) = parameter_list(rem)?;
-    let (rem, _) = rparen(rem)?;
-    let (rem, _) = lcurl(rem)?;
+    let (rem, _) = parse_tag(rem, ")")?;
+    let (rem, _) = parse_tag(rem, "{")?;
     let (rem, vl) = variable_list(rem)?;
     let (rem, stl) = statement_list(rem)?;
-    let (rem, _) = rcurl(rem)?;
+    let (rem, _) = parse_tag(rem, "}")?;
     let pd = ProcedureDefinition {
         name,
         parameters: pl,
@@ -180,7 +176,7 @@ fn non_empty_parameter_list(input: &str) -> IResult<&str, LinkedList<ParameterDe
 
 fn more_than_one_parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
     let (rem, mut phead) = parameter(input)?;
-    let (rem, _) = comma(rem)?;
+    let (rem, _) = parse_tag(rem, ",")?;
     let (rem, mut ptail) = non_empty_parameter_list(rem)?;
     ptail.push_front(phead.pop_back().unwrap());
     Ok((rem, ptail))
@@ -192,7 +188,7 @@ fn non_ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = colon(rem)?;
+    let (rem, _) = parse_tag(rem, ":")?;
     let (rem, te) = type_expression(rem)?;
     let pd = ParameterDefinition {
         name,
@@ -209,13 +205,13 @@ fn parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
 }
 
 fn ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
-    let (rem, _) = r#ref(input)?;
+    let (rem, _) = parse_tag(input, "ref")?;
     let (rem, ident) = ident(rem)?;
     let name = match ident {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = colon(rem)?;
+    let (rem, _) = parse_tag(rem, ":")?;
     let (rem, te) = type_expression(rem)?;
     let pd = ParameterDefinition {
         name,
@@ -269,7 +265,7 @@ fn statement(input: &str) -> IResult<&str, Statement> {
 }
 
 fn empty_statement(input: &str) -> IResult<&str, Statement> {
-    let (rem, _) = semic(input)?;
+    let (rem, _) = parse_tag(input, ";")?;
     Ok((rem, Statement::EmptyStatement))
 }
 
@@ -278,10 +274,10 @@ fn if_statement(input: &str) -> IResult<&str, Statement> {
 }
 
 fn if_statement_without_else(input: &str) -> IResult<&str, Statement> {
-    let (rem, _) = r#if(input)?;
-    let (rem, _) = lparen(rem)?;
+    let (rem, _) = parse_tag(input, "if")?;
+    let (rem, _) = parse_tag(rem, "(")?;
     let (rem, ex) = expression(rem)?;
-    let (rem, _) = rparen(rem)?;
+    let (rem, _) = parse_tag(rem, ")")?;
     let (rem, st) = statement(rem)?;
     let if_stmt = IfStatement {
         condition: ex,
@@ -292,12 +288,12 @@ fn if_statement_without_else(input: &str) -> IResult<&str, Statement> {
 }
 
 fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
-    let (rem, _) = r#if(input)?;
-    let (rem, _) = lparen(rem)?;
+    let (rem, _) = parse_tag(input, "if")?;
+    let (rem, _) = parse_tag(rem, "(")?;
     let (rem, ex) = expression(rem)?;
-    let (rem, _) = rparen(rem)?;
+    let (rem, _) = parse_tag(rem, ")")?;
     let (rem, then_part) = statement(rem)?;
-    let (rem, _) = r#else(rem)?;
+    let (rem, _) = parse_tag(rem, "else")?;
     let (rem, else_part) = statement(rem)?;
     let if_stmt = IfStatement {
         condition: ex,
@@ -309,10 +305,10 @@ fn if_statement_with_else(input: &str) -> IResult<&str, Statement> {
 }
 
 fn while_statement(input: &str) -> IResult<&str, Statement> {
-    let (rem, _) = r#while(input)?;
-    let (rem, _) = lparen(rem)?;
+    let (rem, _) = parse_tag(input, "while")?;
+    let (rem, _) = parse_tag(rem, "(")?;
     let (rem, cond) = expression(rem)?;
-    let (rem, _) = rparen(rem)?;
+    let (rem, _) = parse_tag(rem, ")")?;
     let (rem, st) = statement(rem)?;
     let while_stmt = WhileStatement {
         condition: cond,
@@ -322,18 +318,18 @@ fn while_statement(input: &str) -> IResult<&str, Statement> {
 }
 
 fn compound_statement(input: &str) -> IResult<&str, Statement> {
-    let (rem, _) = lcurl(input)?;
+    let (rem, _) = parse_tag(input, "{")?;
     let (rem, stl) = statement_list(rem)?;
-    let (rem, _) = rcurl(rem)?;
+    let (rem, _) = parse_tag(rem, "}")?;
     let stl = stl.into_iter().map(Box::new).collect();
     Ok((rem, Statement::CompoundStatement(stl)))
 }
 
 fn assign_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, var) = variable(input)?;
-    let (rem, _) = asgn(rem)?;
+    let (rem, _) = parse_tag(rem, ":=")?;
     let (rem, exp) = expression(rem)?;
-    let (rem, _) = semic(rem)?;
+    let (rem, _) = parse_tag(rem, ";")?;
     let asgn_statement = AssignStatement {
         target: var,
         value: exp,
@@ -347,10 +343,10 @@ fn call_statement(input: &str) -> IResult<&str, Statement> {
         Tokens::Ident(name) => name,
         _ => panic!(),
     };
-    let (rem, _) = lparen(rem)?;
+    let (rem, _) = parse_tag(rem, "(")?;
     let (rem, arguments) = argument_list(rem)?;
-    let (rem, _) = rparen(rem)?;
-    let (rem, _) = semic(rem)?;
+    let (rem, _) = parse_tag(rem, ")")?;
+    let (rem, _) = parse_tag(rem, ";")?;
     let call_statement = CallStatement { name, arguments };
 
     Ok((rem, Statement::CallStatement(Box::new(call_statement))))
@@ -375,7 +371,7 @@ fn expression_head(input: &str) -> IResult<&str, LinkedList<Expression>> {
 
 fn more_than_one_argument(input: &str) -> IResult<&str, LinkedList<Expression>> {
     let (rem, mut ehead) = expression_head(input)?;
-    let (rem, _) = comma(rem)?;
+    let (rem, _) = parse_tag(rem, ",")?;
     let (rem, mut etail) = non_empty_argument_list(rem)?;
     etail.push_front(ehead.pop_back().unwrap());
     Ok((rem, etail))
@@ -497,7 +493,7 @@ fn expression4(input: &str) -> IResult<&str, Expression> {
 }
 
 fn unary_expression(input: &str) -> IResult<&str, Expression> {
-    let (rem, _) = minus(input)?;
+    let (rem, _) = parse_tag(input, "-")?;
     let (rem, exp) = expression4(rem)?;
     let unary_expression = UnaryExpression {
         operator: crate::absyn::unary_expression::UnaryOperator::Minus,
@@ -523,9 +519,9 @@ fn variable_exp(input: &str) -> IResult<&str, Expression> {
 }
 
 fn parentheses_exp(input: &str) -> IResult<&str, Expression> {
-    let (rem, _) = lparen(input)?;
+    let (rem, _) = parse_tag(input, "(")?;
     let (rem, ex) = expression(rem)?;
-    let (rem, _) = rparen(rem)?;
+    let (rem, _) = parse_tag(rem, ")")?;
     Ok((rem, ex))
 }
 

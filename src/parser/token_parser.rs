@@ -10,207 +10,11 @@ use nom::{
 
 use super::tokens::Tokens;
 
-pub fn r#if(input: &str) -> IResult<&str, Tokens> {
+pub fn parse_tag<'a>(input: &'a str, word: &'a str) -> IResult<&'a str, Tokens> {
     let (rem, _) = parse_whitespace(input)?;
-    let res = tag("if")(rem)?;
+    let res = tag(word)(rem)?;
     let (rem, _) = parse_whitespace(res.0)?;
-    Ok((rem, Tokens::If))
-}
-
-pub fn r#type(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("type")(rem)?;
-    let (rem, _) = parse_whitespace(res.0)?;
-    Ok((rem, Tokens::Type))
-}
-
-pub fn proc(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("proc")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Proc))
-}
-
-pub fn array(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("array")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Array))
-}
-
-pub fn of(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("of")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Of))
-}
-
-pub fn r#ref(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("ref")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Ref))
-}
-
-pub fn var(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("var")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Var))
-}
-
-pub fn r#else(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("else")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Else))
-}
-
-pub fn r#while(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("while")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::While))
-}
-
-pub fn lparen(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("(")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Lparen))
-}
-
-pub fn rparen(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag(")")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Rparen))
-}
-
-pub fn lbrack(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("[")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Lbrack))
-}
-
-pub fn rbrack(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("]")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Rbrack))
-}
-
-pub fn lcurl(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("{")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Lcurl))
-}
-
-pub fn rcurl(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("}")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Rcurl))
-}
-
-pub fn eq(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("=")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Eq))
-}
-
-pub fn ne(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("#")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Ne))
-}
-
-pub fn lt(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("<")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Lt))
-}
-
-pub fn gt(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag(">")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Gt))
-}
-
-pub fn ge(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag(">=")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Ge))
-}
-
-pub fn le(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("<=")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Le))
-}
-
-pub fn plus(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("+")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Plus))
-}
-
-pub fn minus(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("-")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Minus))
-}
-
-pub fn star(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("*")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Star))
-}
-
-pub fn slash(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag("/")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Slash))
-}
-
-pub fn colon(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag(":")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Colon))
-}
-
-pub fn comma(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag(",")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Comma))
-}
-
-pub fn semic(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag(";")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Semic))
-}
-
-pub fn asgn(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
-    let res = tag(":=")(rem)?;
-    let res = parse_whitespace(res.0)?;
-    Ok((res.0, Tokens::Asgn))
+    Ok((rem, Tokens::Other))
 }
 
 fn ident_first_char(input: &str) -> IResult<&str, char> {
@@ -269,12 +73,57 @@ pub fn intlit(input: &str) -> IResult<&str, Tokens> {
     Ok((rem, x))
 }
 
-/*pub fn comment<'a>(input: &'a str) -> IResult<&'a str, &'a str> {
-    let res = many0(one_comment).parse(input)?;
-    Ok((res.0, ""))
-}*/
-
 fn comment(input: &str) -> IResult<&str, &str> {
     let res = pair(tag("//"), not_line_ending).parse(input)?;
     Ok((res.0, ""))
+}
+
+pub fn eq(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, "=")?;
+    Ok((res.0, Tokens::Eq))
+}
+
+pub fn ne(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, "#")?;
+    Ok((res.0, Tokens::Ne))
+}
+
+pub fn lt(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, "<")?;
+    Ok((res.0, Tokens::Lt))
+}
+
+pub fn gt(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, ">")?;
+    Ok((res.0, Tokens::Gt))
+}
+
+pub fn ge(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, ">=")?;
+    Ok((res.0, Tokens::Ge))
+}
+
+pub fn le(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, "<=")?;
+    Ok((res.0, Tokens::Le))
+}
+
+pub fn plus(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, "+")?;
+    Ok((res.0, Tokens::Plus))
+}
+
+pub fn minus(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, "-")?;
+    Ok((res.0, Tokens::Minus))
+}
+
+pub fn star(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, "*")?;
+    Ok((res.0, Tokens::Star))
+}
+
+pub fn slash(input: &str) -> IResult<&str, Tokens> {
+    let res = parse_tag(input, "/")?;
+    Ok((res.0, Tokens::Slash))
 }
