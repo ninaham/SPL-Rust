@@ -8,6 +8,7 @@ use semant::{SemanticError, build_symbol_table::build_symbol_table, check_def_gl
 
 pub mod absyn;
 pub mod cli;
+pub mod code_gen;
 pub mod parser;
 pub mod semant;
 pub mod table;
