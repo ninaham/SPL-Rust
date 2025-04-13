@@ -1,0 +1,1 @@
+trait tac_teil {}
