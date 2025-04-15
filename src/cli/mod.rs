@@ -15,11 +15,10 @@ lazy_static! {
         ArgGroup::new("phase")
             .required(true)
             .args([
-                "tokens", "parse", "absyn", "tables", "semant", "vars", "tac"
+                "parse", "absyn", "tables", "semant", "vars", "tac"
             ])
     )
 )]
-
 pub struct Cli {
     /// Phase 1: Scans for tokens and prints them.
     #[arg(long)]

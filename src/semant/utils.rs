@@ -5,11 +5,7 @@ use crate::{
 
 impl Type {
     pub fn is_array(&self) -> bool {
-        if let Self::ArrayType(_) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Self::ArrayType(_))
     }
 
     pub fn is_bool(&self) -> bool {
@@ -23,10 +19,6 @@ impl Type {
 
 impl Expression {
     pub fn is_variable(&self) -> bool {
-        if let Self::VariableExpression(_) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Self::VariableExpression(_))
     }
 }

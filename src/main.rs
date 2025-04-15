@@ -4,6 +4,7 @@ use std::fs;
 
 use cli::CLI_INPUT;
 use parser::parse_everything_else::parse;
+use semant::{build_symbol_table::build_symbol_table, check_def_global};
 
 pub mod absyn;
 pub mod cli;
@@ -21,7 +22,12 @@ fn main() {
             file_name.to_str().unwrap()
         ))
         .unwrap();
-        let _n = parse(test.as_str());
+        let n = parse(test.as_str());
+        let table = build_symbol_table(&n);
+        n.definitions
+            .iter()
+            .try_for_each(|def| check_def_global(def, &table))
+            .unwrap();
         //println!("{:#?}", n);
         println!("{:#?}", *CLI_INPUT);
     }
