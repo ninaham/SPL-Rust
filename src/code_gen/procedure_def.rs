@@ -2,8 +2,11 @@
 use std::fmt::format;
 
 use crate::absyn::{
-    absyn::Statement, assign_statement::AssignStatement, call_statement::CallStatement,
-    if_statement::IfStatement, procedure_definition::ProcedureDefinition,
+    absyn::{Expression, Statement, Variable},
+    assign_statement::{self, AssignStatement},
+    call_statement::CallStatement,
+    if_statement::IfStatement,
+    procedure_definition::ProcedureDefinition,
     while_statement::WhileStatement,
 };
 
@@ -19,7 +22,7 @@ impl<'a> Tac<'a> {
         }
     }
 
-    fn eval_statement(&self, statement: &Statement) {
+    fn eval_statement(&mut self, statement: &Statement) {
         match statement {
             Statement::AssignStatement(assign) => {
                 self.eval_assign_statement(assign.as_ref());
@@ -42,15 +45,39 @@ impl<'a> Tac<'a> {
         }
     }
 
-    fn eval_assign_statement(&self, assign: &AssignStatement) {}
+    fn eval_assign_statement(&mut self, assign: &AssignStatement) {
+        let mut assign_quad = Quadrupel::new();
+        if let Variable::NamedVariable(name) = &assign.target {
+            assign_quad.op = QuadrupelOp::Assign;
+            assign_quad.arg1 = name.clone();
+        } else {
+            assign_quad.op = QuadrupelOp::ArrayStore;
+            assign_quad.arg1 = self.get_base_name(&assign.target, "".to_string())
+        }
 
-    fn eval_if_statement(&self, if_state: &IfStatement) {}
+        assign_quad.arg2 = self.eval_expression(&assign.value);
+        self.quadrupels.push(assign_quad);
+    }
 
-    fn eval_while_statement(&self, while_state: &WhileStatement) {}
+    fn eval_if_statement(&mut self, if_state: &IfStatement) {}
+
+    fn eval_while_statement(&mut self, while_state: &WhileStatement) {}
 
     fn eval_call_statement(&self, call_state: &CallStatement) {}
 
-    fn eval_expression(&self) {}
+    fn eval_expression(&self, exp: &Expression) -> String {
+        "".to_string()
+    }
+
+    fn get_base_name(&self, variable: &'a Variable, rname: String) -> String {
+        match variable {
+            Variable::NamedVariable(name) => format!("{}{}", name, rname),
+            Variable::ArrayAccess(array_access) => self.get_base_name(
+                &array_access.array,
+                format!("{}[{}]", rname, self.eval_expression(&array_access.index)),
+            ),
+        }
+    }
 
     fn add_label(&mut self, name: Option<String>) {
         self.label_stack.push(self.label_num);
@@ -60,7 +87,6 @@ impl<'a> Tac<'a> {
         } else {
             label = format!("T{}:", self.label_num);
         }
-        self.label_table.insert(label.clone(), self.label_num);
         self.label_num += 1;
         let mut new_quad: Quadrupel = Quadrupel::new();
         new_quad.op = QuadrupelOp::Label(label);
