@@ -20,21 +20,26 @@ pub fn build_symbol_table(program: &Program) -> SymbolTable {
         entries: HashMap::new(),
     };
 
-    for def in program.definitions.iter() {
-        let (name, entry) = enter_global_def(def.as_ref(), &global_table);
+    global_table.init();
 
-        global_table.enter(name, entry).unwrap();
-    }
+    program
+        .definitions
+        .iter()
+        .for_each(|def| enter_global_def(def, &mut global_table));
 
     global_table
 }
 
-pub fn enter_global_def(def: &Definition, table: &SymbolTable) -> (String, Entry) {
+pub fn enter_global_def(def: &Definition, table: &mut SymbolTable) {
     match def {
         Definition::ProcedureDefinition(procedure_definition) => {
-            enter_procedure_def(procedure_definition, table)
+            let (name, entry) = enter_procedure_def(procedure_definition, table);
+            table.enter(name, entry).unwrap();
         }
-        Definition::TypeDefinition(type_definition) => enter_type_def(type_definition, table),
+        Definition::TypeDefinition(type_definition) => {
+            let (name, entry) = enter_type_def(type_definition, table);
+            table.enter(name, entry).unwrap();
+        }
     }
 }
 
@@ -53,7 +58,7 @@ pub fn enter_procedure_def(def: &ProcedureDefinition, table: &SymbolTable) -> (S
 
     def.parameters
         .iter()
-        .for_each(|def| enter_param_def(def, &mut local_table));
+        .for_each(|def| enter_param_def(def, &mut local_table, table));
 
     let parameter_types = def
         .parameters
@@ -66,7 +71,7 @@ pub fn enter_procedure_def(def: &ProcedureDefinition, table: &SymbolTable) -> (S
 
     def.variales
         .iter()
-        .for_each(|def| enter_var_def(def, &mut local_table));
+        .for_each(|def| enter_var_def(def, &mut local_table, table));
 
     let entry = ProcedureEntry {
         local_table,
@@ -95,9 +100,13 @@ pub fn type_expression_to_type(type_ex: &TypeExpression, table: &SymbolTable) ->
     }
 }
 
-pub fn enter_var_def(def: &VariableDefinition, table: &mut SymbolTable) {
+pub fn enter_var_def(
+    def: &VariableDefinition,
+    table: &mut SymbolTable,
+    global_table: &SymbolTable,
+) {
     let entry = VariableEntry {
-        typ: type_expression_to_type(&def.type_expression, table),
+        typ: type_expression_to_type(&def.type_expression, global_table),
         is_reference: false,
     };
 
@@ -106,9 +115,13 @@ pub fn enter_var_def(def: &VariableDefinition, table: &mut SymbolTable) {
         .unwrap();
 }
 
-pub fn enter_param_def(def: &ParameterDefinition, table: &mut SymbolTable) {
+pub fn enter_param_def(
+    def: &ParameterDefinition,
+    table: &mut SymbolTable,
+    global_table: &SymbolTable,
+) {
     let entry = VariableEntry {
-        typ: type_expression_to_type(&def.type_expression, table),
+        typ: type_expression_to_type(&def.type_expression, global_table),
         is_reference: def.is_reference,
     };
 

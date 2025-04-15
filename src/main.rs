@@ -24,11 +24,7 @@ fn main() {
         .unwrap();
         let n = parse(test.as_str());
         let table = build_symbol_table(&n);
-        n.definitions
-            .iter()
-            .try_for_each(|def| check_def_global(def, &table))
-            .unwrap();
         //println!("{:#?}", n);
-        println!("{:#?}", *CLI_INPUT);
+        //println!("{:#?}", *CLI_INPUT);
     }
 }

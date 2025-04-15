@@ -1,4 +1,5 @@
 pub mod build_symbol_table;
+pub mod table_initializer;
 mod utils;
 
 use crate::{
