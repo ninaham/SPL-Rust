@@ -16,7 +16,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct SemanticError {
-    _msg: &'static str,
+    _msg: String,
     //pos: i64,
 }
 
@@ -61,7 +61,7 @@ fn check_statement(
             let cond_expr_type = check_expression(&s.condition, table, global_table)?;
             if !cond_expr_type.is_bool() {
                 return Err(SemanticError {
-                    _msg: "IfConditionMustBeBoolean",
+                    _msg: format!("IfConditionMustBeBoolean: {s:?}"),
                     //pos: s.condition.pos,
                 });
             }
@@ -79,34 +79,48 @@ fn check_statement(
 
         Statement::CallStatement(s) => {
             let proc = global_table.lookup(&s.name, None).ok_or(SemanticError {
-                _msg: "UndefinedIdentifier",
+                _msg: format!("UndefinedIdentifier: {s:?}"),
                 //pos: s.pos,
             })?;
             let Entry::ProcedureEntry(proc) = proc else {
                 return Err(SemanticError {
-                    _msg: "CallOfNonProcedure",
+                    _msg: format!("CallOfNonProcedure: {proc:?} {s:?}"),
                     //pos: s.pos,
                 });
             };
 
             if s.arguments.len() != proc.parameter_types.len() {
                 return Err(SemanticError {
-                    _msg: "ArgumentCountMismatch",
+                    _msg: format!(
+                        "ArgumentCountMismatch: {:?} {:?}",
+                        s.arguments, proc.parameter_types
+                    ),
                     //pos: s.pos,
                 });
             }
 
-            for (arg, param) in s.arguments.iter().zip(proc.parameter_types.iter()) {
+            for (i, (arg, param)) in s
+                .arguments
+                .iter()
+                .zip(proc.parameter_types.iter())
+                .enumerate()
+            {
                 let arg_type = check_expression(arg, table, global_table)?;
                 if arg_type != &param.typ {
                     return Err(SemanticError {
-                        _msg: "ArgumentTypeMismatch",
+                        _msg: format!(
+                            "ArgumentTypeMismatch: {}(): arg {i}: [{param:?}] {arg:?}",
+                            s.name
+                        ),
                         //pos: arg.pos,
                     });
                 }
-                if param.is_reference && arg.is_variable() {
+                if param.is_reference && !arg.is_variable() {
                     return Err(SemanticError {
-                        _msg: "ArgumentMustBeAVariable",
+                        _msg: format!(
+                            "ArgumentMustBeAVariable: {}(): arg {i}: [{param:?}] {arg:?}",
+                            s.name
+                        ),
                         //pos: arg.pos,
                     });
                 }
@@ -119,7 +133,7 @@ fn check_statement(
             let cond_expr_type = check_expression(&s.condition, table, global_table)?;
             if !cond_expr_type.is_bool() {
                 return Err(SemanticError {
-                    _msg: "WhileConditionMustBeBoolean",
+                    _msg: format!("WhileConditionMustBeBoolean: {s:?}"),
                     //pos: s.condition.pos,
                 });
             }
@@ -135,7 +149,7 @@ fn check_statement(
 
             if target_type.is_array() || target_type != value_type {
                 return Err(SemanticError {
-                    _msg: "IllegalAssignment",
+                    _msg: format!("IllegalAssignment: {s:?}"),
                     //pos: s.pos,
                 });
             }
@@ -152,7 +166,7 @@ fn check_statement(
 /* --- Expressions ---------------------------------------- */
 
 fn check_expression<'a>(
-    expr: &Expression,
+    expr: &'a Expression,
     table: &'a SymbolTable,
     global_table: &'a SymbolTable,
 ) -> Result<&'a Type, SemanticError> {
@@ -161,20 +175,26 @@ fn check_expression<'a>(
             let left_type = check_expression(&expr.left, table, global_table)?;
             let right_type = check_expression(&expr.right, table, global_table)?;
 
-            if left_type != right_type {
+            let Some(result_type) = expr.operator.result_type(left_type, right_type) else {
                 return Err(SemanticError {
-                    _msg: "OperandTypeMismatch",
+                    _msg: format!("OperandTypeMismatch: {expr:?}"),
                     //pos: expr.pos,
                 });
-            }
-            // TODO: also check if operands' types match operator
+            };
 
-            Ok(left_type)
+            Ok(result_type)
         }
         Expression::UnaryExpression(expr) => {
-            let operand_type = check_expression(&expr.operand, table, global_table)?;
-            // TODO: check if operand's type matches operator
-            Ok(operand_type)
+            let right_type = check_expression(&expr.operand, table, global_table)?;
+
+            let Some(result_type) = expr.operator.result_type(right_type) else {
+                return Err(SemanticError {
+                    _msg: format!("OperandTypeMismatch: {expr:?}"),
+                    //pos: expr.pos,
+                });
+            };
+
+            Ok(result_type)
         }
         Expression::IntLiteral(_) => Ok(&Type::PrimitiveType(PrimitiveType::Int)),
         Expression::VariableExpression(var) => check_variable(var, table, global_table),
@@ -191,12 +211,12 @@ fn check_variable<'a>(
             let entry = table
                 .lookup(var_name, Some(global_table))
                 .ok_or(SemanticError {
-                    _msg: "UndefinedIdentifier",
+                    _msg: format!("UndefinedIdentifier: {var:?}"),
                     //pos: var.pos,
                 })?;
             let Entry::VariableEntry(entry) = entry else {
                 return Err(SemanticError {
-                    _msg: "NotAVariable",
+                    _msg: format!("NotAVariable: {entry:?} {var:?}"),
                     //pos: var.pos,
                 });
             };
@@ -207,7 +227,7 @@ fn check_variable<'a>(
             let array_type = check_variable(&arr_acc.array, table, global_table)?;
             let Type::ArrayType(array_type) = array_type else {
                 return Err(SemanticError {
-                    _msg: "IndexingNonArray",
+                    _msg: format!("IndexingNonArray: {var:?}"),
                     //pos: arr_acc.pos,
                 });
             };
@@ -215,7 +235,7 @@ fn check_variable<'a>(
             let index_type = check_expression(&arr_acc.index, table, global_table)?;
             if !index_type.is_int() {
                 return Err(SemanticError {
-                    _msg: "IndexTypeMismatch",
+                    _msg: format!("IndexTypeMismatch: {var:?}"),
                     //pos: arr_acc.pos,
                 });
             }

@@ -2,7 +2,7 @@
 
 use std::fs;
 
-use cli::CLI_INPUT;
+//use cli::CLI_INPUT;
 use parser::parse_everything_else::parse;
 use semant::{build_symbol_table::build_symbol_table, check_def_global};
 
@@ -24,6 +24,13 @@ fn main() {
         .unwrap();
         let n = parse(test.as_str());
         let table = build_symbol_table(&n);
+        if let Err(err) = n
+            .definitions
+            .iter()
+            .try_for_each(|def| check_def_global(def, &table))
+        {
+            println!("{err:?}\n");
+        }
         //println!("{:#?}", n);
         //println!("{:#?}", *CLI_INPUT);
     }
