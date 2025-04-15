@@ -1,13 +1,12 @@
 use crate::{
     absyn::absyn::{Definition, Program},
-    table::symbol_table::SymbolTable,
+    table::{symbol_table::SymbolTable, types::Type},
 };
-use std::fmt;
+use std::{collections::HashMap, fmt};
 mod procedure_def;
-mod type_def;
 
 #[derive(Debug)]
-pub enum QuatrupelOp {
+pub enum QuadrupelOp {
     Add,
     Sub,
     Mul,
@@ -25,31 +24,43 @@ pub enum QuatrupelOp {
     Goto,       // let the fun begin
     IfGoto,     // if x relop y goto L
     Label(String),
-    Param,
+    Param(Type),
     Call, // call p, n
+    Default,
 }
 
-impl fmt::Display for QuatrupelOp {
+impl fmt::Display for QuadrupelOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            QuatrupelOp::Label(label) => write!(f, "{}:", label),
-            other => write!(f, "{}", format!("{:?}", other).to_lowercase()),
+            QuadrupelOp::Label(label) => write!(f, "{}:", label),
+            other => write!(f, "{}", format!("{:?}", other).to_uppercase()),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct Quatrupels {
-    pub op: QuatrupelOp,
+pub struct Quadrupel {
+    pub op: QuadrupelOp,
     pub arg1: String,
     pub arg2: String,
     pub result: String,
 }
 
-impl fmt::Display for Quatrupels {
+pub struct Tac<'a> {
+    pub quadrupels: Vec<Quadrupel>,
+    ast: &'a mut Program,
+    symboltable: &'a SymbolTable,
+    label_stack: Vec<i64>,
+    label_num: i64,
+    label_table: HashMap<String, i64>,
+    temp_var_stack: Vec<i64>,
+    temp_var_count: i64,
+}
+
+impl fmt::Display for Quadrupel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.op {
-            QuatrupelOp::Label(_) => {
+            QuadrupelOp::Label(_) => {
                 write!(f, "{}", self.op)
             }
             _ => {
@@ -63,13 +74,28 @@ impl fmt::Display for Quatrupels {
     }
 }
 
-pub fn code_generation(ast: &mut Program, symboltable: &SymbolTable) -> Vec<Quatrupels> {
-    let mut quad_code: Vec<Quatrupels> = vec![];
-    while let Some(definition) = ast.definitions.pop_front() {
-        match *definition {
-            Definition::ProcedureDefinition(proc_def) => {}
-            Definition::TypeDefinition(type_def) => {}
+impl<'a> Tac<'a> {
+    pub fn new(ast: &'a mut Program, symboltable: &'a SymbolTable) -> Self {
+        Tac {
+            quadrupels: vec![],
+            ast,
+            symboltable,
+            label_stack: vec![],
+            label_num: 0,
+            label_table: HashMap::new(),
+            temp_var_stack: vec![],
+            temp_var_count: 0,
         }
     }
-    quad_code
+
+    pub fn code_generation(&mut self) {
+        for definition in &self.ast.definitions {
+            match definition.as_ref() {
+                Definition::ProcedureDefinition(proc_def) => {
+                    self.eval_proc_def(proc_def);
+                }
+                _ => {}
+            }
+        }
+    }
 }
