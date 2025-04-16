@@ -13,7 +13,7 @@ use crate::absyn::{
 use super::{Quadrupel, QuadrupelOp, Tac};
 
 impl<'a> Tac<'a> {
-    pub(super) fn eval_proc_def(&mut self, proc_def: &ProcedureDefinition) {
+    pub(super) fn eval_proc_def(&mut self, proc_def: &'a ProcedureDefinition) {
         let mut new_quad: Quadrupel = Quadrupel::new();
         new_quad.op = QuadrupelOp::Label(proc_def.name.clone());
         self.quadrupels.push(new_quad);
@@ -22,7 +22,7 @@ impl<'a> Tac<'a> {
         }
     }
 
-    fn eval_statement(&mut self, statement: &Statement) {
+    fn eval_statement(&mut self, statement: &'a Statement) {
         match statement {
             Statement::AssignStatement(assign) => {
                 self.eval_assign_statement(assign.as_ref());
@@ -45,7 +45,7 @@ impl<'a> Tac<'a> {
         }
     }
 
-    fn eval_assign_statement(&mut self, assign: &AssignStatement) {
+    fn eval_assign_statement(&mut self, assign: &'a AssignStatement) {
         let mut assign_quad = Quadrupel::new();
         if let Variable::NamedVariable(name) = &assign.target {
             assign_quad.op = QuadrupelOp::Assign;
@@ -59,23 +59,44 @@ impl<'a> Tac<'a> {
         self.quadrupels.push(assign_quad);
     }
 
-    fn eval_if_statement(&mut self, if_state: &IfStatement) {}
-
-    fn eval_while_statement(&mut self, while_state: &WhileStatement) {}
-
-    fn eval_call_statement(&self, call_state: &CallStatement) {}
-
-    fn eval_expression(&self, exp: &Expression) -> String {
-        "".to_string()
+    fn eval_if_statement(&mut self, if_state: &'a IfStatement) {
+        todo!("fill me with code")
     }
 
-    fn get_base_name(&self, variable: &'a Variable, rname: String) -> String {
+    fn eval_while_statement(&mut self, while_state: &WhileStatement) {
+        todo!("fill me with code")
+    }
+
+    fn eval_call_statement(&mut self, call_state: &'a CallStatement) {
+        let mut count = 0;
+        let name = call_state.name.clone();
+        for param in &call_state.arguments {
+            count += 1;
+            let param = self.eval_expression(&param);
+            let mut quad = Quadrupel::new();
+            quad.op = QuadrupelOp::Param;
+            quad.arg1 = param;
+            self.quadrupels.push(quad);
+        }
+        let mut quad = Quadrupel::new();
+        quad.op = QuadrupelOp::Call;
+        quad.arg1 = name;
+        quad.arg2 = count.to_string();
+        self.quadrupels.push(quad);
+    }
+
+    fn eval_expression(&mut self, exp: &Expression) -> String {
+        todo!("fill me with code")
+    }
+
+    fn get_base_name(&mut self, variable: &'a Variable, rname: String) -> String {
         match variable {
-            Variable::NamedVariable(name) => format!("{}{}", name, rname),
-            Variable::ArrayAccess(array_access) => self.get_base_name(
-                &array_access.array,
-                format!("{}[{}]", rname, self.eval_expression(&array_access.index)),
-            ),
+            Variable::NamedVariable(name) => format!("{}{}", name.clone(), rname),
+            Variable::ArrayAccess(array_access) => {
+                let index_value = self.eval_expression(&array_access.index.clone());
+                let new_rname = format!("{}[{}]", rname, index_value);
+                self.get_base_name(&array_access.array, new_rname)
+            }
         }
     }
 

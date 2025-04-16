@@ -1,7 +1,7 @@
 #![expect(dead_code)]
 use crate::{
     absyn::absyn::{Definition, Program},
-    table::{symbol_table::SymbolTable, types::Type},
+    table::symbol_table::SymbolTable,
 };
 use std::{collections::HashMap, fmt};
 mod procedure_def;
@@ -25,7 +25,7 @@ pub enum QuadrupelOp {
     Goto,       // let the fun begin
     IfGoto,     // if x relop y goto L
     Label(String),
-    Param(Type),
+    Param,
     Call, // call p, n
     Default,
 }
@@ -87,7 +87,7 @@ impl<'a> Tac<'a> {
         }
     }
 
-    pub fn code_generation(&mut self, ast: &Program) {
+    pub fn code_generation(&mut self, ast: &'a Program) {
         let definitions: Vec<_> = ast.definitions.iter().collect();
         for definition in definitions {
             let name: String;
