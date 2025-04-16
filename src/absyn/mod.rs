@@ -1,3 +1,4 @@
+#[allow(clippy::module_inception)]
 pub mod absyn;
 pub mod array_access;
 pub mod array_type_expression;

@@ -1,26 +1,35 @@
-use std::{collections::HashMap, fmt::Error};
+use std::collections::HashMap;
+
+use crate::semant::SemanticError;
 
 use super::entry::Entry;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SymbolTable {
     pub entries: HashMap<String, Entry>,
-    pub upper_level: Option<Box<SymbolTable>>,
 }
 
 impl SymbolTable {
-    pub fn enter(&mut self, name: String, entry: Entry) -> Result<(), Error> {
-        // Check if the name already exists in the current symbol table, define SPLError if necessary
+    pub fn enter(&mut self, name: String, entry: Entry) -> Result<(), SemanticError> {
+        if self.entries.contains_key(&name) {
+            return Err(SemanticError {
+                _msg: format!("Symbol {} already defined", name),
+            });
+        }
         self.entries.insert(name, entry);
         Ok(())
     }
 
-    pub fn lookup(&self, name: &str) -> Option<&Entry> {
+    pub fn lookup<'a>(
+        &'a self,
+        name: &str,
+        upper_level: Option<&'a SymbolTable>,
+    ) -> Option<&'a Entry> {
         if let Some(entry) = self.entries.get(name) {
             return Some(entry);
         }
-        if let Some(upper_level) = &self.upper_level {
-            return upper_level.lookup(name);
+        if let Some(upper_level) = upper_level {
+            return upper_level.lookup(name, None);
         }
         None
     }

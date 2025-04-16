@@ -24,12 +24,13 @@ use crate::{
         variable_definition::VariableDefinition,
         while_statement::WhileStatement,
     },
-    parser::token_parser::{
-        ident, intlit
-    },
+    parser::token_parser::{ident, intlit},
 };
 
-use super::{token_parser::{eq, ge, gt, le, lt, minus, ne, parse_tag, plus, slash, star}, tokens::Tokens};
+use super::{
+    token_parser::{eq, ge, gt, le, lt, minus, ne, parse_tag, plus, slash, star},
+    tokens::Tokens,
+};
 
 pub fn parse(input: &str) -> Program {
     let (rem, n) = match program(input) {
@@ -420,70 +421,58 @@ fn expression(input: &str) -> IResult<&str, Expression> {
 
 fn expression0(input: &str) -> IResult<&str, Expression> {
     let (mut inp, mut expr) = expression2(input)?;
-    loop {
-        if let Ok((rem, op)) = alt([eq, ne, le, lt, ge, gt]).parse(inp) {
-            let (rem, right) = expression2(rem)?;
-            expr = Expression::BinaryExpression(Box::new(BinaryExpression {
-                operator: match op {
-                    Tokens::Eq => Operator::Equ,
-                    Tokens::Ne => Operator::Neq,
-                    Tokens::Le => Operator::Lse,
-                    Tokens::Lt => Operator::Lst,
-                    Tokens::Ge => Operator::Gre,
-                    Tokens::Gt => Operator::Grt,
-                    _ => unreachable!(),
-                },
-                left: expr,
-                right,
-            }));
-            inp = rem;
-        } else {
-            break;
-        }
+    while let Ok((rem, op)) = alt([eq, ne, le, lt, ge, gt]).parse(inp) {
+        let (rem, right) = expression2(rem)?;
+        expr = Expression::BinaryExpression(Box::new(BinaryExpression {
+            operator: match op {
+                Tokens::Eq => Operator::Equ,
+                Tokens::Ne => Operator::Neq,
+                Tokens::Le => Operator::Lse,
+                Tokens::Lt => Operator::Lst,
+                Tokens::Ge => Operator::Gre,
+                Tokens::Gt => Operator::Grt,
+                _ => unreachable!(),
+            },
+            left: expr,
+            right,
+        }));
+        inp = rem;
     }
     Ok((inp, expr))
 }
 
 fn expression2(input: &str) -> IResult<&str, Expression> {
     let (mut inp, mut expr) = expression3(input)?;
-    loop {
-        if let Ok((rem, op)) = alt([plus, minus]).parse(inp) {
-            let (rem, right) = expression3(rem)?;
-            expr = Expression::BinaryExpression(Box::new(BinaryExpression {
-                operator: match op {
-                    Tokens::Plus => Operator::Add,
-                    Tokens::Minus => Operator::Sub,
-                    _ => unreachable!(),
-                },
-                left: expr,
-                right,
-            }));
-            inp = rem;
-        } else {
-            break;
-        }
+    while let Ok((rem, op)) = alt([plus, minus]).parse(inp) {
+        let (rem, right) = expression3(rem)?;
+        expr = Expression::BinaryExpression(Box::new(BinaryExpression {
+            operator: match op {
+                Tokens::Plus => Operator::Add,
+                Tokens::Minus => Operator::Sub,
+                _ => unreachable!(),
+            },
+            left: expr,
+            right,
+        }));
+        inp = rem;
     }
     Ok((inp, expr))
 }
 
 fn expression3(input: &str) -> IResult<&str, Expression> {
     let (mut inp, mut expr) = expression4(input)?;
-    loop {
-        if let Ok((rem, op)) = alt([star, slash]).parse(inp) {
-            let (rem, right) = expression4(rem)?;
-            expr = Expression::BinaryExpression(Box::new(BinaryExpression {
-                operator: match op {
-                    Tokens::Star => Operator::Mul,
-                    Tokens::Slash => Operator::Div,
-                    _ => unreachable!(),
-                },
-                left: expr,
-                right,
-            }));
-            inp = rem;
-        } else {
-            break;
-        }
+    while let Ok((rem, op)) = alt([star, slash]).parse(inp) {
+        let (rem, right) = expression4(rem)?;
+        expr = Expression::BinaryExpression(Box::new(BinaryExpression {
+            operator: match op {
+                Tokens::Star => Operator::Mul,
+                Tokens::Slash => Operator::Div,
+                _ => unreachable!(),
+            },
+            left: expr,
+            right,
+        }));
+        inp = rem;
     }
     Ok((inp, expr))
 }
