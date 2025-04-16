@@ -46,6 +46,76 @@ impl SymbolTable {
                     is_reference: true,
                 }],
             ),
+            (
+                "clearAll",
+                vec![ParameterType {
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                }],
+            ),
+            (
+                "setPixel",
+                vec![
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                ],
+            ),
+            (
+                "drawLine",
+                vec![
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                ],
+            ),
+            (
+                "drawCircle",
+                vec![
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                    ParameterType {
+                        typ: Type::PrimitiveType(PrimitiveType::Int),
+                        is_reference: false,
+                    },
+                ],
+            ),
         ];
 
         for t in types {

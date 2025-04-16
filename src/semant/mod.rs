@@ -16,7 +16,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct SemanticError {
-    _msg: String,
+    pub _msg: String,
     //pos: i64,
 }
 
