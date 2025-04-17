@@ -1,11 +1,11 @@
 use std::collections::LinkedList;
 
 use nom::{
-    IResult, Parser,
     branch::alt,
     character::complete::{char, space0},
     multi::fold_many0,
     sequence::{delimited, preceded},
+    IResult, Parser,
 };
 
 use crate::{
@@ -399,6 +399,7 @@ fn variable(input: &str) -> IResult<&str, Variable> {
             Variable::ArrayAccess(Box::new(ArrayAccess {
                 array: acc,
                 index: idx,
+                typ: None,
             }))
         },
     )

@@ -5,8 +5,9 @@ use crate::{
 };
 use std::{collections::HashMap, fmt};
 mod procedure_def;
+mod utils;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum QuadrupelOp {
     Add,
     Sub,
@@ -23,8 +24,6 @@ pub enum QuadrupelOp {
     ArrayLoad,  // x = y[i]   =[]
     ArrayStore, // x[i] = y   []=
     Goto,       // let the fun begin
-    IfGoto,     // if x relop y goto L
-    Label(String),
     Param,
     Call, // call p, n
     Default,
@@ -32,9 +31,55 @@ pub enum QuadrupelOp {
 
 impl fmt::Display for QuadrupelOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_uppercase())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum QuadrupelArg {
+    Var(QuadrupelVar),
+    Const(i32),
+    Empty,
+}
+
+impl fmt::Display for QuadrupelArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            QuadrupelOp::Label(label) => write!(f, "{}:", label),
-            other => write!(f, "{}", format!("{:?}", other).to_uppercase()),
+            Self::Var(var) => write!(f, "{var}"),
+            Self::Const(val) => write!(f, "{val}"),
+            Self::Empty => Ok(()),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum QuadrupelVar {
+    Spl(String),
+    Tmp(usize),
+}
+
+impl fmt::Display for QuadrupelVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Spl(var) => write!(f, "{var}"),
+            Self::Tmp(val) => write!(f, "T{val}"), // TODO: make temp vars unique
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum QuadrupelResult {
+    Var(QuadrupelVar),
+    Label(String),
+    Empty,
+}
+
+impl fmt::Display for QuadrupelResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Var(var) => write!(f, "{var}"),
+            Self::Label(name) => write!(f, "{name}"),
+            Self::Empty => Ok(()),
         }
     }
 }
@@ -42,9 +87,9 @@ impl fmt::Display for QuadrupelOp {
 #[derive(Debug, Clone)]
 pub struct Quadrupel {
     pub op: QuadrupelOp,
-    pub arg1: String,
-    pub arg2: String,
-    pub result: String,
+    pub arg1: QuadrupelArg,
+    pub arg2: QuadrupelArg,
+    pub result: QuadrupelResult,
 }
 
 pub struct Tac<'a> {
@@ -59,18 +104,11 @@ pub struct Tac<'a> {
 
 impl fmt::Display for Quadrupel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.op {
-            QuadrupelOp::Label(_) => {
-                write!(f, "{}", self.op)
-            }
-            _ => {
-                write!(
-                    f,
-                    "{:<8} {:<8} {:<8} {:<8}",
-                    self.op, self.arg1, self.arg2, self.result
-                )
-            }
-        }
+        write!(
+            f,
+            "{:<8} {:<8} {:<8} {:<8}",
+            self.op, self.arg1, self.arg2, self.result
+        )
     }
 }
 
@@ -105,7 +143,7 @@ impl<'a> Tac<'a> {
                     self.temp_var_stack.clear();
                     self.temp_var_count = 0;
                 }
-                _ => {}
+                Definition::TypeDefinition(_) => {}
             }
         }
     }

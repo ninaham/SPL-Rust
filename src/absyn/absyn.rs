@@ -35,7 +35,7 @@ pub enum TypeExpression {
 pub enum Expression {
     BinaryExpression(Box<BinaryExpression>),
     UnaryExpression(Box<UnaryExpression>),
-    IntLiteral(i64),
+    IntLiteral(i32),
     VariableExpression(Box<Variable>),
 }
 

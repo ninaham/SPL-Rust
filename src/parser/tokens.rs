@@ -11,5 +11,5 @@ pub enum Tokens {
     Star,
     Slash,
     Ident(String),
-    Intlit(i64),
+    Intlit(i32),
 }
