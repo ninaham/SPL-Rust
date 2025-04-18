@@ -91,8 +91,7 @@ impl<'a> Tac<'a> {
     }
 
     fn eval_if_statement(&mut self, if_state: &'a IfStatement) {
-        let jmp_label = format!("L{}", self.label_num);
-        self.label_num += 1;
+        let jmp_label = self.create_label(None);
         let mut if_quad = Quadrupel::new();
         let ex = &if_state.condition;
         match ex {
@@ -100,32 +99,29 @@ impl<'a> Tac<'a> {
                 if_quad.op = QuadrupelOp::from(binex.operator);
                 if_quad.arg1 = self.eval_expression(&binex.left);
                 if_quad.arg2 = self.eval_expression(&binex.right);
-                if_quad.result = QuadrupelResult::Label(jmp_label.clone());
+                if_quad.result = jmp_label.clone();
                 self.quadrupels.push(if_quad);
             }
             _ => panic!("mistake in 'if' expression!"),
         }
         self.eval_statement(&if_state.then_branch);
-        self.add_label(Some(jmp_label));
+        self.emit_label(jmp_label);
         if let Some(state) = &if_state.else_branch {
             self.eval_statement(state);
         }
     }
 
     fn eval_while_statement(&mut self, while_state: &'a WhileStatement) {
-        let jmp_label = format!("L{}", self.label_num);
-        self.label_num += 1;
-        let while_label = self.label_num;
-        self.label_num += 1;
+        let jmp_label = self.create_label(None);
+        let while_label = self.create_label(None);
         let mut while_quad = Quadrupel::new();
-        self.add_label(Some(format!("L{}", while_label)));
         let ex = &while_state.condition;
         match ex {
             Expression::BinaryExpression(binex) => {
                 while_quad.op = QuadrupelOp::from(binex.operator);
                 while_quad.arg1 = self.eval_expression(&binex.left);
                 while_quad.arg2 = self.eval_expression(&binex.right);
-                while_quad.result = QuadrupelResult::Label(jmp_label.clone());
+                while_quad.result = jmp_label.clone();
                 self.quadrupels.push(while_quad);
             }
             _ => panic!("mistake in 'while' expression!"),
@@ -135,9 +131,9 @@ impl<'a> Tac<'a> {
             op: QuadrupelOp::Goto,
             arg1: QuadrupelArg::Empty,
             arg2: QuadrupelArg::Empty,
-            result: QuadrupelResult::Label(format!("L{}", while_label)),
+            result: while_label,
         });
-        self.add_label(Some(jmp_label));
+        self.emit_label(jmp_label);
     }
 
     fn eval_call_statement(&mut self, call_state: &'a CallStatement) {
@@ -189,7 +185,7 @@ impl<'a> Tac<'a> {
         array_var: QuadrupelVar,
         offset: QuadrupelVar,
     ) -> QuadrupelVar {
-        let tmp = self.add_tmp_var();
+        let tmp = self.create_tmp_var();
         let mut quad = Quadrupel::new();
         quad.op = QuadrupelOp::ArrayLoad;
         quad.arg1 = QuadrupelArg::Var(array_var);
@@ -205,7 +201,7 @@ impl<'a> Tac<'a> {
         left: QuadrupelArg,
         right: QuadrupelArg,
     ) -> QuadrupelVar {
-        let tmp = self.add_tmp_var();
+        let tmp = self.create_tmp_var();
         let mut quad = Quadrupel::new();
         quad.op = op.into();
         quad.arg1 = left;
@@ -216,7 +212,7 @@ impl<'a> Tac<'a> {
     }
 
     fn emit_expression_un(&mut self, op: UnaryOperator, left: QuadrupelArg) -> QuadrupelVar {
-        let tmp = self.add_tmp_var();
+        let tmp = self.create_tmp_var();
         let mut quad = Quadrupel::new();
         quad.op = op.into();
         quad.arg1 = left;
@@ -236,7 +232,7 @@ impl<'a> Tac<'a> {
         }
     }
 
-    fn add_label(&mut self, name: Option<String>) {
+    fn create_label(&mut self, name: Option<String>) -> QuadrupelResult {
         let label: String;
         if let Some(name) = name {
             label = name;
@@ -244,12 +240,17 @@ impl<'a> Tac<'a> {
             label = format!("L{}", self.label_num);
             self.label_num += 1;
         }
+        QuadrupelResult::Label(label)
+    }
+
+    fn emit_label(&mut self, label: QuadrupelResult) {
+        assert!(matches!(label, QuadrupelResult::Label(_)));
         let mut new_quad: Quadrupel = Quadrupel::new();
-        new_quad.result = QuadrupelResult::Label(label);
+        new_quad.result = label;
         self.quadrupels.push(new_quad);
     }
 
-    fn add_tmp_var(&mut self) -> QuadrupelVar {
+    fn create_tmp_var(&mut self) -> QuadrupelVar {
         let n = self.temp_var_count;
         self.temp_var_count += 1;
 
