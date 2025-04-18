@@ -2,6 +2,8 @@ pub mod build_symbol_table;
 pub mod table_initializer;
 mod utils;
 
+use std::fmt;
+
 use crate::{
     absyn::{
         absyn::{Definition, Expression, Statement, Variable},
@@ -19,6 +21,16 @@ pub struct SemanticError {
     pub _msg: String,
     //pos: i64,
 }
+
+impl fmt::Display for SemanticError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SemanticError: \"{}\"", self._msg)?;
+        //write!(f, "          pos: {}", self.pos)?;
+        Ok(())
+    }
+}
+
+impl std::error::Error for SemanticError {}
 
 /* --- Global --------------------------------------------- */
 
