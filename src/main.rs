@@ -1,11 +1,14 @@
 use cli::process_matches;
 
-pub mod absyn;
-pub mod cli;
-pub mod code_gen;
-pub mod parser;
-pub mod semant;
-pub mod table;
+mod absyn;
+mod base_blocks;
+mod cli;
+mod code_gen;
+mod parser;
+mod semant;
+mod table;
+
+// TODO: Ask about assigning to reference parameters
 
 fn main() -> anyhow::Result<()> {
     process_matches(&cli::load_program_data().get_matches())
@@ -17,6 +20,7 @@ mod test {
     use std::fs;
     use std::path::{Path, PathBuf};
 
+    use crate::base_blocks::BlockGraph;
     use crate::code_gen::Tac;
     use crate::parser::parse_everything_else::parse;
     use crate::semant::{build_symbol_table::build_symbol_table, check_def_global};
@@ -44,6 +48,8 @@ mod test {
 
         let mut address_code = Tac::new(&table);
         address_code.code_generation(&absyn);
+
+        BlockGraph::from_tac(address_code.proc_table.get("main").unwrap());
 
         Ok(())
     }

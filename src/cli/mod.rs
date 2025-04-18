@@ -2,6 +2,7 @@ use anyhow::{bail, Ok};
 use clap::{arg, ArgGroup, Command, Id};
 
 use crate::{
+    base_blocks::BlockGraph,
     code_gen::Tac,
     parser::parse_everything_else::parse,
     semant::{build_symbol_table::build_symbol_table, check_def_global},
@@ -60,6 +61,8 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         println!("{}", address_code);
         return Ok(());
     }
+
+    BlockGraph::from_tac(address_code.proc_table.get("main").unwrap());
 
     unreachable!()
 }

@@ -1,3 +1,5 @@
+#![expect(clippy::enum_variant_names)]
+
 use super::{symbol_table::SymbolTable, types::Type};
 
 #[derive(Debug, Clone)]
@@ -16,6 +18,7 @@ pub struct ProcedureEntry {
 #[derive(Debug, Clone)]
 pub struct VariableEntry {
     pub typ: Type,
+    #[expect(unused)]
     pub is_reference: bool,
 }
 
