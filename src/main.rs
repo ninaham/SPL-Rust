@@ -2,6 +2,7 @@
 
 use std::fs;
 
+use code_gen::Tac;
 //use cli::CLI_INPUT;
 use parser::parse_everything_else::parse;
 use semant::{SemanticError, build_symbol_table::build_symbol_table, check_def_global};
@@ -14,7 +15,7 @@ pub mod semant;
 pub mod table;
 
 fn main() -> Result<(), SemanticError> {
-    for entry in fs::read_dir("./spl-testfiles/runtime_tests/").unwrap() {
+    /*for entry in fs::read_dir("./spl-testfiles/runtime_tests/").unwrap() {
         let entry = entry.unwrap();
         let file_name = entry.file_name();
         println!("parsing {}", file_name.to_str().unwrap());
@@ -34,7 +35,13 @@ fn main() -> Result<(), SemanticError> {
         }
         //println!("{:#?}", n);
         //println!("{:#?}", *CLI_INPUT);
-    }
+    }*/
 
+    let test = fs::read_to_string("./spl-testfiles/runtime_tests/fak.spl").unwrap();
+    let n = parse(test.as_str());
+    let table = build_symbol_table(&n)?;
+    let mut tac = Tac::new(&table);
+    tac.code_generation(&n);
+    println!("{}", tac);
     Ok(())
 }

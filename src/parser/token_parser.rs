@@ -1,11 +1,11 @@
 use nom::{
+    IResult, Parser,
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, digit1, hex_digit1, multispace1, not_line_ending, satisfy},
     combinator::verify,
     multi::many0,
     sequence::{pair, preceded},
-    IResult, Parser,
 };
 
 use super::tokens::Tokens;

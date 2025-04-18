@@ -1,4 +1,6 @@
 #![expect(dead_code)]
+use colored::Colorize;
+
 use crate::{
     absyn::absyn::{Definition, Program},
     table::symbol_table::SymbolTable,
@@ -7,7 +9,7 @@ use std::{collections::HashMap, fmt};
 mod procedure_def;
 mod utils;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum QuadrupelOp {
     Add,
     Sub,
@@ -31,7 +33,15 @@ pub enum QuadrupelOp {
 
 impl fmt::Display for QuadrupelOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", format!("{:?}", self).to_uppercase())
+        if self == &QuadrupelOp::Default {
+            write!(f, "        ")
+        } else {
+            write!(
+                f,
+                "{:<8}",
+                format!("{:?}", self).to_uppercase().bright_blue()
+            )
+        }
     }
 }
 
@@ -45,9 +55,9 @@ pub enum QuadrupelArg {
 impl fmt::Display for QuadrupelArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Var(var) => write!(f, "{var}"),
-            Self::Const(val) => write!(f, "{val}"),
-            Self::Empty => Ok(()),
+            Self::Var(var) => write!(f, "{:<8}", format!("{}", var).truecolor(150, 150, 150)),
+            Self::Const(val) => write!(f, "{:<8}", format!("{}", val)),
+            Self::Empty => write!(f, "        "),
         }
     }
 }
@@ -61,8 +71,8 @@ pub enum QuadrupelVar {
 impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Spl(var) => write!(f, "{var}"),
-            Self::Tmp(val) => write!(f, "T{val}"), // TODO: make temp vars unique
+            Self::Spl(var) => write!(f, "{:<8}", var),
+            Self::Tmp(val) => write!(f, "T{:<8}", val), // TODO: make temp vars unique
         }
     }
 }
@@ -77,8 +87,8 @@ pub enum QuadrupelResult {
 impl fmt::Display for QuadrupelResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Var(var) => write!(f, "{var}"),
-            Self::Label(name) => write!(f, "{name}"),
+            Self::Var(var) => write!(f, "{}", format!("{}", var).truecolor(200, 200, 200)),
+            Self::Label(name) => write!(f, "{}", format!("{}", name)),
             Self::Empty => Ok(()),
         }
     }
@@ -97,18 +107,33 @@ pub struct Tac<'a> {
     symboltable: &'a SymbolTable,
     label_stack: Vec<i64>,
     label_num: i64,
-    proc_table: HashMap<String, Vec<Quadrupel>>,
+    pub proc_table: HashMap<String, Vec<Quadrupel>>,
     temp_var_stack: Vec<i64>,
     temp_var_count: i64,
 }
 
 impl fmt::Display for Quadrupel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.op == QuadrupelOp::Default {
+            return write!(f, "{}", format!("{}:", self.result).magenta());
+        }
+        let pipe = "|".to_string().truecolor(100, 100, 100);
         write!(
             f,
-            "{:<8} {:<8} {:<8} {:<8}",
+            "\t{}{pipe}{}{pipe}{}{pipe}{}",
             self.op, self.arg1, self.arg2, self.result
         )
+    }
+}
+
+impl fmt::Display for Tac<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for proc in self.proc_table.iter() {
+            for quad in proc.1 {
+                writeln!(f, "{}", quad)?;
+            }
+        }
+        Ok(())
     }
 }
 
