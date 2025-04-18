@@ -8,12 +8,12 @@ use super::{
     unary_expression::UnaryExpression, while_statement::WhileStatement,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Program {
     pub definitions: LinkedList<Box<Definition>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Definition {
     ProcedureDefinition(Box<ProcedureDefinition>),
     TypeDefinition(Box<TypeDefinition>),
@@ -25,7 +25,7 @@ pub enum Variable {
     ArrayAccess(Box<ArrayAccess>),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeExpression {
     ArrayTypeExpression(Box<ArrayTypeExpression>),
     NamedTypeExpression(String),
@@ -35,11 +35,11 @@ pub enum TypeExpression {
 pub enum Expression {
     BinaryExpression(Box<BinaryExpression>),
     UnaryExpression(Box<UnaryExpression>),
-    IntLiteral(i64),
+    IntLiteral(i32),
     VariableExpression(Box<Variable>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     AssignStatement(Box<AssignStatement>),
     IfStatement(Box<IfStatement>),

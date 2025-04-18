@@ -5,7 +5,7 @@ use super::{
     variable_definition::VariableDefinition,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProcedureDefinition {
     pub name: String,
     pub parameters: LinkedList<ParameterDefinition>,

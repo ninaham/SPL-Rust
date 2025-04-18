@@ -1,0 +1,222 @@
+#![expect(unused, unused_variables)]
+
+use crate::absyn::{
+    absyn::{Expression, Statement, Variable},
+    array_access::ArrayAccess,
+    assign_statement::AssignStatement,
+    binary_expression::Operator,
+    call_statement::CallStatement,
+    if_statement::IfStatement,
+    procedure_definition::ProcedureDefinition,
+    unary_expression::UnaryOperator,
+    while_statement::WhileStatement,
+};
+
+use super::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar, Tac};
+
+impl<'a> Tac<'a> {
+    pub(super) fn eval_proc_def(&mut self, proc_def: &'a ProcedureDefinition) {
+        let mut new_quad: Quadrupel = Quadrupel::new();
+        new_quad.result = QuadrupelResult::Label(proc_def.name.clone());
+        self.quadrupels.push(new_quad);
+        for statement in &proc_def.body {
+            self.eval_statement(statement);
+        }
+    }
+
+    fn eval_statement(&mut self, statement: &'a Statement) {
+        match statement {
+            Statement::AssignStatement(assign) => {
+                self.eval_assign_statement(assign.as_ref());
+            }
+            Statement::IfStatement(if_state) => {
+                self.eval_if_statement(if_state.as_ref());
+            }
+            Statement::WhileStatement(while_state) => {
+                self.eval_while_statement(while_state.as_ref());
+            }
+            Statement::CallStatement(call_state) => {
+                self.eval_call_statement(call_state.as_ref());
+            }
+            Statement::CompoundStatement(inner) => {
+                for statement in inner {
+                    self.eval_statement(statement.as_ref());
+                }
+            }
+            Statement::EmptyStatement => {}
+        }
+    }
+
+    fn eval_assign_statement(&mut self, assign: &'a AssignStatement) {
+        let mut assign_quad = Quadrupel::new();
+        match &assign.target {
+            Variable::NamedVariable(name) => {
+                assign_quad.op = QuadrupelOp::Assign;
+                assign_quad.result = QuadrupelResult::Var(QuadrupelVar::Spl(name.to_string()));
+            }
+            Variable::ArrayAccess(array_access) => {
+                assign_quad.op = QuadrupelOp::ArrayStore;
+                let (var, offset) = self.eval_array_access(array_access);
+                assign_quad.result = QuadrupelResult::Var(var);
+                assign_quad.arg2 = QuadrupelArg::Var(offset);
+            }
+        }
+
+        assign_quad.arg1 = self.eval_expression(&assign.value);
+        self.quadrupels.push(assign_quad);
+    }
+
+    fn eval_array_access(&mut self, array_access: &ArrayAccess) -> (QuadrupelVar, QuadrupelVar) {
+        let index = self.eval_expression(&array_access.index);
+        let base_size = array_access.typ.as_ref().unwrap().base_type.get_byte_size();
+        let var;
+        let mut offset =
+            self.emit_expression_bin(Operator::Mul, index, QuadrupelArg::Const(base_size));
+
+        match &array_access.array {
+            Variable::NamedVariable(name) => {
+                var = QuadrupelVar::Spl(name.to_string());
+            }
+            Variable::ArrayAccess(inner) => {
+                let (inner_var, inner_offset) = self.eval_array_access(inner);
+                var = inner_var;
+                offset = self.emit_expression_bin(
+                    Operator::Add,
+                    QuadrupelArg::Var(offset),
+                    QuadrupelArg::Var(inner_offset),
+                );
+            }
+        }
+
+        (var, offset)
+    }
+
+    fn eval_if_statement(&mut self, if_state: &'a IfStatement) {
+        todo!("fill me with code")
+    }
+
+    fn eval_while_statement(&mut self, while_state: &WhileStatement) {
+        todo!("fill me with code")
+    }
+
+    fn eval_call_statement(&mut self, call_state: &'a CallStatement) {
+        let mut count = 0;
+        let name = call_state.name.clone();
+        for param in &call_state.arguments {
+            count += 1;
+            let param = self.eval_expression(param);
+            let mut quad = Quadrupel::new();
+            quad.op = QuadrupelOp::Param;
+            quad.arg1 = param;
+            self.quadrupels.push(quad);
+        }
+        let mut quad = Quadrupel::new();
+        quad.op = QuadrupelOp::Call;
+        quad.arg1 = QuadrupelArg::Var(QuadrupelVar::Spl(name));
+        quad.arg2 = QuadrupelArg::Const(count);
+        self.quadrupels.push(quad);
+    }
+
+    fn eval_expression(&mut self, exp: &Expression) -> QuadrupelArg {
+        match exp {
+            Expression::BinaryExpression(exp) => {
+                let left = self.eval_expression(&exp.left);
+                let right = self.eval_expression(&exp.right);
+                QuadrupelArg::Var(self.emit_expression_bin(exp.operator, left, right))
+            }
+            Expression::UnaryExpression(exp) => {
+                let left = self.eval_expression(&exp.operand);
+                QuadrupelArg::Var(self.emit_expression_un(exp.operator, left))
+            }
+            Expression::IntLiteral(val) => QuadrupelArg::Const(*val),
+            Expression::VariableExpression(var) => self.eval_expression_var(var),
+        }
+    }
+
+    fn eval_expression_var(&mut self, var: &Variable) -> QuadrupelArg {
+        match var {
+            Variable::NamedVariable(name) => QuadrupelArg::Var(QuadrupelVar::Spl(name.to_string())),
+            Variable::ArrayAccess(array_access) => {
+                let (var, offset) = self.eval_array_access(array_access);
+                QuadrupelArg::Var(self.emit_expression_arr_acc(var, offset))
+            }
+        }
+    }
+
+    fn emit_expression_arr_acc(
+        &mut self,
+        array_var: QuadrupelVar,
+        offset: QuadrupelVar,
+    ) -> QuadrupelVar {
+        let tmp = todo!();
+        let quad = Quadrupel::new();
+        quad.op = QuadrupelOp::ArrayLoad;
+        quad.arg1 = QuadrupelArg::Var(array_var);
+        quad.arg2 = QuadrupelArg::Var(offset);
+        quad.result = QuadrupelResult::Var(tmp);
+        self.quadrupels.push(quad);
+        tmp
+    }
+
+    fn emit_expression_bin(
+        &mut self,
+        op: Operator,
+        left: QuadrupelArg,
+        right: QuadrupelArg,
+    ) -> QuadrupelVar {
+        let tmp = todo!();
+        let quad = Quadrupel::new();
+        quad.op = op.into();
+        quad.arg1 = left;
+        quad.arg2 = right;
+        quad.result = QuadrupelResult::Var(tmp);
+        self.quadrupels.push(quad);
+        tmp
+    }
+
+    fn emit_expression_un(&mut self, op: UnaryOperator, left: QuadrupelArg) -> QuadrupelVar {
+        let tmp = todo!();
+        let quad = Quadrupel::new();
+        quad.op = op.into();
+        quad.arg1 = left;
+        quad.result = QuadrupelResult::Var(tmp);
+        self.quadrupels.push(quad);
+        tmp
+    }
+
+    fn get_base_name(&mut self, variable: &'a Variable, rname: String) -> String {
+        match variable {
+            Variable::NamedVariable(name) => format!("{}{}", name.clone(), rname),
+            Variable::ArrayAccess(array_access) => {
+                let index_value = self.eval_expression(&array_access.index.clone());
+                let new_rname = format!("{}[{}]", rname, index_value);
+                self.get_base_name(&array_access.array, new_rname)
+            }
+        }
+    }
+
+    fn add_label(&mut self, name: Option<String>) {
+        self.label_stack.push(self.label_num);
+        let label: String;
+        if let Some(name) = name {
+            label = name;
+        } else {
+            label = format!("T{}:", self.label_num);
+        }
+        self.label_num += 1;
+        let mut new_quad: Quadrupel = Quadrupel::new();
+        new_quad.result = QuadrupelResult::Label(label);
+        self.quadrupels.push(new_quad);
+    }
+}
+
+impl Quadrupel {
+    fn new() -> Self {
+        Quadrupel {
+            op: super::QuadrupelOp::Default,
+            arg1: QuadrupelArg::Empty,
+            arg2: QuadrupelArg::Empty,
+            result: QuadrupelResult::Empty,
+        }
+    }
+}

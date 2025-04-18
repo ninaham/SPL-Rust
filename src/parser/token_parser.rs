@@ -36,7 +36,7 @@ pub fn ident(input: &str) -> IResult<&str, Tokens> {
 
 fn int(input: &str) -> IResult<&str, Tokens> {
     let res = digit1(input)?;
-    Ok((res.0, Tokens::Intlit(res.1.parse::<i64>().unwrap())))
+    Ok((res.0, Tokens::Intlit(res.1.parse::<i32>().unwrap())))
 }
 
 fn newline(input: &str) -> IResult<&str, Tokens> {
@@ -54,14 +54,14 @@ fn character(input: &str) -> IResult<&str, Tokens> {
     let (rem, _) = tag("'")(input)?;
     let res = anychar(rem)?;
     let (rem, _) = tag("'")(res.0)?;
-    Ok((rem, Tokens::Intlit(res.1 as i64)))
+    Ok((rem, Tokens::Intlit(res.1 as i32)))
 }
 
 fn hex_num(input: &str) -> IResult<&str, Tokens> {
     let res = preceded(tag("0x"), hex_digit1).parse(input)?;
     Ok((
         res.0,
-        Tokens::Intlit(i64::from_str_radix(res.1, 16).unwrap()),
+        Tokens::Intlit(i32::from_str_radix(res.1, 16).unwrap()),
     ))
 }
 

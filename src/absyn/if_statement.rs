@@ -1,6 +1,6 @@
 use super::absyn::{Expression, Statement};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IfStatement {
     pub condition: Expression,
     pub then_branch: Statement,
