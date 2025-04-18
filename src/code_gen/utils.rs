@@ -32,10 +32,24 @@ impl From<Operator> for QuadrupelOp {
     }
 }
 
+impl QuadrupelOp {
+    pub fn inv(&self) -> Self {
+        match self {
+            Self::Equ => Self::Neq,
+            Self::Neq => Self::Equ,
+            Self::Lst => Self::Gre,
+            Self::Lse => Self::Grt,
+            Self::Grt => Self::Lse,
+            Self::Gre => Self::Lst,
+            _ => panic!("{self}: not invertable!"),
+        }
+    }
+}
+
 impl From<UnaryOperator> for QuadrupelOp {
     fn from(op: UnaryOperator) -> Self {
         match op {
-            UnaryOperator::Minus => QuadrupelOp::Sub,
+            UnaryOperator::Minus => QuadrupelOp::Neg,
         }
     }
 }

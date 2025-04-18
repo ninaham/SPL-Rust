@@ -131,6 +131,8 @@ impl fmt::Display for Tac<'_> {
             for quad in proc.1 {
                 writeln!(f, "{}", quad)?;
             }
+            writeln!(f, "{:-<40}", "".truecolor(100, 100, 100))?;
+            writeln!(f)?;
         }
         Ok(())
     }

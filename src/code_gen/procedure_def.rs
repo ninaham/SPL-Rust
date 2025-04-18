@@ -91,24 +91,37 @@ impl<'a> Tac<'a> {
     }
 
     fn eval_if_statement(&mut self, if_state: &'a IfStatement) {
-        let jmp_label = self.create_label(None);
+        let else_label = self.create_label(None);
+        let end_label = self.create_label(None);
         let mut if_quad = Quadrupel::new();
         let ex = &if_state.condition;
         match ex {
             Expression::BinaryExpression(binex) => {
-                if_quad.op = QuadrupelOp::from(binex.operator);
+                if_quad.op = QuadrupelOp::from(binex.operator).inv();
                 if_quad.arg1 = self.eval_expression(&binex.left);
                 if_quad.arg2 = self.eval_expression(&binex.right);
-                if_quad.result = jmp_label.clone();
+                if_quad.result = else_label.clone();
                 self.quadrupels.push(if_quad);
             }
             _ => panic!("mistake in 'if' expression!"),
         }
+        // begin then
         self.eval_statement(&if_state.then_branch);
-        self.emit_label(jmp_label);
+        if if_state.else_branch.is_some() {
+            let mut quad = Quadrupel::new();
+            quad.op = QuadrupelOp::Goto;
+            quad.result = end_label.clone();
+            self.quadrupels.push(quad);
+        }
+        // end then
+
+        // begin else
+        self.emit_label(else_label);
         if let Some(state) = &if_state.else_branch {
             self.eval_statement(state);
         }
+        // end else
+        self.emit_label(end_label);
     }
 
     fn eval_while_statement(&mut self, while_state: &'a WhileStatement) {
@@ -118,7 +131,7 @@ impl<'a> Tac<'a> {
         let ex = &while_state.condition;
         match ex {
             Expression::BinaryExpression(binex) => {
-                while_quad.op = QuadrupelOp::from(binex.operator);
+                while_quad.op = QuadrupelOp::from(binex.operator).inv();
                 while_quad.arg1 = self.eval_expression(&binex.left);
                 while_quad.arg2 = self.eval_expression(&binex.right);
                 while_quad.result = jmp_label.clone();
