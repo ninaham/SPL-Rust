@@ -104,7 +104,7 @@ impl<'a> Tac<'a> {
                 if_quad.result = QuadrupelResult::Label(jmp_label.to_string());
                 self.quadrupels.push(if_quad);
             }
-            _ => panic!("mistake in 'if' expression"),
+            _ => panic!("mistake in 'if' expression!"),
         }
         self.eval_statement(&if_state.then_branch);
         self.add_label(Some(format!("L{}", jmp_label)));
@@ -129,7 +129,7 @@ impl<'a> Tac<'a> {
                 while_quad.result = QuadrupelResult::Label(jmp_label.to_string());
                 self.quadrupels.push(while_quad);
             }
-            _ => panic!("mistake in 'while' expression"),
+            _ => panic!("mistake in 'while' expression!"),
         }
         self.eval_statement(&while_state.body);
         self.quadrupels.push(Quadrupel {
