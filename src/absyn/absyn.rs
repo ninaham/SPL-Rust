@@ -8,7 +8,7 @@ use super::{
     unary_expression::UnaryExpression, while_statement::WhileStatement,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Program {
     pub definitions: LinkedList<Box<Definition>>,
 }

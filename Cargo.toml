@@ -8,3 +8,4 @@ clap = { version = "4.5.35", features = ["cargo", "derive"] }
 lazy_static = "1.5.0"
 nom = "8.0.0"
 colored = "3.0.0"
+anyhow = "1.0.98"

@@ -4,6 +4,7 @@ use nom::{
     IResult, Parser,
     branch::alt,
     character::complete::{char, space0},
+    error::Error,
     multi::fold_many0,
     sequence::{delimited, preceded},
 };
@@ -32,16 +33,10 @@ use super::{
     tokens::Tokens,
 };
 
-pub fn parse(input: &str) -> Program {
-    let (rem, n) = match program(input) {
-        Ok(x) => x,
-        Result::Err(e) => panic!("Parser Error: {:?}", e),
-    };
-    if !rem.is_empty() {
-        panic!("input not empty")
-    }
+pub fn parse(input: &str) -> Result<Program, nom::Err<Error<&str>>> {
+    let (_, n) = program(input)?;
 
-    n
+    Ok(n)
 }
 
 fn program(input: &str) -> IResult<&str, Program> {

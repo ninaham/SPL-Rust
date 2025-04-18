@@ -1,92 +1,65 @@
-use clap::{ArgGroup, Parser};
-use lazy_static::lazy_static;
+use anyhow::{Ok, bail};
+use clap::{ArgGroup, Command, Id, arg};
 
-lazy_static! {
-    pub static ref CLI_INPUT: Cli = Cli::parse();
+use crate::{
+    code_gen::Tac,
+    parser::parse_everything_else::parse,
+    semant::{build_symbol_table::build_symbol_table, check_def_global},
+};
+
+pub fn load_program_data() -> Command {
+    Command::new("SPl Rust Compiler")
+        .version("0.1.0")
+        .args([
+            arg!(file: <file> "Path to input graph"),
+            arg!(parse: -p --parse "Parse input file, returns the abstract syntax tree"),
+            arg!(tables: -t --tables "Fills symbol tables and prints them"),
+            arg!(semant: -s --semant "Semantic analysis"),
+            arg!(tac: -'3' --tac "Generates three address code"),
+        ])
+        .group(
+            ArgGroup::new("phase")
+                .required(false)
+                .multiple(false)
+                .args(["parse", "tables", "semant", "tac"]),
+        )
 }
 
-#[derive(Parser, Debug)]
-#[command(
-    name = "spl compiler",
-    author,
-    version,
-    about,
-    group(
-        ArgGroup::new("phase")
-            .required(true)
-            .args([
-                "parse", "absyn", "tables", "semant", "vars", "tac"
-            ])
-    )
-)]
-pub struct Cli {
-    /// Phase 1: Scans for tokens and prints them.
-    #[arg(long)]
-    tokens: bool,
+pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
+    let file = matches.get_one::<String>("file").unwrap();
+    let input = std::fs::read_to_string(file)?.leak();
 
-    /// Phase 2: Parses the stream of tokens to check for syntax errors.
-    #[arg(long)]
-    parse: bool,
+    let Some(phase) = matches.get_one::<Id>("phase") else {
+        bail!("Gode Generation for ECO32 not yet implemented")
+    };
 
-    /// Phase 3: Creates an abstract syntax tree from the input tokens and prints it.
-    #[arg(long)]
-    absyn: bool,
+    let mut address_code;
 
-    /// Phase 4a: Builds a symbol table and prints its entries.
-    #[arg(long)]
-    tables: bool,
-
-    /// Phase 4b: Performs the semantic analysis.
-    #[arg(long)]
-    semant: bool,
-
-    /// Phase 5: Allocates memory space for variables and prints the amount of allocated memory.
-    #[arg(long)]
-    vars: bool,
-
-    /// Show the TAC
-    #[arg(long)]
-    tac: bool,
-}
-
-#[derive(Debug)]
-pub enum Phase {
-    Tokens,
-    Parse,
-    Absyn,
-    Tables,
-    Semant,
-    Vars,
-    Tac,
-}
-
-pub fn parse_phase(cli: &Cli) -> Phase {
-    match () {
-        _ if cli.tokens => Phase::Tokens,
-        _ if cli.parse => Phase::Parse,
-        _ if cli.absyn => Phase::Absyn,
-        _ if cli.tables => Phase::Tables,
-        _ if cli.semant => Phase::Semant,
-        _ if cli.vars => Phase::Vars,
-        _ if cli.tac => Phase::Tac,
-        _ => unreachable!("clap garantiert, dass genau eine Option gewählt wurde"),
+    let mut absyn = parse(input)?;
+    if phase == "parse" {
+        println!("{:#?}", absyn);
+        return Ok(());
     }
-}
-
-pub fn handle_phase(phase: Phase) {
-    match phase {
-        Phase::Tokens => println!("Phase 1: Scans for tokens and prints them."),
-        Phase::Parse => {
-            println!("Phase 2: Parses the stream of tokens to check for syntax errors.")
-        }
-        Phase::Absyn => println!(
-            "Phase 3: Creates an abstract syntax tree from the input tokens and prints it."
-        ),
-        Phase::Tables => println!("Phase 4a: Builds a symbol table and prints its entries."),
-        Phase::Semant => println!("Phase 4b: Performs the semantic analysis."),
-        Phase::Vars => println!(
-            "Phase 5: Allocates memory space for variables and prints the amount of allocated memory."
-        ),
-        Phase::Tac => println!("Show the TAC"),
+    let table = build_symbol_table(&absyn)?;
+    if phase == "tables" {
+        println!("{:?}", table);
+        return Ok(());
     }
+
+    absyn
+        .definitions
+        .iter_mut()
+        .try_for_each(|def| check_def_global(def, &table.clone()))?;
+
+    if phase == "semant" {
+        return Ok(());
+    }
+    address_code = Tac::new(&table);
+    address_code.code_generation(&absyn);
+    if phase == "tac" {
+        println!("{}", address_code);
+        return Ok(());
+    }
+
+    unreachable!()
 }

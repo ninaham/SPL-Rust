@@ -55,8 +55,8 @@ pub enum QuadrupelArg {
 impl fmt::Display for QuadrupelArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Var(var) => write!(f, "{:<8}", format!("{}", var).truecolor(150, 150, 150)),
-            Self::Const(val) => write!(f, "{:<8}", format!("{}", val)),
+            Self::Var(var) => write!(f, "{:<8}", var.to_string().truecolor(150, 150, 150)),
+            Self::Const(val) => write!(f, "{:<8}", val),
             Self::Empty => write!(f, "        "),
         }
     }
@@ -72,7 +72,7 @@ impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Spl(var) => write!(f, "{:<8}", var),
-            Self::Tmp(val) => write!(f, "T{:<8}", val), // TODO: make temp vars unique
+            Self::Tmp(val) => write!(f, "T{:<7}", val), // TODO: make temp vars unique
         }
     }
 }
@@ -87,8 +87,8 @@ pub enum QuadrupelResult {
 impl fmt::Display for QuadrupelResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Var(var) => write!(f, "{}", format!("{}", var).truecolor(200, 200, 200)),
-            Self::Label(name) => write!(f, "{}", format!("{}", name)),
+            Self::Var(var) => write!(f, "{}", var.to_string().truecolor(200, 200, 200)),
+            Self::Label(name) => write!(f, "{}", name),
             Self::Empty => Ok(()),
         }
     }
@@ -102,6 +102,7 @@ pub struct Quadrupel {
     pub result: QuadrupelResult,
 }
 
+#[derive(Clone)]
 pub struct Tac<'a> {
     pub quadrupels: Vec<Quadrupel>,
     symboltable: &'a SymbolTable,
