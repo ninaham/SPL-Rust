@@ -106,11 +106,9 @@ pub struct Quadrupel {
 pub struct Tac<'a> {
     pub quadrupels: Vec<Quadrupel>,
     symboltable: &'a SymbolTable,
-    label_stack: Vec<i64>,
     label_num: i64,
     pub proc_table: HashMap<String, Vec<Quadrupel>>,
-    temp_var_stack: Vec<i64>,
-    temp_var_count: i64,
+    temp_var_count: usize,
 }
 
 impl fmt::Display for Quadrupel {
@@ -143,10 +141,8 @@ impl<'a> Tac<'a> {
         Tac {
             quadrupels: vec![],
             symboltable,
-            label_stack: vec![],
             label_num: 0,
             proc_table: HashMap::new(),
-            temp_var_stack: vec![],
             temp_var_count: 0,
         }
     }
@@ -164,9 +160,6 @@ impl<'a> Tac<'a> {
                     self.proc_table.insert(name, quad);
                     //clean up for next iteration
                     self.quadrupels.clear();
-                    self.label_num = 0;
-                    self.label_stack.clear();
-                    self.temp_var_stack.clear();
                     self.temp_var_count = 0;
                 }
                 Definition::TypeDefinition(_) => {}

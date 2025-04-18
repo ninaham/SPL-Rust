@@ -1,5 +1,3 @@
-#![expect(unused, unused_variables)]
-
 use crate::absyn::{
     absyn::{Expression, Statement, Variable},
     array_access::ArrayAccess,
@@ -16,7 +14,8 @@ use super::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar,
 
 impl<'a> Tac<'a> {
     pub(super) fn eval_proc_def(&mut self, proc_def: &'a ProcedureDefinition) {
-        let mut new_quad: Quadrupel = Quadrupel::new();
+        let quadrupel = Quadrupel::new();
+        let mut new_quad: Quadrupel = quadrupel;
         new_quad.result = QuadrupelResult::Label(proc_def.name.clone());
         self.quadrupels.push(new_quad);
         for statement in &proc_def.body {
@@ -190,12 +189,12 @@ impl<'a> Tac<'a> {
         array_var: QuadrupelVar,
         offset: QuadrupelVar,
     ) -> QuadrupelVar {
-        let tmp = todo!();
-        let quad = Quadrupel::new();
+        let tmp = self.add_tmp_var();
+        let mut quad = Quadrupel::new();
         quad.op = QuadrupelOp::ArrayLoad;
         quad.arg1 = QuadrupelArg::Var(array_var);
         quad.arg2 = QuadrupelArg::Var(offset);
-        quad.result = QuadrupelResult::Var(tmp);
+        quad.result = QuadrupelResult::Var(tmp.clone());
         self.quadrupels.push(quad);
         tmp
     }
@@ -206,22 +205,22 @@ impl<'a> Tac<'a> {
         left: QuadrupelArg,
         right: QuadrupelArg,
     ) -> QuadrupelVar {
-        let tmp = todo!();
-        let quad = Quadrupel::new();
+        let tmp = self.add_tmp_var();
+        let mut quad = Quadrupel::new();
         quad.op = op.into();
         quad.arg1 = left;
         quad.arg2 = right;
-        quad.result = QuadrupelResult::Var(tmp);
+        quad.result = QuadrupelResult::Var(tmp.clone());
         self.quadrupels.push(quad);
         tmp
     }
 
     fn emit_expression_un(&mut self, op: UnaryOperator, left: QuadrupelArg) -> QuadrupelVar {
-        let tmp = todo!();
-        let quad = Quadrupel::new();
+        let tmp = self.add_tmp_var();
+        let mut quad = Quadrupel::new();
         quad.op = op.into();
         quad.arg1 = left;
-        quad.result = QuadrupelResult::Var(tmp);
+        quad.result = QuadrupelResult::Var(tmp.clone());
         self.quadrupels.push(quad);
         tmp
     }
@@ -238,17 +237,23 @@ impl<'a> Tac<'a> {
     }
 
     fn add_label(&mut self, name: Option<String>) {
-        self.label_stack.push(self.label_num);
         let label: String;
         if let Some(name) = name {
             label = name;
         } else {
             label = format!("L{}", self.label_num);
+            self.label_num += 1;
         }
-        self.label_num += 1;
         let mut new_quad: Quadrupel = Quadrupel::new();
         new_quad.result = QuadrupelResult::Label(label);
         self.quadrupels.push(new_quad);
+    }
+
+    fn add_tmp_var(&mut self) -> QuadrupelVar {
+        let n = self.temp_var_count;
+        self.temp_var_count += 1;
+
+        QuadrupelVar::Tmp(n)
     }
 }
 

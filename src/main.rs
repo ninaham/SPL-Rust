@@ -31,8 +31,6 @@ mod test {
     }
 
     fn test_file(path: &Path) -> anyhow::Result<()> {
-        println!("parsing {:?}", path);
-
         let code = fs::read_to_string(path).unwrap();
 
         let mut absyn = parse(code.leak())?;
@@ -46,8 +44,6 @@ mod test {
 
         let mut address_code = Tac::new(&table);
         address_code.code_generation(&absyn);
-
-        println!("{}", address_code);
 
         Ok(())
     }
