@@ -132,6 +132,12 @@ impl<'a> Tac<'a> {
             _ => panic!("mistake in 'while' expression"),
         }
         self.eval_statement(&while_state.body);
+        self.quadrupels.push(Quadrupel {
+            op: QuadrupelOp::Goto,
+            arg1: QuadrupelArg::Empty,
+            arg2: QuadrupelArg::Empty,
+            result: QuadrupelResult::Label(format!("L{}", while_label)),
+        });
         self.add_label(Some(format!("L{}", jmp_label)));
     }
 
