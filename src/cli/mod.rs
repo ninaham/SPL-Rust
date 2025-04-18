@@ -1,5 +1,5 @@
-use anyhow::{Ok, bail};
-use clap::{ArgGroup, Command, Id, arg};
+use anyhow::{bail, Ok};
+use clap::{arg, ArgGroup, Command, Id};
 
 use crate::{
     code_gen::Tac,
@@ -33,13 +33,12 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         bail!("Gode Generation for ECO32 not yet implemented")
     };
 
-    let mut address_code;
-
     let mut absyn = parse(input)?;
     if phase == "parse" {
         println!("{:#?}", absyn);
         return Ok(());
     }
+
     let table = build_symbol_table(&absyn)?;
     if phase == "tables" {
         println!("{:?}", table);
@@ -54,7 +53,8 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     if phase == "semant" {
         return Ok(());
     }
-    address_code = Tac::new(&table);
+
+    let mut address_code = Tac::new(&table);
     address_code.code_generation(&absyn);
     if phase == "tac" {
         println!("{}", address_code);
