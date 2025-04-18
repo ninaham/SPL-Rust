@@ -92,11 +92,47 @@ impl<'a> Tac<'a> {
     }
 
     fn eval_if_statement(&mut self, if_state: &'a IfStatement) {
-        todo!("fill me with code")
+        let jmp_label = self.label_num;
+        self.label_num += 1;
+        let mut if_quad = Quadrupel::new();
+        let ex = &if_state.condition;
+        match ex {
+            Expression::BinaryExpression(binex) => {
+                if_quad.op = QuadrupelOp::from(binex.operator);
+                if_quad.arg1 = self.eval_expression(&binex.left);
+                if_quad.arg2 = self.eval_expression(&binex.right);
+                if_quad.result = QuadrupelResult::Label(jmp_label.to_string());
+                self.quadrupels.push(if_quad);
+            }
+            _ => panic!("Oh my god, this is absolutly wrong"),
+        }
+        self.eval_statement(&if_state.then_branch);
+        self.add_label(Some(format!("L{}", jmp_label)));
+        if let Some(state) = &if_state.else_branch {
+            self.eval_statement(state);
+        }
     }
 
-    fn eval_while_statement(&mut self, while_state: &WhileStatement) {
-        todo!("fill me with code")
+    fn eval_while_statement(&mut self, while_state: &'a WhileStatement) {
+        let jmp_label = self.label_num;
+        self.label_num += 1;
+        let while_label = self.label_num;
+        self.label_num += 1;
+        let mut while_quad = Quadrupel::new();
+        self.add_label(Some(format!("L{}", while_label)));
+        let ex = &while_state.condition;
+        match ex {
+            Expression::BinaryExpression(binex) => {
+                while_quad.op = QuadrupelOp::from(binex.operator);
+                while_quad.arg1 = self.eval_expression(&binex.left);
+                while_quad.arg2 = self.eval_expression(&binex.right);
+                while_quad.result = QuadrupelResult::Label(jmp_label.to_string());
+                self.quadrupels.push(while_quad);
+            }
+            _ => panic!("Oh my god, this is absolutly wrong"),
+        }
+        self.eval_statement(&while_state.body);
+        self.add_label(Some(format!("L{}", jmp_label)));
     }
 
     fn eval_call_statement(&mut self, call_state: &'a CallStatement) {
@@ -201,7 +237,7 @@ impl<'a> Tac<'a> {
         if let Some(name) = name {
             label = name;
         } else {
-            label = format!("T{}:", self.label_num);
+            label = format!("L{}", self.label_num);
         }
         self.label_num += 1;
         let mut new_quad: Quadrupel = Quadrupel::new();
