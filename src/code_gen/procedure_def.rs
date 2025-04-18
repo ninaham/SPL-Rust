@@ -91,7 +91,7 @@ impl<'a> Tac<'a> {
     }
 
     fn eval_if_statement(&mut self, if_state: &'a IfStatement) {
-        let jmp_label = self.label_num;
+        let jmp_label = format!("L{}", self.label_num);
         self.label_num += 1;
         let mut if_quad = Quadrupel::new();
         let ex = &if_state.condition;
@@ -100,20 +100,20 @@ impl<'a> Tac<'a> {
                 if_quad.op = QuadrupelOp::from(binex.operator);
                 if_quad.arg1 = self.eval_expression(&binex.left);
                 if_quad.arg2 = self.eval_expression(&binex.right);
-                if_quad.result = QuadrupelResult::Label(jmp_label.to_string());
+                if_quad.result = QuadrupelResult::Label(jmp_label.clone());
                 self.quadrupels.push(if_quad);
             }
             _ => panic!("mistake in 'if' expression!"),
         }
         self.eval_statement(&if_state.then_branch);
-        self.add_label(Some(format!("L{}", jmp_label)));
+        self.add_label(Some(jmp_label));
         if let Some(state) = &if_state.else_branch {
             self.eval_statement(state);
         }
     }
 
     fn eval_while_statement(&mut self, while_state: &'a WhileStatement) {
-        let jmp_label = self.label_num;
+        let jmp_label = format!("L{}", self.label_num);
         self.label_num += 1;
         let while_label = self.label_num;
         self.label_num += 1;
@@ -125,7 +125,7 @@ impl<'a> Tac<'a> {
                 while_quad.op = QuadrupelOp::from(binex.operator);
                 while_quad.arg1 = self.eval_expression(&binex.left);
                 while_quad.arg2 = self.eval_expression(&binex.right);
-                while_quad.result = QuadrupelResult::Label(jmp_label.to_string());
+                while_quad.result = QuadrupelResult::Label(jmp_label.clone());
                 self.quadrupels.push(while_quad);
             }
             _ => panic!("mistake in 'while' expression!"),
@@ -137,7 +137,7 @@ impl<'a> Tac<'a> {
             arg2: QuadrupelArg::Empty,
             result: QuadrupelResult::Label(format!("L{}", while_label)),
         });
-        self.add_label(Some(format!("L{}", jmp_label)));
+        self.add_label(Some(jmp_label));
     }
 
     fn eval_call_statement(&mut self, call_state: &'a CallStatement) {
