@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{BlockContent, BlockGraph};
+use super::BlockGraph;
 
 pub fn phase_3(mut block_graph: BlockGraph) -> BlockGraph {
     let blocks = block_graph.blocks.clone();

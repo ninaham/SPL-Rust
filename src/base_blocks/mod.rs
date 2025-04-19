@@ -128,7 +128,7 @@ impl BlockGraph {
         BlockGraph {
             blocks: vec![],
             edges: vec![],
-            _label_to_id: HashMap::new(),
+            label_to_id: HashMap::new(),
         }
     }
 }
