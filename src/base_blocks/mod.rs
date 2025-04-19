@@ -3,7 +3,7 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use crate::code_gen::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
+use crate::code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
 
 mod phaser;
 

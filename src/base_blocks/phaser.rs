@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::code_gen::Quadrupel;
+use crate::code_gen::quadrupel::Quadrupel;
 
 use super::{Block, BlockContent, BlockGraph};
 
@@ -18,7 +18,9 @@ pub fn phase_2(block_starts: impl Iterator<Item = usize>, code: &[Quadrupel]) ->
         .enumerate()
         .for_each(|(parent, split)| {
             let label = match code[last].op {
-                crate::code_gen::QuadrupelOp::Default => Some(code[last].result.to_string()),
+                crate::code_gen::quadrupel::QuadrupelOp::Default => {
+                    Some(code[last].result.to_string())
+                }
                 _ => None,
             };
             graph.add_block(
