@@ -3,6 +3,8 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
+use phaser::{phase_1, phase_2, phase_3};
+
 use crate::code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
 
 mod block_start_iter;
@@ -74,34 +76,7 @@ pub struct BlockGraph {
 
 impl BlockGraph {
     pub fn from_tac(code: &[Quadrupel]) -> Self {
-        let code = code.iter().cloned();
-        let mut graph = BlockGraph::default();
-
-        let block_start = Block::new_start(None);
-        let (last_block_id, block_start) = graph.add_block(block_start, None);
-
-        let block_active = Block::new_code(None);
-        let (block_active_id, block_active) = graph.add_block(block_active, Some(last_block_id));
-        let block_active_code = block_active.get_code_mut();
-
-        for quad in code {
-            match quad {
-                Quadrupel {
-                    op: QuadrupelOp::Default,
-                    arg1: QuadrupelArg::Empty,
-                    arg2: QuadrupelArg::Empty,
-                    result: QuadrupelResult::Label(_label),
-                } => {
-                    // TODO: new block
-                }
-                _ => block_active_code.push(quad),
-            }
-        }
-
-        let block_stop = Block::new_stop(None);
-        graph.add_block(block_stop, Some(block_active_id));
-
-        graph
+        phase_3(phase_2(phase_1(code), code))
     }
 
     fn add_block(&mut self, block: Block, parent: Option<usize>) -> (usize, &mut Block) {
