@@ -2,39 +2,34 @@ use std::collections::HashSet;
 
 use crate::code_gen::quadrupel::Quadrupel;
 
-use super::{block_start_iter::BlockStartIterator, Block, BlockContent, BlockGraph};
+use super::{block_start_iter::BlockStartIterator, Block, BlockGraph};
 
 pub fn phase_1(code: &[Quadrupel]) -> BlockStartIterator {
     BlockStartIterator::new(code)
 }
 
-pub fn phase_2(block_starts: impl Iterator<Item = usize>, code: &[Quadrupel]) -> BlockGraph {
-    let mut last = 0;
+pub fn phase_2(
+    block_starts: impl Iterator<Item = (usize, usize)>,
+    code: &[Quadrupel],
+) -> BlockGraph {
     let code: Vec<Quadrupel> = code.to_vec();
 
     let mut graph = BlockGraph::new();
+    graph.add_block(Block::new_start(Some("start".to_string())), None);
+    block_starts.enumerate().for_each(|(parent, (start, end))| {
+        let label = match code[start].op {
+            crate::code_gen::quadrupel::QuadrupelOp::Default => {
+                Some(code[start].result.to_string())
+            }
+            _ => None,
+        };
+        graph.add_block(
+            Block::new_code(label, code[start..end].to_vec()),
+            Some(parent),
+        );
+    });
     graph.add_block(
-        Block::new(Some("start".to_string()), BlockContent::Start),
-        None,
-    );
-    block_starts
-        .into_iter()
-        .enumerate()
-        .for_each(|(parent, split)| {
-            let label = match code[last].op {
-                crate::code_gen::quadrupel::QuadrupelOp::Default => {
-                    Some(code[last].result.to_string())
-                }
-                _ => None,
-            };
-            graph.add_block(
-                Block::new(label, super::BlockContent::Code(code[last..split].to_vec())),
-                Some(parent),
-            );
-            last = split;
-        });
-    graph.add_block(
-        Block::new(Some("stop".to_string()), BlockContent::Stop),
+        Block::new_stop(Some("stop".to_string())),
         Some(graph.blocks.len()),
     );
     graph

@@ -17,12 +17,13 @@ pub fn load_program_data() -> Command {
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(tac: -'3' --tac "Generates three address code"),
+            arg!(dot: -d --dot "Generates block graph"),
         ])
         .group(
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "tac"]),
+                .args(["parse", "tables", "semant", "tac", "dot"]),
         )
 }
 
@@ -42,7 +43,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
     let table = build_symbol_table(&absyn)?;
     if phase == "tables" {
-        println!("{:?}", table);
+        println!("{:#?}", table);
         return Ok(());
     }
 
@@ -62,7 +63,11 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    BlockGraph::from_tac(address_code.proc_table.get("main").unwrap());
+    let graph = BlockGraph::from_tac(address_code.proc_table.get("main").unwrap());
+    if phase == "dot" {
+        println!("{:#?}", graph);
+        return Ok(());
+    }
 
     unreachable!()
 }

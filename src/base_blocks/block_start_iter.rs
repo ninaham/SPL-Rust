@@ -4,59 +4,53 @@ use crate::code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, Quadrupel
 
 pub struct BlockStartIterator<'a> {
     code: &'a [Quadrupel],
-    prev_index: Option<usize>,
+    prev_index: usize,
 }
 
 impl<'a> BlockStartIterator<'a> {
     pub fn new(code: &'a [Quadrupel]) -> Self {
         Self {
             code,
-            prev_index: None,
+            prev_index: 0,
         }
     }
 }
 
 impl Iterator for BlockStartIterator<'_> {
-    type Item = usize;
+    type Item = (usize, usize);
     fn next(&mut self) -> Option<Self::Item> {
-        if match self.prev_index {
-            Some(i) => i >= self.code.len(),
-            None => self.code.is_empty(),
-        } {
+        if self.prev_index >= self.code.len() {
             return None;
         }
 
-        self.prev_index = match self.prev_index {
-            None => Some(0),
-            Some(last) => {
-                let mut iter = self.code.iter().enumerate().skip(last);
+        let last = self.prev_index;
 
-                if let ControlFlow::Break(idx) = iter.try_for_each(|(i, quad)| {
-                    if quad.op.is_any_jump() {
-                        return ControlFlow::Break(i + 1);
-                    }
+        let mut iter = self.code.iter().enumerate().skip(last);
 
-                    if matches!(
-                        quad,
-                        Quadrupel {
-                            op: QuadrupelOp::Default,
-                            arg1: QuadrupelArg::Empty,
-                            arg2: QuadrupelArg::Empty,
-                            result: QuadrupelResult::Label(_),
-                        }
-                    ) {
-                        return ControlFlow::Break(i);
-                    }
-
-                    ControlFlow::Continue(())
-                }) {
-                    Some(idx)
-                } else {
-                    None
+        self.prev_index = iter
+            .try_for_each(|(i, quad)| {
+                if quad.op.is_any_jump() {
+                    return ControlFlow::Break(i + 1);
                 }
-            }
-        };
 
-        self.prev_index
+                if matches!(
+                    quad,
+                    Quadrupel {
+                        op: QuadrupelOp::Default,
+                        arg1: QuadrupelArg::Empty,
+                        arg2: QuadrupelArg::Empty,
+                        result: QuadrupelResult::Label(_),
+                    }
+                ) && i > last
+                {
+                    return ControlFlow::Break(i);
+                }
+
+                ControlFlow::Continue(())
+            })
+            .break_value()
+            .unwrap_or(self.code.len());
+
+        Some((last, self.prev_index))
     }
 }
