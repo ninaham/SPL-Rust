@@ -1,3 +1,5 @@
+#![expect(clippy::enum_variant_names)]
+
 use std::collections::LinkedList;
 
 use super::{

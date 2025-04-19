@@ -127,6 +127,7 @@ impl<'a> Tac<'a> {
     fn eval_while_statement(&mut self, while_state: &'a WhileStatement) {
         let jmp_label = self.create_label(None);
         let while_label = self.create_label(None);
+        self.emit_label(while_label.clone());
         let mut while_quad = Quadrupel::new();
         let ex = &while_state.condition;
         match ex {
