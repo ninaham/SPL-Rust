@@ -16,7 +16,7 @@ impl<'a> BlockStartIterator<'a> {
     }
 }
 
-impl<'a> Iterator for BlockStartIterator<'a> {
+impl Iterator for BlockStartIterator<'_> {
     type Item = usize;
     fn next(&mut self) -> Option<Self::Item> {
         if match self.prev_index {
@@ -57,6 +57,6 @@ impl<'a> Iterator for BlockStartIterator<'a> {
             }
         };
 
-        return self.prev_index;
+        self.prev_index
     }
 }
