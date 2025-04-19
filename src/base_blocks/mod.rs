@@ -2,8 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use crate::code_gen::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
 
+pub mod phase_3;
+
 type BlockId = usize;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Block {
     label: Option<String>,
     content: BlockContent,
@@ -29,15 +31,33 @@ impl Block {
         }
     }
 
-    fn contains_goto(&self) -> bool {
+    fn contains_goto(&self) -> Option<String> {
         match &self.content {
-            BlockContent::Code(quadrupels) => quadrupels.last().unwrap().op == QuadrupelOp::Goto,
-            _ => false,
+            BlockContent::Code(quadrupels) => match quadrupels.last().unwrap().op {
+                QuadrupelOp::Goto => Some(quadrupels.last().unwrap().result.to_string()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn contains_if(&self) -> Option<String> {
+        match &self.content {
+            BlockContent::Code(quadrupels) => match quadrupels.last().unwrap().op {
+                QuadrupelOp::Equ
+                | QuadrupelOp::Gre
+                | QuadrupelOp::Grt
+                | QuadrupelOp::Lse
+                | QuadrupelOp::Lst
+                | QuadrupelOp::Neq => Some(quadrupels.last().unwrap().result.to_string()),
+                _ => None,
+            },
+            _ => None,
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BlockContent {
     Start,
     Stop,
@@ -48,7 +68,7 @@ pub enum BlockContent {
 pub struct BlockGraph {
     blocks: Vec<Block>,
     edges: Vec<HashSet<BlockId>>,
-    _label_to_id: HashMap<String, BlockId>,
+    label_to_id: HashMap<String, BlockId>,
 }
 
 impl BlockGraph {
