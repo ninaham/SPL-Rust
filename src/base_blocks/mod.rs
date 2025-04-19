@@ -6,7 +6,6 @@ use std::{
 use crate::code_gen::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
 
 mod phase2;
-pub mod phase_3;
 
 type BlockId = usize;
 #[derive(Debug, Clone)]
