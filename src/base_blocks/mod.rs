@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    clone,
+    collections::{HashMap, HashSet},
+};
 
 use crate::code_gen::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
 
@@ -104,6 +107,9 @@ impl BlockGraph {
     }
 
     fn add_block(&mut self, block: Block, parent: Option<usize>) -> (usize, &mut Block) {
+        if let Some(l) = block.clone().label {
+            self.label_to_id.insert(l, self.blocks.len());
+        }
         self.blocks.push(block);
         if let Some(parent) = parent {
             self.add_edge(parent, self.blocks.len() - 1);
