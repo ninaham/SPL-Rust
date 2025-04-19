@@ -5,7 +5,7 @@ use std::{
 
 use crate::code_gen::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
 
-mod phase2;
+mod phaser;
 
 type BlockId = usize;
 #[derive(Debug, Clone)]
