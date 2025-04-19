@@ -1,5 +1,3 @@
-use std::usize;
-
 use crate::code_gen::Quadrupel;
 
 use super::{Block, BlockContent, BlockGraph};
