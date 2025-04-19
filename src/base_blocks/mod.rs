@@ -28,6 +28,13 @@ impl Block {
             _ => panic!("not a code block: {self:?}"),
         }
     }
+
+    fn contains_goto(&self) -> bool {
+        match &self.content {
+            BlockContent::Code(quadrupels) => quadrupels.last().unwrap().op == QuadrupelOp::Goto,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -82,9 +89,7 @@ impl BlockGraph {
             self.add_edge(parent, self.blocks.len() - 1);
         }
 
-        let id = self.blocks.len() - 1;
-
-        (id, &mut self.blocks[id])
+        (self.blocks.len() - 1, self.blocks.last_mut().unwrap())
     }
 
     fn add_edge(&mut self, start: usize, end: usize) {
