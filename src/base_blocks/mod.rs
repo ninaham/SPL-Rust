@@ -5,6 +5,7 @@ use std::{
 
 use crate::code_gen::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
 
+mod phase2;
 pub mod phase_3;
 
 type BlockId = usize;
@@ -13,6 +14,7 @@ pub struct Block {
     label: Option<String>,
     content: BlockContent,
 }
+
 impl Block {
     fn new(label: Option<String>, content: BlockContent) -> Self {
         Block { label, content }
@@ -69,7 +71,7 @@ pub enum BlockContent {
 
 #[derive(Default)]
 pub struct BlockGraph {
-    blocks: Vec<Block>,
+    pub blocks: Vec<Block>,
     edges: Vec<HashSet<BlockId>>,
     label_to_id: HashMap<String, BlockId>,
 }
@@ -120,5 +122,13 @@ impl BlockGraph {
 
     fn add_edge(&mut self, start: usize, end: usize) {
         self.edges[start].insert(end);
+    }
+
+    fn new() -> Self {
+        BlockGraph {
+            blocks: vec![],
+            edges: vec![],
+            _label_to_id: HashMap::new(),
+        }
     }
 }
