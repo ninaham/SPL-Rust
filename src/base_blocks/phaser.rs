@@ -2,7 +2,11 @@ use std::collections::HashSet;
 
 use crate::code_gen::quadrupel::Quadrupel;
 
-use super::{Block, BlockContent, BlockGraph};
+use super::{block_start_iter::BlockStartIterator, Block, BlockContent, BlockGraph};
+
+pub fn phase_1(code: &[Quadrupel]) -> BlockStartIterator {
+    BlockStartIterator::new(code)
+}
 
 pub fn phase_2(block_starts: impl Iterator<Item = usize>, code: &[Quadrupel]) -> BlockGraph {
     let mut last = 0;

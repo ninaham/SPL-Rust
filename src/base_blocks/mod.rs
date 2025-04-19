@@ -5,9 +5,12 @@ use std::{
 
 use crate::code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult};
 
+mod block_start_iter;
 mod phaser;
+mod utils;
 
 type BlockId = usize;
+
 #[derive(Debug, Clone)]
 pub struct Block {
     label: Option<String>,
@@ -47,15 +50,9 @@ impl Block {
 
     fn contains_if(&self) -> Option<String> {
         match &self.content {
-            BlockContent::Code(quadrupels) => match quadrupels.last().unwrap().op {
-                QuadrupelOp::Equ
-                | QuadrupelOp::Gre
-                | QuadrupelOp::Grt
-                | QuadrupelOp::Lse
-                | QuadrupelOp::Lst
-                | QuadrupelOp::Neq => Some(quadrupels.last().unwrap().result.to_string()),
-                _ => None,
-            },
+            BlockContent::Code(quadrupels) if quadrupels.last().unwrap().op.is_relop() => {
+                Some(quadrupels.last().unwrap().result.to_string())
+            }
             _ => None,
         }
     }
