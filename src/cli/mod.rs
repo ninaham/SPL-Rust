@@ -2,7 +2,7 @@ use std::io::Write;
 use std::process::Stdio;
 use std::{fs::File, process};
 
-use anyhow::{Ok, bail};
+use anyhow::{Ok, anyhow, bail};
 use clap::{ArgGroup, Command, Id, arg};
 use dialoguer::{Select, theme::ColorfulTheme};
 
@@ -81,7 +81,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
             .interact()?;
         let filename = format!("{}.dot", graphs[sel_graph]);
         let outputname = format!("as file: {}", filename);
-        let outputs = vec!["print", &outputname, "xdot"];
+        let outputs = vec!["print", &outputname, "dot Tx11", "xdot"];
         let output = Select::with_theme(&theme)
             .with_prompt("Which output mode?")
             .items(&outputs)
@@ -98,6 +98,28 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                 writeln!(file, "{}", graph)?;
             }
             2 => {
+                process::Command::new("dot")
+                    .arg("--version")
+                    .output()
+                    .map(|output| output.status.success())
+                    .map_err(|_| anyhow!("dot is not installed"))?;
+
+                let mut dot = process::Command::new("dot")
+                    .arg("-Tx11")
+                    .stdin(Stdio::piped())
+                    .spawn()?;
+                if let Some(stdin) = dot.stdin.as_mut() {
+                    stdin.write_all(format!("{}", graph).as_bytes())?;
+                }
+                dot.wait()?;
+            }
+            3 => {
+                process::Command::new("xdot")
+                    .arg("-h")
+                    .output()
+                    .map(|output| output.status.success())
+                    .map_err(|_| anyhow!("xdot is not installed"))?;
+
                 let mut xdot = process::Command::new("xdot")
                     .arg("-")
                     .stdin(Stdio::piped())
