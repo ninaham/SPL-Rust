@@ -7,7 +7,7 @@ const REGEX_TEMINAL_COLORS: &str =
     r"\u{1b}\[(?:(?<color>[39][0-7])|38;2;(?<truecolor>\d+;\d+;\d+))m(?<text>.*?)\u{1b}\[0m";
 
 const DOT_ATTRIBUTES: &str = "
-    graph[bgcolor=grey16,fontcolor=grey64];
+    graph[bgcolor=grey16,fontcolor=grey64,ranksep=1,nodesep=0.5];
     node [shape=box,color=grey64,fontname=monospace,fontcolor=grey64];
     edge [color=grey64,fontcolor=grey64];
 ";
