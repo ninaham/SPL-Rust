@@ -5,6 +5,7 @@ use phaser::{phase_1, phase_2, phase_3};
 use crate::code_gen::quadrupel::{Quadrupel, QuadrupelOp};
 
 mod block_start_iter;
+mod dot_graph;
 mod phaser;
 mod utils;
 

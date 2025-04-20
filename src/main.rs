@@ -49,7 +49,11 @@ mod test {
         let mut address_code = Tac::new(&table);
         address_code.code_generation(&absyn);
 
-        BlockGraph::from_tac(address_code.proc_table.get("main").unwrap());
+        assert!(address_code.proc_table.contains_key("main"));
+
+        for code in address_code.proc_table.values() {
+            BlockGraph::from_tac(code).to_string();
+        }
 
         Ok(())
     }

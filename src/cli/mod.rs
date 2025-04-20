@@ -36,12 +36,14 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
 
     let mut absyn = parse(input)?;
+
     if phase == "parse" {
         println!("{:#?}", absyn);
         return Ok(());
     }
 
     let table = build_symbol_table(&absyn)?;
+
     if phase == "tables" {
         println!("{:#?}", table);
         return Ok(());
@@ -58,14 +60,16 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
     let mut address_code = Tac::new(&table);
     address_code.code_generation(&absyn);
+
     if phase == "tac" {
         println!("{}", address_code);
         return Ok(());
     }
 
     let graph = BlockGraph::from_tac(address_code.proc_table.get("main").unwrap());
+
     if phase == "dot" {
-        println!("{:#?}", graph);
+        println!("{}", graph);
         return Ok(());
     }
 
