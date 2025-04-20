@@ -4,6 +4,7 @@ use std::{fs::File, process};
 
 use anyhow::{Ok, anyhow, bail};
 use clap::{ArgGroup, Command, Id, arg};
+use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::{
@@ -102,7 +103,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                     .arg("--version")
                     .output()
                     .map(|output| output.status.success())
-                    .map_err(|_| anyhow!("dot is not installed"))?;
+                    .map_err(|_| anyhow!("dot is not installed!".red()))?;
 
                 let mut dot = process::Command::new("dot")
                     .arg("-Tx11")
@@ -118,7 +119,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                     .arg("-h")
                     .output()
                     .map(|output| output.status.success())
-                    .map_err(|_| anyhow!("xdot is not installed"))?;
+                    .map_err(|_| anyhow!("xdot is not installed".red()))?;
 
                 let mut xdot = process::Command::new("xdot")
                     .arg("-")
