@@ -15,23 +15,20 @@ pub fn phase_2(
     let code: Vec<Quadrupel> = code.to_vec();
 
     let mut graph = BlockGraph::new();
-    graph.add_block(Block::new_start(Some("start".to_string())), None);
-    block_starts.enumerate().for_each(|(parent, (start, end))| {
+    let mut last_id = graph.add_block(Block::new_start(Some("start".to_string())), None);
+    block_starts.for_each(|(start, end)| {
         let label = match code[start].op {
             crate::code_gen::quadrupel::QuadrupelOp::Default => {
                 Some(code[start].result.to_string())
             }
             _ => None,
         };
-        graph.add_block(
+        last_id = graph.add_block(
             Block::new_code(label, code[start..end].to_vec()),
-            Some(parent),
+            Some(last_id),
         );
     });
-    graph.add_block(
-        Block::new_stop(Some("stop".to_string())),
-        Some(graph.blocks.len()),
-    );
+    graph.add_block(Block::new_stop(Some("stop".to_string())), Some(last_id));
     graph
 }
 

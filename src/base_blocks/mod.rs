@@ -75,7 +75,7 @@ impl BlockGraph {
         phase_3(phase_2(phase_1(code), code))
     }
 
-    fn add_block(&mut self, block: Block, parent: Option<usize>) -> (usize, &mut Block) {
+    fn add_block(&mut self, block: Block, parent: Option<usize>) -> usize {
         if let Some(l) = block.clone().label {
             self.label_to_id.insert(l, self.blocks.len());
         }
@@ -85,7 +85,7 @@ impl BlockGraph {
             self.add_edge(parent, self.blocks.len() - 1);
         }
 
-        (self.blocks.len() - 1, self.blocks.last_mut().unwrap())
+        self.blocks.len() - 1
     }
 
     fn add_edge(&mut self, start: usize, end: usize) {
