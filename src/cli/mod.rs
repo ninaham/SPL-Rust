@@ -1,5 +1,10 @@
-use anyhow::{bail, Ok};
-use clap::{arg, ArgGroup, Command, Id};
+use std::io::Write;
+use std::process::Stdio;
+use std::{fs::File, process};
+
+use anyhow::{Ok, bail};
+use clap::{ArgGroup, Command, Id, arg};
+use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -66,10 +71,47 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let graph = BlockGraph::from_tac(address_code.proc_table.get("main").unwrap());
-
     if phase == "dot" {
-        println!("{}", graph);
+        let graphs: Vec<&String> = address_code.proc_table.keys().clone().collect();
+        let theme = ColorfulTheme::default();
+        let sel_graph = Select::with_theme(&theme)
+            .with_prompt("Which procedure?")
+            .items(&graphs)
+            .default(0)
+            .interact()?;
+        let filename = format!("{}.dot", graphs[sel_graph]);
+        let outputname = format!("as file: {}", filename);
+        let outputs = vec!["print", &outputname, "xdot"];
+        let output = Select::with_theme(&theme)
+            .with_prompt("Which output mode?")
+            .items(&outputs)
+            .default(0)
+            .interact()?;
+        let graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_graph]).unwrap());
+
+        match output {
+            0 => {
+                println!("{}", graph);
+            }
+            1 => {
+                let mut file = File::create(filename)?;
+                writeln!(file, "{}", graph)?;
+            }
+            2 => {
+                let mut xdot = process::Command::new("xdot")
+                    .arg("-")
+                    .stdin(Stdio::piped())
+                    .spawn()?;
+                if let Some(stdin) = xdot.stdin.as_mut() {
+                    stdin.write_all(format!("{}", graph).as_bytes())?;
+                }
+                xdot.wait()?;
+            }
+            _ => {
+                println!("No valid input");
+            }
+        }
+
         return Ok(());
     }
 
