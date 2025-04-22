@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::process::Stdio;
 use std::{fs::File, process};
 
@@ -23,7 +23,11 @@ pub fn load_program_data() -> Command {
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(tac: -'3' --tac "Generates three address code"),
-            arg!(dot: -d --dot "Generates block graph"),
+            arg!(dot: -d --dot [""] "Generates block graph")
+                .require_equals(true)
+                .num_args(..=2)
+                .value_delimiter(':')
+                .value_names(["proc", "output"]),
         ])
         .group(
             ArgGroup::new("phase")
@@ -73,21 +77,49 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     }
 
     if phase == "dot" {
+        let mut phase_args = matches.get_many::<String>("dot").unwrap();
+
         let graphs: Vec<&String> = address_code.proc_table.keys().clone().collect();
         let theme = ColorfulTheme::default();
-        let sel_graph = Select::with_theme(&theme)
-            .with_prompt("Which procedure?")
-            .items(&graphs)
-            .default(0)
-            .interact()?;
-        let filename = format!("{}.dot", graphs[sel_graph]);
+
+        let sel_graph = phase_args
+            .next()
+            .and_then(|phase_arg| graphs.iter().position(|p| p == &phase_arg));
+
+        let sel_graph = if let Some(sel_graph) = sel_graph {
+            sel_graph
+        } else {
+            Select::with_theme(&theme)
+                .with_prompt("Which procedure?")
+                .items(&graphs)
+                .default(0)
+                .interact()?
+        };
+
+        let mut filename = format!("{}.dot", graphs[sel_graph]);
         let outputname = format!("as file: {}", filename);
         let outputs = vec!["print", &outputname, "dot Tx11", "xdot"];
-        let output = Select::with_theme(&theme)
-            .with_prompt("Which output mode?")
-            .items(&outputs)
-            .default(0)
-            .interact()?;
+
+        let output = phase_args.next().and_then(|arg| {
+            if arg.ends_with(".dot") {
+                filename = arg.to_string();
+                Some(1)
+            } else {
+                outputs.iter().position(|o| o == arg)
+            }
+        });
+
+        let output = if let Some(output) = output {
+            output
+        } else if std::io::stdout().is_terminal() {
+            Select::with_theme(&theme)
+                .with_prompt("Which output mode?")
+                .items(&outputs)
+                .default(0)
+                .interact()?
+        } else {
+            0 // always write dot code to stdout if not terminal
+        };
         let graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_graph]).unwrap());
 
         match output {
