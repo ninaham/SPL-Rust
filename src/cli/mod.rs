@@ -2,6 +2,7 @@ use anyhow::{bail, Ok};
 use clap::{arg, ArgGroup, Command, Id};
 
 use crate::{
+    base_blocks::BlockGraph,
     code_gen::Tac,
     parser::parse_everything_else::parse,
     semant::{build_symbol_table::build_symbol_table, check_def_global},
@@ -16,12 +17,13 @@ pub fn load_program_data() -> Command {
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(tac: -'3' --tac "Generates three address code"),
+            arg!(dot: -d --dot "Generates block graph"),
         ])
         .group(
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "tac"]),
+                .args(["parse", "tables", "semant", "tac", "dot"]),
         )
 }
 
@@ -34,14 +36,16 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
 
     let mut absyn = parse(input)?;
+
     if phase == "parse" {
         println!("{:#?}", absyn);
         return Ok(());
     }
 
     let table = build_symbol_table(&absyn)?;
+
     if phase == "tables" {
-        println!("{:?}", table);
+        println!("{:#?}", table);
         return Ok(());
     }
 
@@ -56,8 +60,16 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
     let mut address_code = Tac::new(&table);
     address_code.code_generation(&absyn);
+
     if phase == "tac" {
         println!("{}", address_code);
+        return Ok(());
+    }
+
+    let graph = BlockGraph::from_tac(address_code.proc_table.get("main").unwrap());
+
+    if phase == "dot" {
+        println!("{}", graph);
         return Ok(());
     }
 
