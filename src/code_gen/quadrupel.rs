@@ -26,11 +26,11 @@ pub enum QuadrupelOp {
 impl fmt::Display for QuadrupelOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self == &QuadrupelOp::Default {
-            write!(f, "        ")
+            write!(f, "               ")
         } else {
             write!(
                 f,
-                "{:<8}",
+                "{:<15}",
                 format!("{:?}", self).to_uppercase().bright_blue()
             )
         }
@@ -47,9 +47,9 @@ pub enum QuadrupelArg {
 impl fmt::Display for QuadrupelArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Var(var) => write!(f, "{:<8}", var.to_string().truecolor(150, 150, 150)),
-            Self::Const(val) => write!(f, "{:<8}", val),
-            Self::Empty => write!(f, "        "),
+            Self::Var(var) => write!(f, "{:<15}", var.to_string().truecolor(150, 150, 150)),
+            Self::Const(val) => write!(f, "{:<15}", val),
+            Self::Empty => write!(f, "               "),
         }
     }
 }
@@ -63,8 +63,8 @@ pub enum QuadrupelVar {
 impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Spl(var) => write!(f, "{:<8}", var),
-            Self::Tmp(val) => write!(f, "T{:<7}", val), // TODO: make temp vars unique
+            Self::Spl(var) => write!(f, "{:<15}", var),
+            Self::Tmp(val) => write!(f, "T{:<14}", val), // TODO: make temp vars unique
         }
     }
 }

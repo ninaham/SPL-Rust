@@ -12,7 +12,7 @@ use crate::absyn::{
 
 use super::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar, Tac};
 
-impl<'a> Tac<'a> {
+impl<'a> Tac {
     pub(super) fn eval_proc_def(&mut self, proc_def: &'a ProcedureDefinition) {
         let quadrupel = Quadrupel::new();
         let mut new_quad: Quadrupel = quadrupel;

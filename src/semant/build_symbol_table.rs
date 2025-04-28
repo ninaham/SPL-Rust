@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc, sync::Mutex};
 
 use crate::{
     absyn::{
@@ -15,32 +15,40 @@ use crate::{
     },
 };
 
-use super::SemanticError;
+use super::{SemanticError, table_initializer};
 
-pub fn build_symbol_table(program: &Program) -> Result<SymbolTable, SemanticError> {
-    let mut global_table = SymbolTable {
+pub fn build_symbol_table(program: &Program) -> Result<Rc<Mutex<SymbolTable>>, SemanticError> {
+    let global_table = SymbolTable {
         entries: HashMap::new(),
+        upper_level: None,
     };
 
-    global_table.init();
+    let global_table = Rc::new(Mutex::new(global_table));
+
+    table_initializer::init_symbol_table(global_table.clone());
 
     program
         .definitions
         .iter()
-        .try_for_each(|def| enter_global_def(def, &mut global_table))?;
+        .try_for_each(|def| enter_global_def(def, global_table.clone()))?;
 
     Ok(global_table)
 }
 
-pub fn enter_global_def(def: &Definition, table: &mut SymbolTable) -> Result<(), SemanticError> {
+pub fn enter_global_def(
+    def: &Definition,
+    table: Rc<Mutex<SymbolTable>>,
+) -> Result<(), SemanticError> {
     match def {
         Definition::ProcedureDefinition(procedure_definition) => {
-            let (name, entry) = enter_procedure_def(procedure_definition, table)?;
-            table.enter(name, entry)?;
+            let (name, entry) = enter_procedure_def(procedure_definition, table.clone())?;
+            let mut t = table.lock().unwrap();
+            t.enter(name, entry)?;
         }
         Definition::TypeDefinition(type_definition) => {
-            let (name, entry) = enter_type_def(type_definition, table)?;
-            table.enter(name, entry)?;
+            let mut t = table.lock().unwrap();
+            let (name, entry) = enter_type_def(type_definition, &t)?;
+            t.enter(name, entry)?;
         }
     }
 
@@ -60,21 +68,22 @@ pub fn enter_type_def(
 
 pub fn enter_procedure_def(
     def: &ProcedureDefinition,
-    table: &SymbolTable,
+    table: Rc<Mutex<SymbolTable>>,
 ) -> Result<(String, Entry), SemanticError> {
     let mut local_table = SymbolTable {
         entries: HashMap::new(),
+        upper_level: Some(Rc::downgrade(&table)),
     };
 
     def.parameters
         .iter()
-        .try_for_each(|def| enter_param_def(def, &mut local_table, table))?;
+        .try_for_each(|def| enter_param_def(def, &mut local_table))?;
 
     let parameter_types = def
         .parameters
         .iter()
         .map(|param| {
-            let param_type = match type_expression_to_type(&param.type_expression, table) {
+            let param_type = match type_expression_to_type(&param.type_expression, &local_table) {
                 Ok(typ) => typ,
                 Err(err) => return Err(err),
             };
@@ -87,7 +96,7 @@ pub fn enter_procedure_def(
 
     def.variales
         .iter()
-        .try_for_each(|def| enter_var_def(def, &mut local_table, table))?;
+        .try_for_each(|def| enter_var_def(def, &mut local_table))?;
 
     let entry = ProcedureEntry {
         local_table,
@@ -112,7 +121,7 @@ pub fn type_expression_to_type(
             }))
         }
         TypeExpression::NamedTypeExpression(nte) => {
-            let entry = match table.lookup(nte, None) {
+            let entry = match table.lookup(nte) {
                 Some(entry) => entry.clone(),
                 None => {
                     return Err(SemanticError {
@@ -133,10 +142,9 @@ pub fn type_expression_to_type(
 pub fn enter_var_def(
     def: &VariableDefinition,
     table: &mut SymbolTable,
-    global_table: &SymbolTable,
 ) -> Result<(), SemanticError> {
     let entry = VariableEntry {
-        typ: type_expression_to_type(&def.type_expression, global_table)?,
+        typ: type_expression_to_type(&def.type_expression, table)?,
         is_reference: false,
     };
 
@@ -148,10 +156,9 @@ pub fn enter_var_def(
 pub fn enter_param_def(
     def: &ParameterDefinition,
     table: &mut SymbolTable,
-    global_table: &SymbolTable,
 ) -> Result<(), SemanticError> {
     let entry = VariableEntry {
-        typ: type_expression_to_type(&def.type_expression, global_table)?,
+        typ: type_expression_to_type(&def.type_expression, table)?,
         is_reference: def.is_reference,
     };
 

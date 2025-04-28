@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Weak, sync::Mutex};
 
 use crate::semant::SemanticError;
 
@@ -7,6 +7,7 @@ use super::entry::Entry;
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
     pub entries: HashMap<String, Entry>,
+    pub upper_level: Option<Weak<Mutex<SymbolTable>>>,
 }
 
 impl SymbolTable {
@@ -20,16 +21,14 @@ impl SymbolTable {
         Ok(())
     }
 
-    pub fn lookup<'a>(
-        &'a self,
-        name: &str,
-        upper_level: Option<&'a SymbolTable>,
-    ) -> Option<&'a Entry> {
+    pub fn lookup(&self, name: &str) -> Option<Entry> {
         if let Some(entry) = self.entries.get(name) {
-            return Some(entry);
+            return Some(entry.clone());
         }
-        if let Some(upper_level) = upper_level {
-            return upper_level.lookup(name, None);
+        if let Some(upper_level) = self.upper_level.clone() {
+            let u_l = upper_level.upgrade().unwrap();
+            let u_l = u_l.lock().unwrap();
+            return u_l.lookup(name);
         }
         None
     }

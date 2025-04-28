@@ -27,26 +27,26 @@ impl Expression {
 }
 
 impl Operator {
-    pub fn result_type(&self, left_type: &Type, right_type: &Type) -> Option<&Type> {
+    pub fn result_type(&self, left_type: &Type, right_type: &Type) -> Option<Type> {
         if !left_type.is_int() || !right_type.is_int() {
             return None;
         }
 
         Some(match self {
-            Self::Add | Self::Sub | Self::Mul | Self::Div => &Type::INT,
-            Self::Equ | Self::Neq | Self::Lst | Self::Lse | Self::Grt | Self::Gre => &Type::BOOL,
+            Self::Add | Self::Sub | Self::Mul | Self::Div => Type::INT,
+            Self::Equ | Self::Neq | Self::Lst | Self::Lse | Self::Grt | Self::Gre => Type::BOOL,
         })
     }
 }
 
 impl UnaryOperator {
-    pub fn result_type(&self, right_type: &Type) -> Option<&Type> {
+    pub fn result_type(&self, right_type: &Type) -> Option<Type> {
         if !(right_type.is_int()) {
             return None;
         }
 
         Some(match self {
-            Self::Minus => &Type::INT,
+            Self::Minus => Type::INT,
         })
     }
 }

@@ -62,13 +62,13 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     absyn
         .definitions
         .iter_mut()
-        .try_for_each(|def| check_def_global(def, &table.clone()))?;
+        .try_for_each(|def| check_def_global(def, table.clone()))?;
 
     if phase == "semant" {
         return Ok(());
     }
 
-    let mut address_code = Tac::new(&table);
+    let mut address_code = Tac::new(table);
     address_code.code_generation(&absyn);
 
     if phase == "tac" {

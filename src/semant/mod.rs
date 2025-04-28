@@ -2,7 +2,7 @@ pub mod build_symbol_table;
 pub mod table_initializer;
 mod utils;
 
-use std::fmt;
+use std::{fmt, rc::Rc, sync::Mutex};
 
 use crate::{
     absyn::{
@@ -34,7 +34,10 @@ impl std::error::Error for SemanticError {}
 
 /* --- Global --------------------------------------------- */
 
-pub fn check_def_global(def: &mut Definition, table: &SymbolTable) -> Result<(), SemanticError> {
+pub fn check_def_global(
+    def: &mut Definition,
+    table: Rc<Mutex<SymbolTable>>,
+) -> Result<(), SemanticError> {
     match def {
         Definition::TypeDefinition(_) => Ok(()),
         Definition::ProcedureDefinition(p) => check_def_proc(p, table),
@@ -43,10 +46,11 @@ pub fn check_def_global(def: &mut Definition, table: &SymbolTable) -> Result<(),
 
 fn check_def_proc(
     proc: &mut ProcedureDefinition,
-    table: &SymbolTable,
+    table: Rc<Mutex<SymbolTable>>,
 ) -> Result<(), SemanticError> {
+    let table = table.lock().unwrap();
     let local_table: &SymbolTable = &table
-        .lookup(&proc.name, None)
+        .lookup(&proc.name)
         .and_then(|e| {
             if let Entry::ProcedureEntry(e) = e {
                 Some(e)
@@ -56,24 +60,20 @@ fn check_def_proc(
         })
         .expect("check_def_proc: given procedure not in symbol table")
         .local_table;
-
+    drop(table);
     proc.body
         .iter_mut()
-        .try_for_each(|s| check_statement(s, local_table, table))?;
+        .try_for_each(|s| check_statement(s, local_table))?;
 
     Ok(())
 }
 
 /* --- Statements ----------------------------------------- */
 
-fn check_statement(
-    statement: &mut Statement,
-    table: &SymbolTable,
-    global_table: &SymbolTable,
-) -> Result<(), SemanticError> {
+fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(), SemanticError> {
     match statement {
         Statement::IfStatement(s) => {
-            let cond_expr_type = check_expression(&mut s.condition, table, global_table)?;
+            let cond_expr_type = check_expression(&mut s.condition, table)?;
             if !cond_expr_type.is_bool() {
                 return Err(SemanticError {
                     _msg: format!("IfConditionMustBeBoolean: {s:?}"),
@@ -81,10 +81,10 @@ fn check_statement(
                 });
             }
 
-            check_statement(&mut s.then_branch, table, global_table)?;
+            check_statement(&mut s.then_branch, table)?;
 
             if let Some(ref mut s) = s.else_branch {
-                check_statement(s, table, global_table)?;
+                check_statement(s, table)?;
             }
 
             Ok(())
@@ -93,7 +93,7 @@ fn check_statement(
         Statement::EmptyStatement => Ok(()),
 
         Statement::CallStatement(s) => {
-            let proc = global_table.lookup(&s.name, None).ok_or(SemanticError {
+            let proc = table.lookup(&s.name).ok_or(SemanticError {
                 _msg: format!("UndefinedIdentifier: {s:?}"),
                 //pos: s.pos,
             })?;
@@ -120,8 +120,8 @@ fn check_statement(
                 .zip(proc.parameter_types.iter())
                 .enumerate()
             {
-                let arg_type = check_expression(arg, table, global_table)?;
-                if arg_type != &param.typ {
+                let arg_type = check_expression(arg, table)?;
+                if arg_type != param.typ {
                     return Err(SemanticError {
                         _msg: format!(
                             "ArgumentTypeMismatch: {}(): arg {i}: [{param:?}] {arg:?}",
@@ -145,7 +145,7 @@ fn check_statement(
         }
 
         Statement::WhileStatement(s) => {
-            let cond_expr_type = check_expression(&mut s.condition, table, global_table)?;
+            let cond_expr_type = check_expression(&mut s.condition, table)?;
             if !cond_expr_type.is_bool() {
                 return Err(SemanticError {
                     _msg: format!("WhileConditionMustBeBoolean: {s:?}"),
@@ -153,14 +153,14 @@ fn check_statement(
                 });
             }
 
-            check_statement(&mut s.body, table, global_table)?;
+            check_statement(&mut s.body, table)?;
 
             Ok(())
         }
 
         Statement::AssignStatement(s) => {
-            let target_type = check_variable(&mut s.target, table, global_table)?;
-            let value_type = check_expression(&mut s.value, table, global_table)?;
+            let target_type = check_variable(&mut s.target, table)?;
+            let value_type = check_expression(&mut s.value, table)?;
 
             if target_type.is_array() || target_type != value_type {
                 return Err(SemanticError {
@@ -172,9 +172,7 @@ fn check_statement(
             Ok(())
         }
 
-        Statement::CompoundStatement(s) => s
-            .iter_mut()
-            .try_for_each(|s| check_statement(s, table, global_table)),
+        Statement::CompoundStatement(s) => s.iter_mut().try_for_each(|s| check_statement(s, table)),
     }
 }
 
@@ -183,14 +181,13 @@ fn check_statement(
 fn check_expression<'a>(
     expr: &'a mut Expression,
     table: &'a SymbolTable,
-    global_table: &'a SymbolTable,
-) -> Result<&'a Type, SemanticError> {
+) -> Result<Type, SemanticError> {
     match expr {
         Expression::BinaryExpression(expr) => {
-            let left_type = check_expression(&mut expr.left, table, global_table)?;
-            let right_type = check_expression(&mut expr.right, table, global_table)?;
+            let left_type = check_expression(&mut expr.left, table)?;
+            let right_type = check_expression(&mut expr.right, table)?;
 
-            let Some(result_type) = expr.operator.result_type(left_type, right_type) else {
+            let Some(result_type) = expr.operator.result_type(&left_type, &right_type) else {
                 return Err(SemanticError {
                     _msg: format!("OperandTypeMismatch: {expr:?}"),
                     //pos: expr.pos,
@@ -200,9 +197,9 @@ fn check_expression<'a>(
             Ok(result_type)
         }
         Expression::UnaryExpression(expr) => {
-            let right_type = check_expression(&mut expr.operand, table, global_table)?;
+            let right_type = check_expression(&mut expr.operand, table)?;
 
-            let Some(result_type) = expr.operator.result_type(right_type) else {
+            let Some(result_type) = expr.operator.result_type(&right_type) else {
                 return Err(SemanticError {
                     _msg: format!("OperandTypeMismatch: {expr:?}"),
                     //pos: expr.pos,
@@ -211,24 +208,18 @@ fn check_expression<'a>(
 
             Ok(result_type)
         }
-        Expression::IntLiteral(_) => Ok(&Type::PrimitiveType(PrimitiveType::Int)),
-        Expression::VariableExpression(var) => check_variable(var, table, global_table),
+        Expression::IntLiteral(_) => Ok(Type::PrimitiveType(PrimitiveType::Int)),
+        Expression::VariableExpression(var) => check_variable(var, table),
     }
 }
 
-fn check_variable<'a>(
-    var: &mut Variable,
-    table: &'a SymbolTable,
-    global_table: &'a SymbolTable,
-) -> Result<&'a Type, SemanticError> {
+fn check_variable(var: &mut Variable, table: &SymbolTable) -> Result<Type, SemanticError> {
     match var {
         Variable::NamedVariable(var_name) => {
-            let entry = table
-                .lookup(var_name, Some(global_table))
-                .ok_or(SemanticError {
-                    _msg: format!("UndefinedIdentifier: {var:?}"),
-                    //pos: var.pos,
-                })?;
+            let entry = table.lookup(var_name).ok_or(SemanticError {
+                _msg: format!("UndefinedIdentifier: {var:?}"),
+                //pos: var.pos,
+            })?;
             let Entry::VariableEntry(entry) = entry else {
                 return Err(SemanticError {
                     _msg: format!("NotAVariable: {entry:?} {var:?}"),
@@ -236,10 +227,10 @@ fn check_variable<'a>(
                 });
             };
 
-            Ok(&entry.typ)
+            Ok(entry.typ)
         }
         Variable::ArrayAccess(arr_acc) => {
-            let array_type = check_variable(&mut arr_acc.array, table, global_table)?;
+            let array_type = check_variable(&mut arr_acc.array, table)?;
             let Type::ArrayType(array_type) = array_type else {
                 return Err(SemanticError {
                     _msg: format!("IndexingNonArray: {var:?}"),
@@ -249,7 +240,7 @@ fn check_variable<'a>(
 
             arr_acc.typ = Some(array_type.clone());
 
-            let index_type = check_expression(&mut arr_acc.index, table, global_table)?;
+            let index_type = check_expression(&mut arr_acc.index, table)?;
             if !index_type.is_int() {
                 return Err(SemanticError {
                     _msg: format!("IndexTypeMismatch: {var:?}"),
@@ -257,7 +248,7 @@ fn check_variable<'a>(
                 });
             }
 
-            Ok(&*array_type.base_type)
+            Ok(*array_type.base_type)
         }
     }
 }
