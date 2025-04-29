@@ -6,7 +6,7 @@ pub struct UnaryExpression {
     pub operand: Expression,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnaryOperator {
     Minus,
 }

@@ -261,6 +261,7 @@ impl<'a> Tac {
         QuadrupelVar::Tmp(n)
     }
 
+    #[expect(clippy::wrong_self_convention)]
     fn into_tmp(&mut self, expr: Expr) -> QuadrupelArg {
         match expr {
             Expr::Quad(mut quad) => {

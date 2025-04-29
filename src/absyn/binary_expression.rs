@@ -7,7 +7,7 @@ pub struct BinaryExpression {
     pub right: Expression,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Operator {
     Add,
     Sub,
