@@ -1,3 +1,4 @@
+use super::aeb::AEBEntry;
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
@@ -5,12 +6,6 @@ use crate::{
     base_blocks::{Block, BlockContent, BlockGraph},
     code_gen::quadrupel::{Quadrupel, QuadrupelOp, QuadrupelVar},
 };
-
-struct AEBEntry {
-    quad: Quadrupel,
-    pos: usize,
-    tmp: Option<QuadrupelVar>,
-}
 
 pub fn common_subexpression_elimination(graph: &mut BlockGraph) {
     graph.blocks.iter_mut().for_each(optimize_block);
