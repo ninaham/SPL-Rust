@@ -14,6 +14,10 @@ impl AEBEntry {
                 (self.quad.arg1 == other.arg1 && self.quad.arg2 == other.arg2)
                     || (self.quad.arg1 == other.arg2 && self.quad.arg2 == other.arg1)
             }
+            QuadrupelOp::Sub | QuadrupelOp::Div => {
+                self.quad.arg1 == other.arg1 && self.quad.arg2 == other.arg2
+            }
+            QuadrupelOp::ArrayLoad => self.quad.arg1 == other.arg1 && self.quad.arg2 == other.arg2,
             _ => false,
         }
     }
