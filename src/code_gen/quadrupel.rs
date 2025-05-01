@@ -118,3 +118,62 @@ impl fmt::Display for Quadrupel {
         )
     }
 }
+
+macro_rules! quad {
+    (=> $label:expr) => {quad!((=>), _, _ => $label)};
+
+    (($($op:tt)+), $arg1:tt, $arg2:tt => $result:expr ) => {{
+        $crate::code_gen::quadrupel::Quadrupel {
+            op: quad!(@op $($op)+),
+            arg1: quad!(@arg $arg1),
+            arg2: quad!(@arg $arg2),
+            result: $result,
+        }
+    }};
+
+
+    (@@op $o:ident) => {$crate::code_gen::quadrupel::QuadrupelOp::$o};
+    (@op +   ) => { quad!(@@op Add       ) };
+    (@op -   ) => { quad!(@@op Sub       ) };
+    (@op *   ) => { quad!(@@op Mul       ) };
+    (@op /   ) => { quad!(@@op Div       ) };
+    (@op ~   ) => { quad!(@@op Neg       ) };
+    (@op ==  ) => { quad!(@@op Equ       ) };
+    (@op !=  ) => { quad!(@@op Neq       ) };
+    (@op <   ) => { quad!(@@op Lst       ) };
+    (@op <=  ) => { quad!(@@op Lse       ) };
+    (@op >   ) => { quad!(@@op Grt       ) };
+    (@op >=  ) => { quad!(@@op Gre       ) };
+    (@op :=  ) => { quad!(@@op Assign    ) };
+    (@op =[] ) => { quad!(@@op ArrayLoad ) };
+    (@op []= ) => { quad!(@@op ArrayStore) };
+    (@op =>  ) => { quad!(@@op Goto      ) };
+    (@op p   ) => { quad!(@@op Param     ) };
+    (@op c   ) => { quad!(@@op Call      ) };
+    (@op _   ) => { quad!(@@op Default   ) };
+
+    (@@arg $E:ident $(($a:expr))?) => {$crate::code_gen::quadrupel::QuadrupelArg::$E$(($a))?};
+    (@arg ($arg:expr)  ) => {             $arg         };
+    (@arg $val:literal ) => { quad!(@@arg Const($val)) };
+    (@arg (=$val:expr) ) => { quad!(@@arg Const($val)) };
+    (@arg (~$val:expr) ) => { quad!(@@arg Var($val)  ) };
+    (@arg _            ) => { quad!(@@arg Empty      ) };
+}
+pub(crate) use quad;
+
+macro_rules! quad_match {
+    (($($op:tt)+) $(($($ops:tt)+))*, $arg1:tt, $arg2:tt => $result:ident ) => {
+
+        $crate::code_gen::quadrupel::Quadrupel {
+            op: quad!(@op $($op)+) $(| quad!(@op $($ops)+))*,
+            arg1: quad_match!(@arg $arg1),
+            arg2: quad_match!(@arg $arg2),
+            result: $result,
+        }
+    };
+
+    (@arg $arg:ident   ) => {             $arg         };
+    (@arg $val:literal ) => { quad!(@@arg Const($val)) };
+    (@arg _            ) => {             _            };
+}
+pub(crate) use quad_match;
