@@ -8,7 +8,7 @@ pub(super) struct AEBEntry {
 }
 
 impl AEBEntry {
-    fn cmp(&self, other: Quadrupel) -> bool {
+    fn cmp(&self, other: &Quadrupel) -> bool {
         match self.quad.op {
             QuadrupelOp::Add | QuadrupelOp::Mul | QuadrupelOp::Neg => {
                 (self.quad.arg1 == other.arg1 && self.quad.arg2 == other.arg2)
