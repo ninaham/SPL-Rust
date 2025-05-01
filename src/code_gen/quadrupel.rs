@@ -43,6 +43,17 @@ pub enum QuadrupelArg {
     Const(i32),
     Empty,
 }
+impl PartialEq for QuadrupelArg {
+    fn eq(&self, other: &Self) -> bool {
+        use QuadrupelArg::*;
+        match (self, other) {
+            (Var(a), Var(b)) => a == b,
+            (Const(a), Const(b)) => a == b,
+            (Empty, Empty) => true,
+            _ => false,
+        }
+    }
+}
 
 impl fmt::Display for QuadrupelArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -54,7 +65,7 @@ impl fmt::Display for QuadrupelArg {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum QuadrupelVar {
     Spl(String),
     Tmp(usize),
