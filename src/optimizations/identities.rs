@@ -20,9 +20,15 @@ impl Quadrupel {
             quad_match!((-), 0, arg => res) => {
                 quad!((~), (arg), _ => res)
             }
+            quad_match!((-), arg1, arg2 => res) if arg1 == arg2 => {
+                quad!((:=), 0, _ => res)
+            }
 
             quad_match!((*), 1, arg => res) | quad_match!((*)(/), arg, 1 => res) => {
                 quad!((:=), (arg), _ => res)
+            }
+            quad_match!((*), 2, arg => res) | quad_match!((*), arg, 2 => res) => {
+                quad!((+), (arg.clone()), (arg) => res)
             }
 
             quad_match!((*)(/), 0, _ => res) | quad_match!((*), _, 0 => res) => {

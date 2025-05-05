@@ -9,8 +9,6 @@ mod parser;
 mod semant;
 mod table;
 
-// TODO: Ask about assigning to reference parameters
-
 fn main() -> anyhow::Result<()> {
     process_matches(&cli::load_program_data().get_matches())
 }
