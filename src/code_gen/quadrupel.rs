@@ -70,6 +70,7 @@ pub enum QuadrupelVar {
     Spl(String),
     Tmp(usize),
 }
+impl Eq for QuadrupelVar {}
 
 impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -85,6 +86,19 @@ pub enum QuadrupelResult {
     Var(QuadrupelVar),
     Label(String),
     Empty,
+}
+
+impl PartialEq<QuadrupelArg> for QuadrupelResult {
+    fn eq(&self, other: &QuadrupelArg) -> bool {
+        let Self::Var(self_var) = self else {
+            return false;
+        };
+        let QuadrupelArg::Var(other_var) = other else {
+            return false;
+        };
+
+        self_var == other_var
+    }
 }
 
 impl fmt::Display for QuadrupelResult {

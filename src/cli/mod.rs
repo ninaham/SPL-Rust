@@ -2,10 +2,10 @@ use std::io::{IsTerminal, Write};
 use std::process::Stdio;
 use std::{fs::File, process};
 
-use anyhow::{Ok, anyhow, bail};
-use clap::{ArgGroup, Command, Id, arg};
+use anyhow::{anyhow, bail, Ok};
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -120,7 +120,10 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         } else {
             0 // always write dot code to stdout if not terminal
         };
-        let graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_graph]).unwrap());
+        let mut graph =
+            BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_graph]).unwrap());
+
+        graph.common_subexpression_elimination();
 
         match output {
             0 => {

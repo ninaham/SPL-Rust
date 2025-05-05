@@ -53,7 +53,9 @@ mod test {
         assert!(address_code.proc_table.contains_key("main"));
 
         for code in address_code.proc_table.values() {
-            BlockGraph::from_tac(code).to_string();
+            let mut bg = BlockGraph::from_tac(code);
+            bg.common_subexpression_elimination();
+            bg.to_string();
         }
 
         Ok(())

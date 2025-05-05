@@ -1,7 +1,6 @@
 use crate::code_gen::quadrupel::{quad, quad_match, Quadrupel, QuadrupelArg};
 
 impl Quadrupel {
-    #[expect(unused)]
     pub fn simplify(self) -> Option<Self> {
         if let Some(val) = self.calc_const() {
             return Some(quad!((:=), (=val), _ => self.result));

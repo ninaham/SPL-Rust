@@ -1,14 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::collections::{HashMap, HashSet};
 
 use phaser::{phase_1, phase_2, phase_3};
 
-use crate::{
-    absyn::absyn::Expression,
-    code_gen::quadrupel::{Quadrupel, QuadrupelOp},
-};
+use crate::code_gen::quadrupel::{Quadrupel, QuadrupelOp};
 
 mod block_start_iter;
 mod dot_graph;
