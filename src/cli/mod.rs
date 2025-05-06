@@ -2,10 +2,10 @@ use std::io::{IsTerminal, Write};
 use std::process::Stdio;
 use std::{fs::File, process};
 
-use anyhow::{anyhow, bail, Ok};
-use clap::{arg, ArgGroup, Command, Id};
+use anyhow::{Ok, anyhow, bail};
+use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -18,7 +18,7 @@ pub fn load_program_data() -> Command {
     Command::new("SPl Rust Compiler")
         .version("0.1.0")
         .args([
-            arg!(file: <file> "Path to input graph"),
+            arg!(file: <file> "Path to SPL code"),
             arg!(parse: -p --parse "Parse input file, returns the abstract syntax tree"),
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
