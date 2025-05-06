@@ -76,7 +76,9 @@ impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Spl(var) => write!(f, "{:<15}", var),
-            Self::Tmp(val) => write!(f, "T{:<14}", val), // TODO: make temp vars unique
+            Self::Tmp(val) => write!(f, "T{:<14}", val), // TODO: make temp vars unique // Idea Timestamp?
+                                                         // use chrono::Utc;
+                                                         // val = Utc::now.timestamp_nanos() as usize;
         }
     }
 }
