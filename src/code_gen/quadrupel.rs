@@ -167,7 +167,7 @@ macro_rules! quad {
     (@op _   ) => { quad!(@@op Default   ) };
 
     (@@arg $E:ident $(($a:expr))?) => {$crate::code_gen::quadrupel::QuadrupelArg::$E$(($a))?};
-    (@arg ($arg:expr)  ) => {             $arg         };
+    (@arg ($arg:expr)  ) => {           $arg           };
     (@arg $val:literal ) => { quad!(@@arg Const($val)) };
     (@arg (=$val:expr) ) => { quad!(@@arg Const($val)) };
     (@arg (~$val:expr) ) => { quad!(@@arg Var($val)  ) };
@@ -186,7 +186,7 @@ macro_rules! quad_match {
         }
     };
 
-    (@arg $arg:ident   ) => {             $arg         };
+    (@arg $arg:ident   ) => {           $arg           };
     (@arg $val:literal ) => { quad!(@@arg Const($val)) };
     (@arg _            ) => {             _            };
 }
