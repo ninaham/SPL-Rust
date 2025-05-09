@@ -9,13 +9,13 @@ use crate::{
         variable_definition::VariableDefinition,
     },
     table::{
-        entry::{Entry, ParameterType, ProcedureEntry, TypeEntry, VariableEntry},
+        entry::{Entry, Parameter, ProcedureEntry, TypeEntry, VariableEntry},
         symbol_table::SymbolTable,
         types::{ArrayType, Type},
     },
 };
 
-use super::{SemanticError, table_initializer};
+use super::{table_initializer, SemanticError};
 
 pub fn build_symbol_table(program: &Program) -> Result<Rc<Mutex<SymbolTable>>, SemanticError> {
     let global_table = SymbolTable {
@@ -79,7 +79,7 @@ pub fn enter_procedure_def(
         .iter()
         .try_for_each(|def| enter_param_def(def, &mut local_table))?;
 
-    let parameter_types = def
+    let parameters = def
         .parameters
         .iter()
         .map(|param| {
@@ -87,12 +87,13 @@ pub fn enter_procedure_def(
                 Ok(typ) => typ,
                 Err(err) => return Err(err),
             };
-            Ok(ParameterType {
+            Ok(Parameter {
+                name: def.name.clone(),
                 typ: param_type,
                 is_reference: param.is_reference,
             })
         })
-        .collect::<Result<Vec<ParameterType>, SemanticError>>()?;
+        .collect::<Result<Vec<Parameter>, SemanticError>>()?;
 
     def.variales
         .iter()
@@ -100,7 +101,7 @@ pub fn enter_procedure_def(
 
     let entry = ProcedureEntry {
         local_table,
-        parameter_types,
+        parameters,
     };
 
     Ok((def.name.clone(), Entry::ProcedureEntry(entry)))

@@ -2,16 +2,18 @@ use std::io::{IsTerminal, Write};
 use std::process::Stdio;
 use std::{fs::File, process};
 
-use anyhow::{Ok, anyhow, bail};
-use clap::{ArgGroup, Command, Id, arg};
+use anyhow::{anyhow, bail, Ok};
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
+    optimizations::reaching_expressions::Definition,
     parser::parse_everything_else::parse,
     semant::{build_symbol_table::build_symbol_table, check_def_global},
+    table::entry::Entry,
 };
 
 pub fn load_program_data() -> Command {
@@ -23,17 +25,15 @@ pub fn load_program_data() -> Command {
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(tac: -'3' --tac "Generates three address code"),
-            arg!(dot: -d --dot [""] "Generates block graph")
-                .require_equals(true)
-                .num_args(..=2)
-                .value_delimiter(':')
-                .value_names(["proc", "output"]),
+            arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
+            arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
+            arg!(rch: -r --rch "Reaching Definitions"),
         ])
         .group(
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "tac", "dot"]),
+                .args(["parse", "tables", "semant", "tac", "dot", "rch"]),
         )
 }
 
@@ -68,7 +68,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let mut address_code = Tac::new(table);
+    let mut address_code = Tac::new(table.clone());
     address_code.code_generation(&absyn);
 
     if phase == "tac" {
@@ -76,31 +76,32 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let graphs = address_code.proc_table.keys().collect::<Vec<_>>();
+    let theme = ColorfulTheme::default();
+
+    let sel_proc = matches
+        .get_one::<String>("proc")
+        .and_then(|phase_arg| graphs.iter().position(|p| p == &phase_arg));
+
+    let sel_proc = if let Some(sel_proc) = sel_proc {
+        sel_proc
+    } else {
+        Select::with_theme(&theme)
+            .with_prompt("Which procedure?")
+            .items(&graphs)
+            .default(0)
+            .interact()?
+    };
+    let mut graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_proc]).unwrap());
+
+    graph.common_subexpression_elimination();
+
     if phase == "dot" {
-        let mut phase_args = matches.get_many::<String>("dot").unwrap();
-
-        let graphs: Vec<&String> = address_code.proc_table.keys().clone().collect();
-        let theme = ColorfulTheme::default();
-
-        let sel_graph = phase_args
-            .next()
-            .and_then(|phase_arg| graphs.iter().position(|p| p == &phase_arg));
-
-        let sel_graph = if let Some(sel_graph) = sel_graph {
-            sel_graph
-        } else {
-            Select::with_theme(&theme)
-                .with_prompt("Which procedure?")
-                .items(&graphs)
-                .default(0)
-                .interact()?
-        };
-
-        let mut filename = format!("{}.dot", graphs[sel_graph]);
+        let mut filename = format!("{}.dot", graphs[sel_proc]);
         let outputname = format!("as file: {}", filename);
         let outputs = vec!["print", &outputname, "dot Tx11", "xdot"];
 
-        let output = phase_args.next().and_then(|arg| {
+        let output = matches.get_one::<String>("dot").and_then(|arg| {
             if arg.ends_with(".dot") {
                 filename = arg.to_string();
                 Some(1)
@@ -120,10 +121,6 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         } else {
             0 // always write dot code to stdout if not terminal
         };
-        let mut graph =
-            BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_graph]).unwrap());
-
-        graph.common_subexpression_elimination();
 
         match output {
             0 => {
@@ -168,6 +165,51 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
             _ => {
                 println!("No valid input");
             }
+        }
+
+        return Ok(());
+    }
+
+    if phase == "rch" {
+        let proc_name = graphs[sel_proc];
+        let proc_def = table.lock().unwrap().lookup(proc_name);
+        let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
+            unreachable!()
+        };
+        let (defs, rch_gen, rch_prsv, rch_in, rch_out) =
+            graph.reaching_definitions(&proc_def.parameters);
+
+        println!("Definitions:");
+        println!("{}", Definition::fmt_table(defs.iter()));
+        println!();
+
+        let col_width = defs.len();
+        println!(
+            "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
+            "Block", "GEN", "PRSV", "RCHin", "RCHout",
+        );
+        for (n, (((g, p), i), o)) in rch_gen
+            .iter()
+            .zip(rch_prsv)
+            .zip(rch_in)
+            .zip(rch_out)
+            .enumerate()
+        {
+            println!(
+                "{n:>5} {} {} {} {}",
+                g.iter()
+                    .map(|b| b.then_some('1').unwrap_or('0'))
+                    .collect::<String>(),
+                p.iter()
+                    .map(|b| b.then_some('1').unwrap_or('0'))
+                    .collect::<String>(),
+                i.iter()
+                    .map(|b| b.then_some('1').unwrap_or('0'))
+                    .collect::<String>(),
+                o.iter()
+                    .map(|b| b.then_some('1').unwrap_or('0'))
+                    .collect::<String>(),
+            );
         }
 
         return Ok(());

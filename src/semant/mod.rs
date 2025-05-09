@@ -104,11 +104,11 @@ fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(),
                 });
             };
 
-            if s.arguments.len() != proc.parameter_types.len() {
+            if s.arguments.len() != proc.parameters.len() {
                 return Err(SemanticError {
                     _msg: format!(
                         "ArgumentCountMismatch: {:?} {:?}",
-                        s.arguments, proc.parameter_types
+                        s.arguments, proc.parameters
                     ),
                     //pos: s.pos,
                 });
@@ -117,7 +117,7 @@ fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(),
             for (i, (arg, param)) in s
                 .arguments
                 .iter_mut()
-                .zip(proc.parameter_types.iter())
+                .zip(proc.parameters.iter())
                 .enumerate()
             {
                 let arg_type = check_expression(arg, table)?;

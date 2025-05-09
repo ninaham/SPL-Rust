@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc, sync::Mutex};
 
 use crate::table::{
-    entry::{Entry, ParameterType, ProcedureEntry, TypeEntry},
+    entry::{Entry, Parameter, ProcedureEntry, TypeEntry},
     symbol_table::SymbolTable,
     types::{PrimitiveType, Type},
 };
@@ -11,28 +11,32 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
     let procedures = [
         (
             "printi",
-            vec![ParameterType {
+            vec![Parameter {
+                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
             }],
         ),
         (
             "printc",
-            vec![ParameterType {
+            vec![Parameter {
+                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
             }],
         ),
         (
             "readi",
-            vec![ParameterType {
+            vec![Parameter {
+                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: true,
             }],
         ),
         (
             "readc",
-            vec![ParameterType {
+            vec![Parameter {
+                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: true,
             }],
@@ -40,14 +44,16 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         ("exit", vec![]),
         (
             "time",
-            vec![ParameterType {
+            vec![Parameter {
+                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: true,
             }],
         ),
         (
             "clearAll",
-            vec![ParameterType {
+            vec![Parameter {
+                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
             }],
@@ -55,15 +61,18 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "setPixel",
             vec![
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
@@ -72,23 +81,28 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "drawLine",
             vec![
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
@@ -97,19 +111,23 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "drawCircle",
             vec![
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
-                ParameterType {
+                Parameter {
+                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
@@ -130,7 +148,7 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
             .unwrap()
     }
 
-    for (name, types) in procedures {
+    for (name, params) in procedures {
         symbol_table
             .enter(
                 name.to_string(),
@@ -139,7 +157,7 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
                         entries: HashMap::new(),
                         upper_level: Some(Rc::downgrade(&s_t)),
                     },
-                    parameter_types: types,
+                    parameters: params,
                 }),
             )
             .unwrap()
