@@ -71,6 +71,7 @@ fn optimize_block(block: &mut Block, tmp_next_num: &mut impl FnMut() -> usize) {
                     aeb.push(AEBEntry::new(quad.clone(), code_new.len()));
                 }
             }
+            // TODO: Reference params of called procedures
             _ => {}
         }
 
