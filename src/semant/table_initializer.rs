@@ -12,7 +12,6 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "printi",
             vec![Parameter {
-                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
             }],
@@ -20,7 +19,6 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "printc",
             vec![Parameter {
-                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
             }],
@@ -28,7 +26,6 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "readi",
             vec![Parameter {
-                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: true,
             }],
@@ -36,7 +33,6 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "readc",
             vec![Parameter {
-                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: true,
             }],
@@ -45,7 +41,6 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "time",
             vec![Parameter {
-                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: true,
             }],
@@ -53,7 +48,6 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
         (
             "clearAll",
             vec![Parameter {
-                name: String::new(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
             }],
@@ -62,17 +56,14 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
             "setPixel",
             vec![
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
@@ -82,27 +73,22 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
             "drawLine",
             vec![
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
@@ -112,22 +98,18 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
             "drawCircle",
             vec![
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },
                 Parameter {
-                    name: String::new(),
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                     is_reference: false,
                 },

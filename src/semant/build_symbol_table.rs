@@ -88,7 +88,6 @@ pub fn enter_procedure_def(
                 Err(err) => return Err(err),
             };
             Ok(Parameter {
-                name: def.name.clone(),
                 typ: param_type,
                 is_reference: param.is_reference,
             })

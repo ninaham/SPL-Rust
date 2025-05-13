@@ -177,7 +177,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
             unreachable!()
         };
         let (defs, rch_gen, rch_prsv, rch_in, rch_out) =
-            graph.reaching_definitions(&proc_def.parameters);
+            graph.reaching_definitions(&proc_def.local_table);
 
         println!("Definitions:");
         println!("{}", Definition::fmt_table(defs.iter()));

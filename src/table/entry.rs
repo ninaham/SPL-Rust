@@ -29,7 +29,6 @@ pub struct TypeEntry {
 
 #[derive(Debug, Clone)]
 pub struct Parameter {
-    pub name: String,
     pub typ: Type,
     pub is_reference: bool,
 }

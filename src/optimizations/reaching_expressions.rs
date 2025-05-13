@@ -6,10 +6,11 @@ use std::{
 
 use bitvec::vec::BitVec;
 
+use crate::table::entry::Entry;
+use crate::table::symbol_table::SymbolTable;
 use crate::{
     base_blocks::{Block, BlockContent, BlockGraph},
     code_gen::quadrupel::{Quadrupel, QuadrupelResult, QuadrupelVar},
-    table::entry::Parameter,
 };
 
 impl Block {
@@ -52,7 +53,7 @@ impl Block {
 impl BlockGraph {
     pub fn reaching_definitions(
         &self,
-        proc_params: &[Parameter],
+        local_table: &SymbolTable,
     ) -> (
         Vec<Definition>,
         Vec<BitVec>,
@@ -60,7 +61,7 @@ impl BlockGraph {
         Vec<BitVec>,
         Vec<BitVec>,
     ) {
-        let defs_in_proc = self.definitions(proc_params).collect::<Vec<_>>();
+        let defs_in_proc = self.definitions(local_table).collect::<Vec<_>>();
 
         let r#gen = self
             .blocks
@@ -105,12 +106,12 @@ impl BlockGraph {
 
     fn definitions<'a>(
         &'a self,
-        proc_params: &'a [Parameter],
+        local_table: &'a SymbolTable,
     ) -> impl Iterator<Item = Definition> + 'a {
         self.blocks.iter().enumerate().flat_map(
             |(block_id, block)| -> Box<dyn Iterator<Item = Definition>> {
                 match &block.content {
-                    BlockContent::Start => Box::new(proc_params.iter().map(Into::into)),
+                    BlockContent::Start => Box::new(local_table.entries.iter().map(Into::into)),
                     BlockContent::Code(quads) => Box::new(Block::definitions(block_id, quads)),
                     BlockContent::Stop => Box::new(iter::empty()),
                 }
@@ -140,12 +141,13 @@ pub struct Definition {
     var: QuadrupelVar,
 }
 
-impl From<&Parameter> for Definition {
-    fn from(value: &Parameter) -> Self {
+impl From<(&String, &Entry)> for Definition {
+    fn from((name, entry): (&String, &Entry)) -> Self {
+        assert!(matches!(entry, Entry::VariableEntry(_)));
         Self {
             block_id: 0,
             quad_id: 0,
-            var: QuadrupelVar::Spl(value.name.clone()),
+            var: QuadrupelVar::Spl(name.to_string()),
         }
     }
 }
