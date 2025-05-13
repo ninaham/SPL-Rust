@@ -92,6 +92,10 @@ impl BlockGraph {
         self.edges[start].insert(end);
     }
 
+    pub fn edges(&self) -> &[HashSet<usize>] {
+        &self.edges
+    }
+
     fn new() -> Self {
         BlockGraph {
             blocks: vec![],

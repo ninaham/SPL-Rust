@@ -65,7 +65,7 @@ impl fmt::Display for QuadrupelArg {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum QuadrupelVar {
     Spl(String),
     Tmp(usize),

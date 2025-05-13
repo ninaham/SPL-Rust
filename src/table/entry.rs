@@ -12,7 +12,7 @@ pub enum Entry {
 #[derive(Debug, Clone)]
 pub struct ProcedureEntry {
     pub local_table: SymbolTable,
-    pub parameter_types: Vec<ParameterType>,
+    pub parameters: Vec<Parameter>,
 }
 
 #[derive(Debug, Clone)]
@@ -28,7 +28,7 @@ pub struct TypeEntry {
 }
 
 #[derive(Debug, Clone)]
-pub struct ParameterType {
+pub struct Parameter {
     pub typ: Type,
     pub is_reference: bool,
 }
