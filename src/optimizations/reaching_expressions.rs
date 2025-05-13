@@ -14,7 +14,7 @@ use crate::{
 };
 
 impl Block {
-    fn get_rhc_gen(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
+    fn get_rch_gen(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
         defs_in_proc
             .iter()
             .map(|d| d.block_id == block_id)
@@ -67,7 +67,7 @@ impl BlockGraph {
             .blocks
             .iter()
             .enumerate()
-            .map(|(block_id, _)| Block::get_rhc_gen(block_id, &defs_in_proc))
+            .map(|(block_id, _)| Block::get_rch_gen(block_id, &defs_in_proc))
             .collect::<Vec<_>>();
 
         let prsv = r#gen
