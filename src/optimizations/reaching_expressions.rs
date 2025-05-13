@@ -3,7 +3,8 @@ use std::fmt::Write;
 
 use bitvec::vec::BitVec;
 
-use crate::table::entry::Entry;
+use crate::code_gen::quadrupel::{quad, quad_match, QuadrupelArg, QuadrupelOp};
+use crate::table::entry::{Entry, Parameter};
 use crate::table::symbol_table::SymbolTable;
 use crate::{
     base_blocks::{Block, BlockContent, BlockGraph},
@@ -105,21 +106,60 @@ impl Block {
             .collect::<BitVec>()
     }
 
-    pub fn definitions(&mut self, block_id: usize, quads: &[Quadrupel]) -> Vec<Definition> {
-        let defs = quads
-            .iter()
-            .enumerate()
-            .filter_map(move |(i, q)| match &q.result {
-                QuadrupelResult::Var(v) => Some(Definition {
-                    block_id,
-                    quad_id: i,
-                    var: v.clone(),
-                }),
-                _ => None,
+    pub fn definitions(
+        &mut self,
+        block_id: usize,
+        quads: &[Quadrupel],
+        symbol_table: &SymbolTable,
+    ) -> Vec<Definition> {
+        self.defs
+            .get_or_insert_with(|| {
+                quads
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(i, q)| match q {
+                        quad_match!((_), _, _ => QuadrupelResult::Var(v)) => Some(Definition {
+                            block_id,
+                            quad_id: i,
+                            var: v.clone(),
+                        }),
+                        quad_match!((p), (~v), _ => _) => {
+                            let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
+
+                            param.is_reference.then(|| Definition {
+                                block_id,
+                                quad_id: i,
+                                var: v.clone(),
+                            })
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
             })
-            .collect::<Vec<_>>();
-        self.defs = Some(defs.clone());
-        defs
+            .clone()
+    }
+}
+
+impl Quadrupel {
+    pub fn find_param_declaration(
+        quads: &[Quadrupel],
+        quad_index_param: usize,
+        symbol_table: &SymbolTable,
+    ) -> Parameter {
+        let (n, call) = quads
+            .iter()
+            .skip(quad_index_param)
+            .filter(|q| q.op == QuadrupelOp::Param || q.op == QuadrupelOp::Call)
+            .enumerate()
+            .find(|(_, qc)| qc.op == QuadrupelOp::Call)
+            .unwrap();
+        let QuadrupelArg::Var(QuadrupelVar::Spl(ref call_name)) = call.arg1 else {
+            unreachable!()
+        };
+        let Entry::ProcedureEntry(call_proc) = symbol_table.lookup(call_name).unwrap() else {
+            unreachable!()
+        };
+        call_proc.parameters.into_iter().rev().nth(n - 1).unwrap()
     }
 }
 
@@ -229,10 +269,10 @@ impl BlockGraph {
 
     fn definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
         (0..self.blocks.len())
-            .flat_map(|i| -> Vec<_> {
+            .flat_map(move |i| -> Vec<_> {
                 match &self.blocks[i].clone().content {
                     BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
-                    BlockContent::Code(quads) => self.blocks[i].definitions(i, quads),
+                    BlockContent::Code(quads) => self.blocks[i].definitions(i, quads, local_table),
                     BlockContent::Stop => vec![],
                 }
             })

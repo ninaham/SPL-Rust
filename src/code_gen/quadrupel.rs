@@ -166,17 +166,17 @@ macro_rules! quad {
     (@op c   ) => { quad!(@@op Call      ) };
     (@op _   ) => { quad!(@@op Default   ) };
 
-    (@@arg $E:ident $(($a:expr))?) => {$crate::code_gen::quadrupel::QuadrupelArg::$E$(($a))?};
+    (@@arg $E:ident $(($a:tt))?) => {$crate::code_gen::quadrupel::QuadrupelArg::$E$(($a))?};
     (@arg ($arg:expr)  ) => {           $arg           };
     (@arg $val:literal ) => { quad!(@@arg Const($val)) };
-    (@arg (=$val:expr) ) => { quad!(@@arg Const($val)) };
-    (@arg (~$val:expr) ) => { quad!(@@arg Var($val)  ) };
+    (@arg (=$val:tt)   ) => { quad!(@@arg Const($val)) };
+    (@arg (~$val:tt)   ) => { quad!(@@arg Var($val)  ) };
     (@arg _            ) => { quad!(@@arg Empty      ) };
 }
 pub(crate) use quad;
 
 macro_rules! quad_match {
-    (($($op:tt)+) $(($($ops:tt)+))*, $arg1:tt, $arg2:tt => $result:ident ) => {
+    (($($op:tt)+) $(($($ops:tt)+))*, $arg1:tt, $arg2:tt => $result:pat ) => {
 
         $crate::code_gen::quadrupel::Quadrupel {
             op: quad!(@op $($op)+) $(| quad!(@op $($ops)+))*,
@@ -186,8 +186,9 @@ macro_rules! quad_match {
         }
     };
 
-    (@arg $arg:ident   ) => {           $arg           };
-    (@arg $val:literal ) => { quad!(@@arg Const($val)) };
-    (@arg _            ) => {             _            };
+    (@arg $arg:ident      ) => { $arg                 };
+    (@arg $val:literal    ) => { quad!(@arg $val    ) };
+    (@arg ($o:tt$val:pat) ) => { quad!(@arg ($o$val)) };
+    (@arg _               ) => { _                    };
 }
 pub(crate) use quad_match;
