@@ -6,7 +6,8 @@ use std::{
 
 use bitvec::vec::BitVec;
 
-use crate::table::entry::Entry;
+use crate::code_gen::quadrupel::{quad, quad_match, QuadrupelArg, QuadrupelOp};
+use crate::table::entry::{Entry, Parameter};
 use crate::table::symbol_table::SymbolTable;
 use crate::{
     base_blocks::{Block, BlockContent, BlockGraph},
@@ -43,18 +44,51 @@ impl Block {
             .collect::<BitVec>()
     }
 
-    fn definitions(block_id: usize, quads: &[Quadrupel]) -> impl Iterator<Item = Definition> + '_ {
-        quads
-            .iter()
-            .enumerate()
-            .filter_map(move |(i, q)| match &q.result {
-                QuadrupelResult::Var(v) => Some(Definition {
+    fn definitions<'a>(
+        block_id: usize,
+        quads: &'a [Quadrupel],
+        symbol_table: &'a SymbolTable,
+    ) -> impl Iterator<Item = Definition> + 'a {
+        quads.iter().enumerate().filter_map(move |(i, q)| match q {
+            quad_match!((_), _, _ => QuadrupelResult::Var(v)) => Some(Definition {
+                block_id,
+                quad_id: i,
+                var: v.clone(),
+            }),
+            quad_match!((p), (~v), _ => _) => {
+                let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
+
+                param.is_reference.then(|| Definition {
                     block_id,
                     quad_id: i,
                     var: v.clone(),
-                }),
-                _ => None,
-            })
+                })
+            }
+            _ => None,
+        })
+    }
+}
+
+impl Quadrupel {
+    pub fn find_param_declaration(
+        quads: &[Quadrupel],
+        quad_index_param: usize,
+        symbol_table: &SymbolTable,
+    ) -> Parameter {
+        let (n, call) = quads
+            .iter()
+            .skip(quad_index_param)
+            .filter(|q| q.op == QuadrupelOp::Param || q.op == QuadrupelOp::Call)
+            .enumerate()
+            .find(|(_, qc)| qc.op == QuadrupelOp::Call)
+            .unwrap();
+        let QuadrupelArg::Var(QuadrupelVar::Spl(ref call_name)) = call.arg1 else {
+            unreachable!()
+        };
+        let Entry::ProcedureEntry(call_proc) = symbol_table.lookup(call_name).unwrap() else {
+            unreachable!()
+        };
+        call_proc.parameters.into_iter().rev().nth(n - 1).unwrap()
     }
 }
 
@@ -114,10 +148,12 @@ impl BlockGraph {
         local_table: &'a SymbolTable,
     ) -> impl Iterator<Item = Definition> + 'a {
         self.blocks.iter().enumerate().flat_map(
-            |(block_id, block)| -> Box<dyn Iterator<Item = Definition>> {
+            move |(block_id, block)| -> Box<dyn Iterator<Item = Definition>> {
                 match &block.content {
                     BlockContent::Start => Box::new(local_table.entries.iter().map(Into::into)),
-                    BlockContent::Code(quads) => Box::new(Block::definitions(block_id, quads)),
+                    BlockContent::Code(quads) => {
+                        Box::new(Block::definitions(block_id, quads, local_table))
+                    }
                     BlockContent::Stop => Box::new(iter::empty()),
                 }
             },
