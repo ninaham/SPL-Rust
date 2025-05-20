@@ -2,10 +2,10 @@ use std::io::{IsTerminal, Write};
 use std::process::Stdio;
 use std::{fs::File, process};
 
-use anyhow::{anyhow, bail, Ok};
-use clap::{arg, ArgGroup, Command, Id};
+use anyhow::{Ok, anyhow, bail};
+use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -176,23 +176,26 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
             unreachable!()
         };
-        let (defs, rch_gen, rch_prsv, rch_in, rch_out) =
-            graph.reaching_definitions(&proc_def.local_table);
+        let reaching_definitions = graph.reaching_definitions(&proc_def.local_table);
 
         println!("Definitions:");
-        println!("{}", Definition::fmt_table(defs.iter()));
+        println!(
+            "{}",
+            Definition::fmt_table(reaching_definitions.defs.iter())
+        );
         println!();
 
-        let col_width = defs.len();
+        let col_width = reaching_definitions.defs.len();
         println!(
             "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
             "Block", "GEN", "PRSV", "RCHin", "RCHout",
         );
-        for (n, (((g, p), i), o)) in rch_gen
+        for (n, (((g, p), i), o)) in reaching_definitions
+            .gen_bits
             .iter()
-            .zip(rch_prsv)
-            .zip(rch_in)
-            .zip(rch_out)
+            .zip(reaching_definitions.prsv)
+            .zip(reaching_definitions.rchin)
+            .zip(reaching_definitions.rchout)
             .enumerate()
         {
             println!(

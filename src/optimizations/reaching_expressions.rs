@@ -13,6 +13,14 @@ use crate::{
     code_gen::quadrupel::{Quadrupel, QuadrupelResult, QuadrupelVar},
 };
 
+pub struct ReachingDefinitions {
+    pub defs: Vec<Definition>,
+    pub gen_bits: Vec<BitVec>,
+    pub prsv: Vec<BitVec>,
+    pub rchin: Vec<BitVec>,
+    pub rchout: Vec<BitVec>,
+}
+
 impl Block {
     fn get_rch_gen(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
         defs_in_proc
@@ -51,16 +59,7 @@ impl Block {
 }
 
 impl BlockGraph {
-    pub fn reaching_definitions(
-        &self,
-        local_table: &SymbolTable,
-    ) -> (
-        Vec<Definition>,
-        Vec<BitVec>,
-        Vec<BitVec>,
-        Vec<BitVec>,
-        Vec<BitVec>,
-    ) {
+    pub fn reaching_definitions(&self, local_table: &SymbolTable) -> ReachingDefinitions {
         let defs_in_proc = self.definitions(local_table).collect::<Vec<_>>();
 
         let r#gen = self
@@ -101,7 +100,13 @@ impl BlockGraph {
             }
         }
 
-        (defs_in_proc, r#gen, prsv, r#in, out)
+        ReachingDefinitions {
+            defs: defs_in_proc,
+            gen_bits: r#gen,
+            prsv,
+            rchin: r#in,
+            rchout: out,
+        }
     }
 
     fn definitions<'a>(
