@@ -5,10 +5,11 @@ use crate::{
     code_gen::quadrupel::{
         quad, Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar,
     },
+    table::symbol_table::SymbolTable,
 };
 
 impl BlockGraph {
-    pub fn common_subexpression_elimination(&mut self) {
+    pub fn common_subexpression_elimination(&mut self, symbol_table: &SymbolTable) {
         let mut tmp_last_num = self
             .blocks
             .iter()
@@ -30,11 +31,15 @@ impl BlockGraph {
 
         self.blocks
             .iter_mut()
-            .for_each(|b| optimize_block(b, &mut tmp_next_num));
+            .for_each(|b| optimize_block(b, &mut tmp_next_num, symbol_table));
     }
 }
 
-fn optimize_block(block: &mut Block, tmp_next_num: &mut impl FnMut() -> usize) {
+fn optimize_block(
+    block: &mut Block,
+    tmp_next_num: &mut impl FnMut() -> usize,
+    symbol_table: &SymbolTable,
+) {
     let BlockContent::Code(quads) = &mut block.content else {
         return;
     };
@@ -42,10 +47,12 @@ fn optimize_block(block: &mut Block, tmp_next_num: &mut impl FnMut() -> usize) {
     let mut aeb: Vec<AEBEntry> = Vec::new();
     let mut code_new = Vec::<Option<Quadrupel>>::new();
 
-    for quad in quads.iter().cloned() {
+    for (i, quad) in quads.iter().cloned().enumerate() {
         let Some(mut quad) = quad.simplify() else {
             continue;
         };
+
+        let mut ref_param: Option<&dyn PartialEq<QuadrupelArg>> = None;
 
         match quad.op {
             QuadrupelOp::Add
@@ -71,11 +78,21 @@ fn optimize_block(block: &mut Block, tmp_next_num: &mut impl FnMut() -> usize) {
                     aeb.push(AEBEntry::new(quad.clone(), code_new.len()));
                 }
             }
-            // TODO: Reference params of called procedures
+            QuadrupelOp::Param => {
+                let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
+
+                if param.is_reference {
+                    ref_param = Some(&quad.arg1);
+                }
+
+                // TODO: Replace repeated identical procedure calls ?
+            }
             _ => {}
         }
 
-        aeb.retain(|e| quad.result != e.quad.arg1 && quad.result != e.quad.arg2);
+        let changed_var = ref_param.unwrap_or(&quad.result);
+
+        aeb.retain(|e| changed_var != &e.quad.arg1 && changed_var != &e.quad.arg2);
 
         code_new.push(Some(quad));
     }

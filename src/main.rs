@@ -45,14 +45,14 @@ mod test {
             .iter_mut()
             .try_for_each(|def| check_def_global(def, table.clone()))?;
 
-        let mut address_code = Tac::new(table);
+        let mut address_code = Tac::new(table.clone());
         address_code.code_generation(&absyn);
 
         assert!(address_code.proc_table.contains_key("main"));
 
         for code in address_code.proc_table.values() {
             let mut bg = BlockGraph::from_tac(code);
-            bg.common_subexpression_elimination();
+            bg.common_subexpression_elimination(&table.lock().unwrap());
             bg.to_string();
         }
 

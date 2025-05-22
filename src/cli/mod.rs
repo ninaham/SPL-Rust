@@ -95,7 +95,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
     let mut graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_proc]).unwrap());
 
-    graph.common_subexpression_elimination();
+    graph.common_subexpression_elimination(&table.lock().unwrap());
 
     if phase == "dot" {
         let mut filename = format!("{}.dot", graphs[sel_proc]);

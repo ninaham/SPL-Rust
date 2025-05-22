@@ -54,6 +54,7 @@ impl PartialEq for QuadrupelArg {
         }
     }
 }
+impl Eq for QuadrupelArg {}
 
 impl fmt::Display for QuadrupelArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -65,12 +66,11 @@ impl fmt::Display for QuadrupelArg {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum QuadrupelVar {
     Spl(String),
     Tmp(usize),
 }
-impl Eq for QuadrupelVar {}
 
 impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
