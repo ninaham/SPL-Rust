@@ -35,9 +35,10 @@ impl Block {
     fn get_liv_use(def: &BitVec, defs_in_proc: &[Definition], block: &Block) -> BitVec {
         let def_vars = def
             .iter()
+            .by_vals()
             .enumerate()
-            .map(|(i, _)| (defs_in_proc[i].var.clone(), &defs_in_proc[i]))
-            .collect::<HashMap<_, _>>();
+            .map(|(i, _)| &defs_in_proc[i])
+            .collect::<Vec<_>>();
 
         let used_vars = match block.content.clone() {
             BlockContent::Start => vec![],
@@ -63,15 +64,16 @@ impl Block {
                 })
                 .flatten()
                 .filter(|(i, var)| {
-                    !def_vars.contains_key(var) || def_vars.get(var).unwrap().quad_id > *i
+                    let def_var = def_vars.iter().find(|dv| dv.var == var.clone());
+                    def_var.is_none() || def_var.unwrap().quad_id > *i
                 })
                 .map(|(_, v)| v)
                 .collect::<Vec<QuadrupelVar>>(),
         };
 
         def_vars
-            .keys()
-            .map(|k| used_vars.contains(k))
+            .iter()
+            .map(|k| used_vars.contains(&k.var))
             .collect::<BitVec>()
     }
 
@@ -239,6 +241,7 @@ impl BlockGraph {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Definition {
     block_id: usize,
     quad_id: usize,
