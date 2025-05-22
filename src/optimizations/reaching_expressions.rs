@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Write;
 use std::{
     collections::{HashSet, VecDeque},
@@ -35,18 +36,43 @@ impl Block {
         let def_vars = def
             .iter()
             .enumerate()
-            .filter(|(_, v)| *v.as_ref())
-            .map(|(i, _)| &defs_in_proc[i].var)
-            .collect::<Vec<_>>();
+            .map(|(i, _)| (defs_in_proc[i].var.clone(), &defs_in_proc[i]))
+            .collect::<HashMap<_, _>>();
 
-        match block.content {
-            BlockContent::Start => todo!(),
-            BlockContent::Stop => todo!(),
-            BlockContent::Code(quadrupels) => {
-                quadrupels.iter().for_each(||);
-            }
+        let used_vars = match block.content.clone() {
+            BlockContent::Start => vec![],
+            BlockContent::Stop => vec![],
+            BlockContent::Code(quadrupels) => quadrupels
+                .iter()
+                .enumerate()
+                .flat_map(|(i, q)| {
+                    vec![
+                        match q.arg1.clone() {
+                            crate::code_gen::quadrupel::QuadrupelArg::Var(quadrupel_var) => {
+                                Some((i, quadrupel_var))
+                            }
+                            _ => None,
+                        },
+                        match q.arg2.clone() {
+                            crate::code_gen::quadrupel::QuadrupelArg::Var(quadrupel_var) => {
+                                Some((i, quadrupel_var))
+                            }
+                            _ => None,
+                        },
+                    ]
+                })
+                .flatten()
+                .filter(|(i, var)| {
+                    !def_vars.contains_key(var) || def_vars.get(var).unwrap().quad_id > *i
+                })
+                .map(|(_, v)| v)
+                .collect::<Vec<QuadrupelVar>>(),
         };
-        todo!()
+
+        def_vars
+            .keys()
+            .map(|k| used_vars.contains(k))
+            .collect::<BitVec>()
     }
 
     fn get_rch_prsrv(r#gen: &BitVec, defs_in_proc: &[Definition]) -> BitVec {
@@ -89,7 +115,47 @@ impl BlockGraph {
             .map(|(block_id, _)| Block::defs_in_block(block_id, &defs_in_proc))
             .collect::<Vec<_>>();
 
-        todo!()
+        let r#use = self
+            .blocks
+            .iter()
+            .enumerate()
+            .map(|(i, b)| Block::get_liv_use(&def[i], &defs_in_proc, b))
+            .collect::<Vec<_>>();
+
+        let edges_prev = self.edges_prev();
+        let edges = self.edges();
+
+        let mut out: Vec<BitVec> =
+            vec![BitVec::repeat(false, defs_in_proc.len()); self.blocks.len()];
+        let mut r#in: Vec<BitVec> =
+            vec![BitVec::repeat(false, defs_in_proc.len()); self.blocks.len()];
+        let mut changed = VecDeque::from_iter(0..self.blocks.len());
+
+        while let Some(node) = changed.pop_front() {
+            for &s in &edges[node] {
+                r#out[node] |= &r#in[s];
+            }
+
+            let in_first_part = out[node]
+                .iter()
+                .by_vals()
+                .enumerate()
+                .map(|(i, b)| if b { !def[node][i] } else { false })
+                .collect::<BitVec>();
+
+            let in_old = std::mem::replace(&mut r#in[node], in_first_part | &r#use[node]);
+
+            if r#in[node] != in_old {
+                changed.extend(&edges_prev[node]);
+            }
+        }
+        LiveVariables {
+            defs: defs_in_proc,
+            def,
+            use_bits: r#use,
+            livin: r#in,
+            livout: out,
+        }
     }
 
     pub fn reaching_definitions(&self, local_table: &SymbolTable) -> ReachingDefinitions {

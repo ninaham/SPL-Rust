@@ -7,6 +7,7 @@ use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
+use crate::optimizations::live_variables;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
@@ -28,12 +29,13 @@ pub fn load_program_data() -> Command {
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
             arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
             arg!(rch: -r --rch "Reaching Definitions"),
+            arg!(lv: -l --lv "Live Variables"),
         ])
         .group(
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "tac", "dot", "rch"]),
+                .args(["parse", "tables", "semant", "tac", "dot", "rch", "lv"]),
         )
 }
 
@@ -165,6 +167,51 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
             _ => {
                 println!("No valid input");
             }
+        }
+
+        return Ok(());
+    }
+
+    if phase == "lv" {
+        let proc_name = graphs[sel_proc];
+        let proc_def = table.lock().unwrap().lookup(proc_name);
+        let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
+            unreachable!()
+        };
+        let live_variables = graph.live_variables(&proc_def.local_table);
+
+        println!("Definitions:");
+        println!("{}", Definition::fmt_table(live_variables.defs.iter()));
+        println!();
+
+        let col_width = live_variables.defs.len();
+        println!(
+            "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
+            "Block", "DEF", "USE", "LIVin", "LIVout",
+        );
+        for (n, (((g, p), i), o)) in live_variables
+            .def
+            .iter()
+            .zip(live_variables.use_bits)
+            .zip(live_variables.livin)
+            .zip(live_variables.livout)
+            .enumerate()
+        {
+            println!(
+                "{n:>5} {} {} {} {}",
+                g.iter()
+                    .map(|b| b.then_some('1').unwrap_or('0'))
+                    .collect::<String>(),
+                p.iter()
+                    .map(|b| b.then_some('1').unwrap_or('0'))
+                    .collect::<String>(),
+                i.iter()
+                    .map(|b| b.then_some('1').unwrap_or('0'))
+                    .collect::<String>(),
+                o.iter()
+                    .map(|b| b.then_some('1').unwrap_or('0'))
+                    .collect::<String>(),
+            );
         }
 
         return Ok(());
