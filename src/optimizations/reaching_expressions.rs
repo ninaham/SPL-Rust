@@ -13,6 +13,8 @@ use crate::{
     code_gen::quadrupel::{Quadrupel, QuadrupelResult, QuadrupelVar},
 };
 
+use super::live_variables::LiveVariables;
+
 pub struct ReachingDefinitions {
     pub defs: Vec<Definition>,
     pub gen_bits: Vec<BitVec>,
@@ -22,11 +24,29 @@ pub struct ReachingDefinitions {
 }
 
 impl Block {
-    fn get_rch_gen(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
+    fn defs_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
         defs_in_proc
             .iter()
             .map(|d| d.block_id == block_id)
             .collect::<BitVec>()
+    }
+
+    fn get_liv_use(def: &BitVec, defs_in_proc: &[Definition], block: &Block) -> BitVec {
+        let def_vars = def
+            .iter()
+            .enumerate()
+            .filter(|(_, v)| *v.as_ref())
+            .map(|(i, _)| &defs_in_proc[i].var)
+            .collect::<Vec<_>>();
+
+        match block.content {
+            BlockContent::Start => todo!(),
+            BlockContent::Stop => todo!(),
+            BlockContent::Code(quadrupels) => {
+                quadrupels.iter().for_each(||);
+            }
+        };
+        todo!()
     }
 
     fn get_rch_prsrv(r#gen: &BitVec, defs_in_proc: &[Definition]) -> BitVec {
@@ -59,6 +79,19 @@ impl Block {
 }
 
 impl BlockGraph {
+    pub fn live_variables(&self, local_table: &SymbolTable) -> LiveVariables {
+        let defs_in_proc = self.definitions(local_table).collect::<Vec<_>>();
+
+        let def = self
+            .blocks
+            .iter()
+            .enumerate()
+            .map(|(block_id, _)| Block::defs_in_block(block_id, &defs_in_proc))
+            .collect::<Vec<_>>();
+
+        todo!()
+    }
+
     pub fn reaching_definitions(&self, local_table: &SymbolTable) -> ReachingDefinitions {
         let defs_in_proc = self.definitions(local_table).collect::<Vec<_>>();
 
@@ -66,7 +99,7 @@ impl BlockGraph {
             .blocks
             .iter()
             .enumerate()
-            .map(|(block_id, _)| Block::get_rch_gen(block_id, &defs_in_proc))
+            .map(|(block_id, _)| Block::defs_in_block(block_id, &defs_in_proc))
             .collect::<Vec<_>>();
 
         let prsv = r#gen
