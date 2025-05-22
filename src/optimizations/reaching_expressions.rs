@@ -1,9 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashSet, VecDeque};
 use std::fmt::Write;
-use std::{
-    collections::{HashSet, VecDeque},
-    iter,
-};
 
 use bitvec::vec::BitVec;
 
@@ -25,14 +21,36 @@ pub struct ReachingDefinitions {
 }
 
 impl Block {
-    fn defs_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
+    pub fn defs_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
         defs_in_proc
             .iter()
             .map(|d| d.block_id == block_id)
             .collect::<BitVec>()
     }
 
-    fn get_liv_use(def: &BitVec, defs_in_proc: &[Definition], block: &Block) -> BitVec {
+    fn get_last_def<'a>(
+        def_vars: &'a Vec<&Definition>,
+        block_nr: usize,
+        quad_nr: usize,
+        var: &QuadrupelVar,
+        graph: &BlockGraph,
+    ) -> Vec<&'a &'a Definition> {
+        let vars = def_vars
+            .iter()
+            .filter(|dv| {
+                dv.var == var.clone() && graph.path_exists(dv.block_id, block_nr, dv, quad_nr)
+            })
+            .collect();
+        vars
+    }
+
+    fn get_liv_use(
+        def: &BitVec,
+        defs_in_proc: &[Definition],
+        block: &Block,
+        block_nr: usize,
+        graph: &BlockGraph,
+    ) -> BitVec {
         let def_vars = def
             .iter()
             .by_vals()
@@ -63,17 +81,13 @@ impl Block {
                     ]
                 })
                 .flatten()
-                .filter(|(i, var)| {
-                    let def_var = def_vars.iter().find(|dv| dv.var == var.clone());
-                    def_var.is_none() || def_var.unwrap().quad_id > *i
-                })
-                .map(|(_, v)| v)
-                .collect::<Vec<QuadrupelVar>>(),
+                .flat_map(|(i, var)| Self::get_last_def(&def_vars, block_nr, i, &var, graph))
+                .collect::<Vec<_>>(),
         };
 
         def_vars
             .iter()
-            .map(|k| used_vars.contains(&k.var))
+            .map(|k| used_vars.contains(&k))
             .collect::<BitVec>()
     }
 
@@ -91,8 +105,8 @@ impl Block {
             .collect::<BitVec>()
     }
 
-    fn definitions(block_id: usize, quads: &[Quadrupel]) -> impl Iterator<Item = Definition> + '_ {
-        quads
+    pub fn definitions(&mut self, block_id: usize, quads: &[Quadrupel]) -> Vec<Definition> {
+        let defs = quads
             .iter()
             .enumerate()
             .filter_map(move |(i, q)| match &q.result {
@@ -103,12 +117,15 @@ impl Block {
                 }),
                 _ => None,
             })
+            .collect::<Vec<_>>();
+        self.defs = Some(defs.clone());
+        defs
     }
 }
 
 impl BlockGraph {
-    pub fn live_variables(&self, local_table: &SymbolTable) -> LiveVariables {
-        let defs_in_proc = self.definitions(local_table).collect::<Vec<_>>();
+    pub fn live_variables(&mut self, local_table: &SymbolTable) -> LiveVariables {
+        let defs_in_proc = self.definitions(local_table);
 
         let def = self
             .blocks
@@ -121,7 +138,7 @@ impl BlockGraph {
             .blocks
             .iter()
             .enumerate()
-            .map(|(i, b)| Block::get_liv_use(&def[i], &defs_in_proc, b))
+            .map(|(i, b)| Block::get_liv_use(&def[i], &defs_in_proc, b, i, self))
             .collect::<Vec<_>>();
 
         let edges_prev = self.edges_prev();
@@ -160,8 +177,8 @@ impl BlockGraph {
         }
     }
 
-    pub fn reaching_definitions(&self, local_table: &SymbolTable) -> ReachingDefinitions {
-        let defs_in_proc = self.definitions(local_table).collect::<Vec<_>>();
+    pub fn reaching_definitions(&mut self, local_table: &SymbolTable) -> ReachingDefinitions {
+        let defs_in_proc = self.definitions(local_table);
 
         let r#gen = self
             .blocks
@@ -210,19 +227,16 @@ impl BlockGraph {
         }
     }
 
-    fn definitions<'a>(
-        &'a self,
-        local_table: &'a SymbolTable,
-    ) -> impl Iterator<Item = Definition> + 'a {
-        self.blocks.iter().enumerate().flat_map(
-            |(block_id, block)| -> Box<dyn Iterator<Item = Definition>> {
-                match &block.content {
-                    BlockContent::Start => Box::new(local_table.entries.iter().map(Into::into)),
-                    BlockContent::Code(quads) => Box::new(Block::definitions(block_id, quads)),
-                    BlockContent::Stop => Box::new(iter::empty()),
+    fn definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
+        (0..self.blocks.len())
+            .flat_map(|i| -> Vec<_> {
+                match &self.blocks[i].clone().content {
+                    BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
+                    BlockContent::Code(quads) => self.blocks[i].definitions(i, quads),
+                    BlockContent::Stop => vec![],
                 }
-            },
-        )
+            })
+            .collect()
     }
 
     fn edges_prev(&self) -> Vec<HashSet<usize>> {
@@ -241,11 +255,11 @@ impl BlockGraph {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Definition {
     block_id: usize,
-    quad_id: usize,
-    var: QuadrupelVar,
+    pub quad_id: usize,
+    pub var: QuadrupelVar,
 }
 
 impl From<(&String, &Entry)> for Definition {

@@ -7,7 +7,6 @@ use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
-use crate::optimizations::live_variables;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
