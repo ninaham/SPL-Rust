@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use phaser::{phase_1, phase_2, phase_3};
 
 use crate::{
-    code_gen::quadrupel::{Quadrupel, QuadrupelOp, QuadrupelVar},
+    code_gen::quadrupel::{Quadrupel, QuadrupelOp},
     optimizations::reaching_expressions::Definition,
 };
 

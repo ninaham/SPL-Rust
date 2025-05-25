@@ -141,7 +141,7 @@ impl BlockGraph {
             .map(|(i, b)| Block::get_liv_use(&def[i], &defs_in_proc, b, i, self))
             .collect::<Vec<_>>();
 
-        let edges_prev = self.edges_prev();
+        //let edges_prev = self.edges_prev();
         let edges = self.edges();
 
         let mut out: Vec<BitVec> =
@@ -165,7 +165,7 @@ impl BlockGraph {
             let in_old = std::mem::replace(&mut r#in[node], in_first_part | &r#use[node]);
 
             if r#in[node] != in_old {
-                changed.extend(&edges_prev[node]);
+                changed.extend(&edges[node]);
             }
         }
         LiveVariables {
