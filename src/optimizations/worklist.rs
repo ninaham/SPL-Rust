@@ -36,7 +36,7 @@ pub trait Worklist {
 }
 
 impl BlockGraph {
-    fn run_worklist<W: Worklist>(&mut self, local_table: &SymbolTable) -> W {
+    fn run_worklist<W: Worklist>(&self, local_table: &SymbolTable) -> W {
         let defs_all = self.definitions(local_table);
 
         let defs_per_block = self
@@ -89,12 +89,12 @@ impl BlockGraph {
         W::result(state)
     }
 
-    pub fn definitions(&mut self, local_table: &SymbolTable) -> Vec<Definition> {
+    pub fn definitions(&self, local_table: &SymbolTable) -> Vec<Definition> {
         (0..self.blocks.len())
             .flat_map(|i| -> Vec<_> {
                 match &self.blocks[i].clone().content {
                     BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
-                    BlockContent::Code(quads) => self.blocks[i].definitions(i, quads, local_table),
+                    BlockContent::Code(quads) => Block::definitions(i, quads, local_table),
                     BlockContent::Stop => vec![],
                 }
             })
@@ -126,7 +126,6 @@ impl Block {
     }
 
     pub fn definitions(
-        &mut self,
         block_id: usize,
         quads: &[Quadrupel],
         symbol_table: &SymbolTable,

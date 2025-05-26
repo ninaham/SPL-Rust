@@ -21,9 +21,6 @@ impl Block {
     const fn new(label: Option<String>, content: BlockContent) -> Self {
         Self { label, content }
     }
-    pub const fn is_code(&self) -> bool {
-        matches!(self.content, BlockContent::Code(_))
-    }
     const fn new_start(label: Option<String>) -> Self {
         Self::new(label, BlockContent::Start)
     }

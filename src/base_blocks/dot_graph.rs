@@ -48,7 +48,6 @@ impl fmt::Display for Block {
 
 fn to_dot_html(b: &str, re: &Regex) -> String {
     re.replace_all(b, |caps: &Captures| {
-        #[expect(clippy::option_if_let_else)]
         let color = if let Some(color) = caps.name("color") {
             match color.as_str() {
                 "35" => "magenta",

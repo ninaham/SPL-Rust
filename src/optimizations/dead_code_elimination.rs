@@ -1,8 +1,8 @@
-use super::{super::base_blocks::*, live_variables::LiveVariables};
-use crate::code_gen::quadrupel::{
-    Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar,
+use crate::{
+    base_blocks::{Block, BlockContent, BlockGraph},
+    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
+    optimizations::live_variables::LiveVariables,
 };
-use anyhow::Error;
 
 pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> BlockGraph {
     let new_blocks = graph
@@ -25,7 +25,7 @@ pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> Block
 
                         let is_dead = res_var
                             .and_then(|var| livar.defs.iter().position(|def| def.var == *var))
-                            .map_or(false, |idx| !liveout[idx]);
+                            .is_some_and(|idx| !liveout[idx]);
 
                         let is_safe_to_remove = matches!(
                             quad.op,
@@ -56,7 +56,6 @@ pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> Block
             Block {
                 label: block.label.clone(),
                 content: new_content,
-                ..block.clone()
             }
         })
         .collect();

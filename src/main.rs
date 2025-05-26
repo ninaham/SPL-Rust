@@ -53,7 +53,7 @@ mod test {
 
         assert!(address_code.proc_table.contains_key("main"));
 
-        for (proc_name, code) in address_code.proc_table.iter() {
+        for (proc_name, code) in &address_code.proc_table {
             let Some(Entry::ProcedureEntry(proc_entry)) = table.lock().unwrap().lookup(proc_name)
             else {
                 unreachable!()
