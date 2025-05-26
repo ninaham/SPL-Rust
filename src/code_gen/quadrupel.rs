@@ -1,7 +1,7 @@
 use colored::Colorize;
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QuadrupelOp {
     Add,
     Sub,
@@ -25,13 +25,13 @@ pub enum QuadrupelOp {
 
 impl fmt::Display for QuadrupelOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self == &QuadrupelOp::Default {
+        if self == &Self::Default {
             write!(f, "               ")
         } else {
             write!(
                 f,
                 "{:<15}",
-                format!("{:?}", self).to_uppercase().bright_blue()
+                format!("{self:?}").to_uppercase().bright_blue()
             )
         }
     }
@@ -45,7 +45,7 @@ pub enum QuadrupelArg {
 }
 impl PartialEq for QuadrupelArg {
     fn eq(&self, other: &Self) -> bool {
-        use QuadrupelArg::*;
+        use QuadrupelArg::{Const, Empty, Var};
         match (self, other) {
             (Var(a), Var(b)) => a == b,
             (Const(a), Const(b)) => a == b,
@@ -60,7 +60,7 @@ impl fmt::Display for QuadrupelArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Var(var) => write!(f, "{:<15}", var.to_string().truecolor(150, 150, 150)),
-            Self::Const(val) => write!(f, "{:<15}", val),
+            Self::Const(val) => write!(f, "{val:<15}"),
             Self::Empty => write!(f, "               "),
         }
     }
@@ -75,8 +75,8 @@ pub enum QuadrupelVar {
 impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Spl(var) => write!(f, "{:<15}", var),
-            Self::Tmp(val) => write!(f, "T:{:<13}", val),
+            Self::Spl(var) => write!(f, "{var:<15}"),
+            Self::Tmp(val) => write!(f, "T:{val:<13}"),
         }
     }
 }
@@ -105,7 +105,7 @@ impl fmt::Display for QuadrupelResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Var(var) => write!(f, "{}", var.to_string().truecolor(200, 200, 200)),
-            Self::Label(name) => write!(f, "{}", name),
+            Self::Label(name) => write!(f, "{name}"),
             Self::Empty => Ok(()),
         }
     }

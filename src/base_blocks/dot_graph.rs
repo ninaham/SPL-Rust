@@ -17,17 +17,17 @@ impl fmt::Display for BlockGraph {
         // Enable color even if stdout is not a terminal
         colored::control::set_override(true);
 
-        writeln!(f, "digraph {{{}", DOT_ATTRIBUTES)?;
+        writeln!(f, "digraph {{{DOT_ATTRIBUTES}")?;
 
         let re = Regex::new(REGEX_TEMINAL_COLORS).unwrap();
         self.blocks.iter().enumerate().try_for_each(|(i, b)| {
             writeln!(f, "{i} [label=<{}>];", to_dot_html(&b.to_string(), &re))
         })?;
 
-        self.edges.iter().enumerate().try_for_each(|(i, e)| {
-            e.iter()
-                .try_for_each(|j| writeln!(f, "{}:s -> {}:n;", i, j))
-        })?;
+        self.edges
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, e)| e.iter().try_for_each(|j| writeln!(f, "{i}:s -> {j}:n;")))?;
 
         writeln!(f, "}}")?;
 
@@ -41,13 +41,14 @@ impl fmt::Display for Block {
         match &self.content {
             BlockContent::Start => write!(f, "start"),
             BlockContent::Stop => write!(f, "stop"),
-            BlockContent::Code(code) => code.iter().try_for_each(|quad| writeln!(f, "{}", quad)),
+            BlockContent::Code(code) => code.iter().try_for_each(|quad| writeln!(f, "{quad}")),
         }
     }
 }
 
 fn to_dot_html(b: &str, re: &Regex) -> String {
     re.replace_all(b, |caps: &Captures| {
+        #[expect(clippy::option_if_let_else)]
         let color = if let Some(color) = caps.name("color") {
             match color.as_str() {
                 "35" => "magenta",

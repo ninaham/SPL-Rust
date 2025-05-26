@@ -25,23 +25,23 @@ pub fn build_symbol_table(program: &Program) -> Result<Rc<Mutex<SymbolTable>>, S
 
     let global_table = Rc::new(Mutex::new(global_table));
 
-    table_initializer::init_symbol_table(global_table.clone());
+    table_initializer::init_symbol_table(&global_table);
 
     program
         .definitions
         .iter()
-        .try_for_each(|def| enter_global_def(def, global_table.clone()))?;
+        .try_for_each(|def| enter_global_def(def, &global_table))?;
 
     Ok(global_table)
 }
 
 pub fn enter_global_def(
     def: &Definition,
-    table: Rc<Mutex<SymbolTable>>,
+    table: &Rc<Mutex<SymbolTable>>,
 ) -> Result<(), SemanticError> {
     match def {
         Definition::ProcedureDefinition(procedure_definition) => {
-            let (name, entry) = enter_procedure_def(procedure_definition, table.clone())?;
+            let (name, entry) = enter_procedure_def(procedure_definition, table)?;
             let mut t = table.lock().unwrap();
             t.enter(name, entry)?;
         }
@@ -68,11 +68,11 @@ pub fn enter_type_def(
 
 pub fn enter_procedure_def(
     def: &ProcedureDefinition,
-    table: Rc<Mutex<SymbolTable>>,
+    table: &Rc<Mutex<SymbolTable>>,
 ) -> Result<(String, Entry), SemanticError> {
     let mut local_table = SymbolTable {
         entries: HashMap::new(),
-        upper_level: Some(Rc::downgrade(&table)),
+        upper_level: Some(Rc::downgrade(table)),
     };
 
     def.parameters
@@ -121,18 +121,15 @@ pub fn type_expression_to_type(
             }))
         }
         TypeExpression::NamedTypeExpression(nte) => {
-            let entry = match table.lookup(nte) {
-                Some(entry) => entry.clone(),
-                None => {
-                    return Err(SemanticError {
-                        _msg: format!("Type {} not found", nte),
-                    });
-                }
+            let Some(entry) = table.lookup(nte) else {
+                return Err(SemanticError {
+                    msg: format!("Type {nte} not found"),
+                });
             };
             match entry {
                 Entry::TypeEntry(type_entry) => Ok(type_entry.typ),
                 _ => Err(SemanticError {
-                    _msg: format!("{} is not a type", nte),
+                    msg: format!("{nte} is not a type"),
                 }),
             }
         }
