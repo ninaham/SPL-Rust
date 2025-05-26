@@ -12,3 +12,8 @@ rstest = "0.25.0"
 regex = "1.11.1"
 dialoguer = "0.11.0"
 bitvec = "1.0.1"
+
+[lints.clippy]
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+allow_attributes = "warn"

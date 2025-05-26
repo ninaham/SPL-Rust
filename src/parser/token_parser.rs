@@ -1,19 +1,20 @@
 use nom::{
-    IResult, Parser,
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, digit1, hex_digit1, multispace1, not_line_ending, satisfy},
     combinator::verify,
     multi::many0,
     sequence::{pair, preceded},
+    IResult, Parser,
 };
 
 use super::tokens::Tokens;
 
 pub fn parse_tag<'a>(input: &'a str, word: &'a str) -> IResult<&'a str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
+    #![expect(clippy::similar_names)]
+    let (rem, ()) = parse_whitespace(input)?;
     let res = tag(word)(rem)?;
-    let (rem, _) = parse_whitespace(res.0)?;
+    let (rem, ()) = parse_whitespace(res.0)?;
     Ok((rem, Tokens::Other))
 }
 
@@ -27,11 +28,11 @@ fn ident_later_chars(input: &str) -> IResult<&str, String> {
 }
 
 pub fn ident(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
+    let (rem, ()) = parse_whitespace(input)?;
     let (rem, m) = ident_first_char(rem)?;
     let (rem1, m1) = ident_later_chars(rem)?;
-    let (rem1, _) = parse_whitespace(rem1)?;
-    Ok((rem1, Tokens::Ident(format!("{}{}", m, m1))))
+    let (rem1, ()) = parse_whitespace(rem1)?;
+    Ok((rem1, Tokens::Ident(format!("{m}{m1}"))))
 }
 
 fn int(input: &str) -> IResult<&str, Tokens> {
@@ -51,6 +52,7 @@ pub fn parse_whitespace(input: &str) -> IResult<&str, ()> {
 }
 
 fn character(input: &str) -> IResult<&str, Tokens> {
+    #![expect(clippy::similar_names)]
     let (rem, _) = tag("'")(input)?;
     let res = anychar(rem)?;
     let (rem, _) = tag("'")(res.0)?;
@@ -66,9 +68,9 @@ fn hex_num(input: &str) -> IResult<&str, Tokens> {
 }
 
 pub fn intlit(input: &str) -> IResult<&str, Tokens> {
-    let (rem, _) = parse_whitespace(input)?;
+    let (rem, ()) = parse_whitespace(input)?;
     let (rem, x) = alt([hex_num, int, character, newline]).parse(rem)?;
-    let (rem, _) = parse_whitespace(rem)?;
+    let (rem, ()) = parse_whitespace(rem)?;
 
     Ok((rem, x))
 }

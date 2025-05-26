@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use crate::code_gen::quadrupel::Quadrupel;
 
-use super::{Block, BlockGraph, block_start_iter::BlockStartIterator};
+use super::{block_start_iter::BlockStartIterator, Block, BlockGraph};
 
-pub fn phase_1(code: &[Quadrupel]) -> BlockStartIterator {
+pub const fn phase_1(code: &[Quadrupel]) -> BlockStartIterator {
     BlockStartIterator::new(code)
 }
 
@@ -37,17 +37,17 @@ pub fn phase_3(mut block_graph: BlockGraph) -> BlockGraph {
     for (i, b) in blocks.iter().enumerate() {
         if let Some(label) = b.contains_goto() {
             block_graph.edges[i] = HashSet::new();
-            let label_block = match block_graph.label_to_id.get(&label) {
-                Some(l) => l,
-                None => panic!("block corresponding to label {} not found", label),
-            };
+            let label_block = block_graph
+                .label_to_id
+                .get(&label)
+                .unwrap_or_else(|| panic!("block corresponding to label {label} not found"));
             block_graph.add_edge(i, *label_block);
         }
         if let Some(label) = b.contains_if() {
-            let label_block = match block_graph.label_to_id.get(&label) {
-                Some(l) => l,
-                None => panic!("block corresponding to label {} not found", label),
-            };
+            let label_block = block_graph
+                .label_to_id
+                .get(&label)
+                .unwrap_or_else(|| panic!("block corresponding to label {label} not found"));
             block_graph.add_edge(i, *label_block);
         }
     }

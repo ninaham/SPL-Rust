@@ -1,12 +1,14 @@
+#![expect(clippy::unnecessary_wraps, clippy::linkedlist)]
+
 use std::collections::LinkedList;
 
 use nom::{
-    IResult, Parser,
     branch::alt,
     character::complete::{char, space0},
     error::Error,
     multi::fold_many0,
     sequence::{delimited, preceded},
+    IResult, Parser,
 };
 
 use crate::{
@@ -67,10 +69,7 @@ fn global_definition(input: &str) -> IResult<&str, Definition> {
 fn variable_definition(input: &str) -> IResult<&str, VariableDefinition> {
     let (rem, _) = parse_tag(input, "var")?;
     let (rem, m1) = ident(rem)?;
-    let name = match m1 {
-        Tokens::Ident(name) => name,
-        _ => panic!(),
-    };
+    let Tokens::Ident(name) = m1 else { panic!() };
     let (rem, _) = parse_tag(rem, ":")?;
     let (rem, te) = type_expression(rem)?;
     let (rem, _) = parse_tag(rem, ";")?;
@@ -88,15 +87,14 @@ fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
     let (rem, _) = parse_tag(rem, "[")?;
     let (rem, intlit) = intlit(rem)?;
 
-    let intlit = match intlit {
-        Tokens::Intlit(i) => i,
-        _ => panic!(),
+    let Tokens::Intlit(intlit) = intlit else {
+        panic!()
     };
     let (rem, _) = parse_tag(rem, "]")?;
     let (rem, _) = parse_tag(rem, "of")?;
     let (rem, te) = type_expression(rem)?;
     let ate = ArrayTypeExpression {
-        array_size: intlit as usize,
+        array_size: usize::try_from(intlit).unwrap(),
         base_type: te,
     };
     Ok((rem, TypeExpression::ArrayTypeExpression(Box::new(ate))))
@@ -104,10 +102,7 @@ fn array_type_expression(input: &str) -> IResult<&str, TypeExpression> {
 
 fn named_type_expression(input: &str) -> IResult<&str, TypeExpression> {
     let (rem, name) = ident(input)?;
-    let name = match name {
-        Tokens::Ident(name) => name,
-        _ => panic!(),
-    };
+    let Tokens::Ident(name) = name else { panic!() };
 
     Ok((rem, TypeExpression::NamedTypeExpression(name)))
 }
@@ -119,10 +114,7 @@ fn type_expression(input: &str) -> IResult<&str, TypeExpression> {
 fn type_definition(input: &str) -> IResult<&str, Definition> {
     let (rem, _) = parse_tag(input, "type")?;
     let (rem, ident) = ident(rem)?;
-    let name = match ident {
-        Tokens::Ident(name) => name,
-        _ => panic!(),
-    };
+    let Tokens::Ident(name) = ident else { panic!() };
     let (rem, _) = parse_tag(rem, "=")?;
     let (rem, te) = type_expression(rem)?;
     let (rem, _) = parse_tag(rem, ";")?;
@@ -137,10 +129,7 @@ fn type_definition(input: &str) -> IResult<&str, Definition> {
 fn procedure_definition(input: &str) -> IResult<&str, Definition> {
     let (rem, _) = parse_tag(input, "proc")?;
     let (rem, ident) = ident(rem)?;
-    let name = match ident {
-        Tokens::Ident(name) => name,
-        _ => panic!(),
-    };
+    let Tokens::Ident(name) = ident else { panic!() };
     let (rem, _) = parse_tag(rem, "(")?;
     let (rem, pl) = parameter_list(rem)?;
     let (rem, _) = parse_tag(rem, ")")?;
@@ -180,10 +169,7 @@ fn more_than_one_parameter(input: &str) -> IResult<&str, LinkedList<ParameterDef
 
 fn non_ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
     let (rem, ident) = ident(input)?;
-    let name = match ident {
-        Tokens::Ident(name) => name,
-        _ => panic!(),
-    };
+    let Tokens::Ident(name) = ident else { panic!() };
     let (rem, _) = parse_tag(rem, ":")?;
     let (rem, te) = type_expression(rem)?;
     let pd = ParameterDefinition {
@@ -203,10 +189,7 @@ fn parameter(input: &str) -> IResult<&str, LinkedList<ParameterDefinition>> {
 fn ref_parameter(input: &str) -> IResult<&str, ParameterDefinition> {
     let (rem, _) = parse_tag(input, "ref")?;
     let (rem, ident) = ident(rem)?;
-    let name = match ident {
-        Tokens::Ident(name) => name,
-        _ => panic!(),
-    };
+    let Tokens::Ident(name) = ident else { panic!() };
     let (rem, _) = parse_tag(rem, ":")?;
     let (rem, te) = type_expression(rem)?;
     let pd = ParameterDefinition {
@@ -335,10 +318,7 @@ fn assign_statement(input: &str) -> IResult<&str, Statement> {
 
 fn call_statement(input: &str) -> IResult<&str, Statement> {
     let (rem, ident) = ident(input)?;
-    let name = match ident {
-        Tokens::Ident(name) => name,
-        _ => panic!(),
-    };
+    let Tokens::Ident(name) = ident else { panic!() };
     let (rem, _) = parse_tag(rem, "(")?;
     let (rem, arguments) = argument_list(rem)?;
     let (rem, _) = parse_tag(rem, ")")?;
@@ -403,10 +383,7 @@ fn variable(input: &str) -> IResult<&str, Variable> {
 
 fn named_var(input: &str) -> IResult<&str, Variable> {
     let (rem, ident) = ident(input)?;
-    let name = match ident {
-        Tokens::Ident(name) => name,
-        _ => panic!(),
-    };
+    let Tokens::Ident(name) = ident else { panic!() };
 
     Ok((rem, Variable::NamedVariable(name)))
 }
@@ -490,10 +467,7 @@ fn unary_expression(input: &str) -> IResult<&str, Expression> {
 
 fn intlit_exp(input: &str) -> IResult<&str, Expression> {
     let (rem, i) = intlit(input)?;
-    let i = match i {
-        Tokens::Intlit(i) => i,
-        _ => panic!(),
-    };
+    let Tokens::Intlit(i) = i else { panic!() };
 
     Ok((rem, Expression::IntLiteral(i)))
 }
