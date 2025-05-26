@@ -19,7 +19,7 @@ impl Block {
     pub fn defs_in_block_2(
         block_id: usize,
         defs_in_proc: &[Definition],
-        unique_defs: HashSet<QuadrupelVar>,
+        unique_defs: &HashSet<QuadrupelVar>,
     ) -> BitVec {
         let defs: Vec<_> = defs_in_proc
             .iter()
@@ -35,8 +35,7 @@ impl Block {
 
     pub fn assignments_in_block(&self) -> Vec<(usize, QuadrupelVar)> {
         match self.content.clone() {
-            BlockContent::Start => vec![],
-            BlockContent::Stop => vec![],
+            BlockContent::Start | BlockContent::Stop => vec![],
             BlockContent::Code(quadrupels) => quadrupels
                 .into_iter()
                 .enumerate()
@@ -53,7 +52,7 @@ impl Block {
                 .map(|(i, q)| {
                     (
                         i,
-                        match q.result.clone() {
+                        match q.result {
                             QuadrupelResult::Var(v) => v,
                             _ => unreachable!(),
                         },
@@ -67,8 +66,7 @@ impl Block {
         let assignment_in_block = self.assignments_in_block();
 
         let used_vars = match &self.content {
-            BlockContent::Start => vec![],
-            BlockContent::Stop => vec![],
+            BlockContent::Start | BlockContent::Stop => vec![],
             BlockContent::Code(quadrupels) => quadrupels
                 .iter()
                 .enumerate()
@@ -104,7 +102,7 @@ impl Block {
 }
 
 impl BlockGraph {
-    pub fn live_variables(&mut self, local_table: &SymbolTable) -> LiveVariables {
+    pub fn live_variables(&self, local_table: &SymbolTable) -> LiveVariables {
         let defs_in_proc = self.definitions(local_table);
         let unique_defs = defs_in_proc
             .iter()
@@ -125,7 +123,7 @@ impl BlockGraph {
             .iter()
             .enumerate()
             .map(|(block_id, _)| {
-                Block::defs_in_block_2(block_id, &defs_in_proc, unique_defs.clone())
+                Block::defs_in_block_2(block_id, &defs_in_proc, &unique_defs.clone())
             })
             .collect::<Vec<_>>();
 
@@ -140,7 +138,7 @@ impl BlockGraph {
 
         let mut out: Vec<BitVec> = vec![BitVec::repeat(false, defs.len()); self.blocks.len()];
         let mut r#in: Vec<BitVec> = vec![BitVec::repeat(false, defs.len()); self.blocks.len()];
-        let mut changed = VecDeque::from_iter((0..self.blocks.len()).rev());
+        let mut changed = (0..self.blocks.len()).rev().collect::<VecDeque<_>>();
 
         while let Some(node) = changed.pop_front() {
             for &s in &edges[node] {
