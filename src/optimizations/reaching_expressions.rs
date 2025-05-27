@@ -15,29 +15,32 @@ pub struct ReachingDefinitions {
 }
 
 impl Worklist for ReachingDefinitions {
-    const REVERSE_EDGES: bool = false;
+    type Lattice = BitVec;
+    type D = Definition;
+
+    const EDGE_DIRECTION: worklist::EdgeDirection = worklist::EdgeDirection::Forward;
 
     fn init(
-        defs_per_block: Vec<BitVec>,
-        defs_all: &[Definition],
-        _: &BlockGraph,
-    ) -> (Vec<BitVec>, Vec<BitVec>) {
+        state: &mut worklist::State<Self::Lattice, Self::D>,
+        graph: &mut BlockGraph,
+        local_table: &SymbolTable,
+    ) {
+        let defs_all = graph.definitions(local_table);
+        let defs_per_block = graph.defs_per_block(&defs_all);
         let r#gen = defs_per_block;
         let prsv = r#gen
             .iter()
-            .map(|r#gen| Block::get_rch_prsrv(r#gen, defs_all))
+            .map(|r#gen| Block::get_rch_prsrv(r#gen, &defs_all))
             .collect::<Vec<_>>();
 
-        (r#gen, prsv)
+        state.info_all = defs_all;
+        state.block_info_a = r#gen;
+        state.block_info_b = prsv;
     }
 
-    fn output_first_part(state: &worklist::State, node: usize) -> BitVec {
-        state.input[node].clone() & &state.block_info_b[node]
-    }
-
-    fn result(state: worklist::State) -> Self {
+    fn result(state: worklist::State<Self::Lattice, Self::D>) -> Self {
         Self {
-            defs: state.defs_all,
+            defs: state.info_all,
             gen_bits: state.block_info_a,
             prsv: state.block_info_b,
             rchin: state.input,
