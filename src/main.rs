@@ -21,6 +21,7 @@ mod test {
 
     use crate::base_blocks::BlockGraph;
     use crate::code_gen::Tac;
+    use crate::optimizations::constant_propagation::ConstantPropagation;
     use crate::optimizations::live_variables::LiveVariables;
     use crate::optimizations::reaching_expressions::ReachingDefinitions;
     use crate::optimizations::worklist::Worklist;
@@ -66,6 +67,7 @@ mod test {
             ReachingDefinitions::run(&mut bg, local_table);
             let live_variables = LiveVariables::run(&mut bg, local_table);
             bg.dead_code_elimination(&live_variables);
+            ConstantPropagation::run(&mut bg, local_table);
 
             bg.to_string();
         }
