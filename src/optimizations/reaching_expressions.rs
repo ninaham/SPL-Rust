@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use bitvec::vec::BitVec;
 
-use crate::code_gen::quadrupel::{quad, quad_match, QuadrupelArg, QuadrupelOp};
+use crate::code_gen::quadrupel::{QuadrupelArg, QuadrupelOp};
 use crate::table::entry::{Entry, Parameter};
 use crate::table::symbol_table::SymbolTable;
 use crate::{
@@ -36,16 +36,26 @@ impl Block {
         var: &QuadrupelVar,
         graph: &BlockGraph,
     ) -> Vec<&'a &'a Definition> {
-        let vars = def_vars
+        def_vars
             .iter()
             .filter(|dv| {
                 dv.var == var.clone() && graph.path_exists(dv.block_id, block_nr, dv, quad_nr)
             })
-            .collect();
-        vars
+            .collect()
     }
 
-    fn get_liv_use(
+    fn get_liv_use(def: &BitVec, defs_in_proc: &[Definition], block: &Block) -> BitVec {
+        let def_vars = def
+            .iter()
+            .by_vals()
+            .enumerate()
+            .map(|(i, _)| &defs_in_proc[i])
+            .collect::<Vec<_>>();
+
+        todo!()
+    }
+
+    /*fn get_liv_use(
         def: &BitVec,
         defs_in_proc: &[Definition],
         block: &Block,
@@ -90,7 +100,7 @@ impl Block {
             .iter()
             .map(|k| used_vars.contains(&k))
             .collect::<BitVec>()
-    }
+    }*/
 
     fn get_rch_prsrv(r#gen: &BitVec, defs_in_proc: &[Definition]) -> BitVec {
         let gen_vars = r#gen
@@ -106,7 +116,7 @@ impl Block {
             .collect::<BitVec>()
     }
 
-    pub fn definitions(
+    /*pub fn definitions(
         &mut self,
         block_id: usize,
         quads: &[Quadrupel],
@@ -137,6 +147,23 @@ impl Block {
                     .collect::<Vec<_>>()
             })
             .clone()
+    }*/
+
+    pub fn definitions(&mut self, block_id: usize, quads: &[Quadrupel]) -> Vec<Definition> {
+        let defs = quads
+            .iter()
+            .enumerate()
+            .filter_map(move |(i, q)| match &q.result {
+                QuadrupelResult::Var(v) => Some(Definition {
+                    block_id,
+                    quad_id: i,
+                    var: v.clone(),
+                }),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        self.defs = Some(defs.clone());
+        defs
     }
 }
 
@@ -178,7 +205,7 @@ impl BlockGraph {
             .blocks
             .iter()
             .enumerate()
-            .map(|(i, b)| Block::get_liv_use(&def[i], &defs_in_proc, b, i, self))
+            .map(|(i, b)| Block::get_liv_use(&def[i], &defs_in_proc, b))
             .collect::<Vec<_>>();
 
         //let edges_prev = self.edges_prev();
@@ -267,12 +294,24 @@ impl BlockGraph {
         }
     }
 
-    fn definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
+    /*fn definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
         (0..self.blocks.len())
             .flat_map(move |i| -> Vec<_> {
                 match &self.blocks[i].clone().content {
                     BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
                     BlockContent::Code(quads) => self.blocks[i].definitions(i, quads, local_table),
+                    BlockContent::Stop => vec![],
+                }
+            })
+            .collect()
+    }*/
+
+    fn definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
+        (0..self.blocks.len())
+            .flat_map(|i| -> Vec<_> {
+                match &self.blocks[i].clone().content {
+                    BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
+                    BlockContent::Code(quads) => self.blocks[i].definitions(i, quads),
                     BlockContent::Stop => vec![],
                 }
             })

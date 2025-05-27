@@ -121,11 +121,11 @@ impl BlockGraph {
 
         while let Some(current) = stack.pop() {
             let block = &self.blocks[current];
-            let block_defs = block.defs.as_ref().unwrap();
             if current == end_block {
                 //println!("Found path to block {}", end_block);
                 if block.is_code() {
-                    if let Some(n) = block_defs.iter().find(|d| d.var == def.var) {
+                    let defs = block.defs.clone().unwrap();
+                    if let Some(n) = defs.iter().find(|d| d.var == def.var) {
                         return quad_nr < n.quad_id;
                     }
                 }
@@ -135,7 +135,7 @@ impl BlockGraph {
             if visited[current]
                 || (current != start_block
                     && block.is_code()
-                    && block_defs.iter().any(|d| d.var == def.var))
+                    && block.defs.clone().unwrap().iter().any(|d| d.var == def.var))
             {
                 visited[current] = true;
                 continue;
