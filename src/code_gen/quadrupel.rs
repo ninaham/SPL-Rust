@@ -164,7 +164,8 @@ macro_rules! quad {
     (@op =>  ) => { quad!(@@op Goto      ) };
     (@op p   ) => { quad!(@@op Param     ) };
     (@op c   ) => { quad!(@@op Call      ) };
-    (@op _   ) => { quad!(@@op Default   ) };
+    (@op d   ) => { quad!(@@op Default   ) };
+    (@op _   ) => { _                      };
 
     (@@arg $E:ident $(($a:tt))?) => {$crate::code_gen::quadrupel::QuadrupelArg::$E$(($a))?};
     (@arg ($arg:expr)  ) => {           $arg           };
