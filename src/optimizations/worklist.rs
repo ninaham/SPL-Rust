@@ -15,11 +15,20 @@ pub struct State<'a, W: Worklist + ?Sized> {
     pub output: &'a mut [W::Lattice],
 }
 
-pub trait Lattice: Clone + Eq {
+pub trait Lattice: LatticeJoinAssign + Clone + Eq {
     fn init(len: usize) -> Self;
     fn meet(&self, other: &Self) -> Self;
     fn join(&self, other: &Self) -> Self;
+}
+
+pub trait LatticeJoinAssign {
     fn join_assign(&mut self, other: &Self);
+}
+pub trait LatticeJoinAssignCopy: Copy {}
+impl<L: Lattice + LatticeJoinAssignCopy> LatticeJoinAssign for L {
+    fn join_assign(&mut self, other: &Self) {
+        *self = self.join(other);
+    }
 }
 
 pub enum EdgeDirection {
@@ -212,8 +221,32 @@ impl Lattice for BitVec {
     fn join(&self, other: &Self) -> Self {
         self.clone() | other
     }
+}
 
+impl LatticeJoinAssign for BitVec {
     fn join_assign(&mut self, other: &Self) {
         *self |= other;
+    }
+}
+
+impl<L: Lattice> Lattice for Vec<L> {
+    fn init(len: usize) -> Self {
+        vec![L::init(1); len]
+    }
+
+    fn meet(&self, other: &Self) -> Self {
+        self.iter().zip(other).map(|(s, o)| L::meet(s, o)).collect()
+    }
+
+    fn join(&self, other: &Self) -> Self {
+        self.iter().zip(other).map(|(s, o)| L::join(s, o)).collect()
+    }
+}
+
+impl<L: Lattice> LatticeJoinAssign for Vec<L> {
+    fn join_assign(&mut self, other: &Self) {
+        for (s, o) in self.iter_mut().zip(other) {
+            s.join_assign(o);
+        }
     }
 }
