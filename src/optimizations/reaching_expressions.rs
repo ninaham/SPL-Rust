@@ -29,39 +29,42 @@ impl Block {
             .collect::<BitVec>()
     }
 
-    fn get_last_def<'a>(
-        def_vars: &'a Vec<&Definition>,
-        block_nr: usize,
-        quad_nr: usize,
-        var: &QuadrupelVar,
-        graph: &BlockGraph,
-    ) -> Vec<&'a &'a Definition> {
-        def_vars
-            .iter()
-            .filter(|dv| {
-                dv.var == var.clone() && graph.path_exists(dv.block_id, block_nr, dv, quad_nr)
-            })
-            .collect()
-    }
-
-    fn get_liv_use(def: &BitVec, defs_in_proc: &[Definition], block: &Block) -> BitVec {
-        let def_vars = def
-            .iter()
-            .by_vals()
-            .enumerate()
-            .map(|(i, _)| &defs_in_proc[i])
-            .collect::<Vec<_>>();
-
+    pub fn vars_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
         todo!()
+        //let unique_vars = HashSet::new();
     }
 
-    /*fn get_liv_use(
-        def: &BitVec,
-        defs_in_proc: &[Definition],
-        block: &Block,
-        block_nr: usize,
-        graph: &BlockGraph,
-    ) -> BitVec {
+    pub fn assignments_in_block(&self) -> Vec<(usize, QuadrupelVar)> {
+        match self.content.clone() {
+            BlockContent::Start => vec![],
+            BlockContent::Stop => vec![],
+            BlockContent::Code(quadrupels) => quadrupels
+                .into_iter()
+                .enumerate()
+                .filter(|(_, quad)| {
+                    matches!(
+                        quad.op,
+                        QuadrupelOp::Add
+                            | QuadrupelOp::Mul
+                            | QuadrupelOp::Div
+                            | QuadrupelOp::Sub
+                            | QuadrupelOp::Assign
+                    )
+                })
+                .map(|(i, q)| {
+                    (
+                        i,
+                        match q.result.clone() {
+                            QuadrupelResult::Var(v) => v,
+                            _ => unreachable!(),
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
+
+    fn get_liv_use(&self, def: &BitVec, defs_in_proc: &[QuadrupelVar]) -> BitVec {
         let def_vars = def
             .iter()
             .by_vals()
@@ -69,7 +72,9 @@ impl Block {
             .map(|(i, _)| &defs_in_proc[i])
             .collect::<Vec<_>>();
 
-        let used_vars = match block.content.clone() {
+        let assignment_in_block = self.assignments_in_block();
+
+        let used_vars = match self.content.clone() {
             BlockContent::Start => vec![],
             BlockContent::Stop => vec![],
             BlockContent::Code(quadrupels) => quadrupels
@@ -92,7 +97,11 @@ impl Block {
                     ]
                 })
                 .flatten()
-                .flat_map(|(i, var)| Self::get_last_def(&def_vars, block_nr, i, &var, graph))
+                .filter(|(i, v)| {
+                    let assignment = assignment_in_block.iter().find(|(_, va)| v == va);
+                    assignment.is_none() || assignment.unwrap().0 > *i
+                })
+                .map(|(_, v)| v)
                 .collect::<Vec<_>>(),
         };
 
@@ -100,7 +109,7 @@ impl Block {
             .iter()
             .map(|k| used_vars.contains(&k))
             .collect::<BitVec>()
-    }*/
+    }
 
     fn get_rch_prsrv(r#gen: &BitVec, defs_in_proc: &[Definition]) -> BitVec {
         let gen_vars = r#gen
@@ -205,7 +214,7 @@ impl BlockGraph {
             .blocks
             .iter()
             .enumerate()
-            .map(|(i, b)| Block::get_liv_use(&def[i], &defs_in_proc, b))
+            .map(|(i, b)| b.get_liv_use(&def[i], &defs_in_proc))
             .collect::<Vec<_>>();
 
         //let edges_prev = self.edges_prev();
