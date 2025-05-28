@@ -2,10 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use phaser::{phase_1, phase_2, phase_3};
 
-use crate::{
-    code_gen::quadrupel::{Quadrupel, QuadrupelOp},
-    optimizations::reaching_expressions::Definition,
-};
+use crate::code_gen::quadrupel::{Quadrupel, QuadrupelOp};
 
 mod block_start_iter;
 mod dot_graph;
@@ -18,16 +15,11 @@ type BlockId = usize;
 pub struct Block {
     pub label: Option<String>,
     pub content: BlockContent,
-    pub defs: Option<Vec<Definition>>,
 }
 
 impl Block {
     fn new(label: Option<String>, content: BlockContent) -> Self {
-        Block {
-            label,
-            content,
-            defs: None,
-        }
+        Block { label, content }
     }
     fn new_start(label: Option<String>) -> Self {
         Self::new(label, BlockContent::Start)

@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Write;
 
 use bitvec::vec::BitVec;
@@ -27,11 +27,6 @@ impl Block {
             .iter()
             .map(|d| d.block_id == block_id)
             .collect::<BitVec>()
-    }
-
-    pub fn vars_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
-        todo!()
-        //let unique_vars = HashSet::new();
     }
 
     pub fn assignments_in_block(&self) -> Vec<(usize, QuadrupelVar)> {
@@ -64,14 +59,7 @@ impl Block {
         }
     }
 
-    fn get_liv_use(&self, def: &BitVec, defs_in_proc: &[QuadrupelVar]) -> BitVec {
-        let def_vars = def
-            .iter()
-            .by_vals()
-            .enumerate()
-            .map(|(i, _)| &defs_in_proc[i])
-            .collect::<Vec<_>>();
-
+    fn get_liv_use(&self, defs_in_proc: &[Definition]) -> BitVec {
         let assignment_in_block = self.assignments_in_block();
 
         let used_vars = match self.content.clone() {
@@ -101,13 +89,12 @@ impl Block {
                     let assignment = assignment_in_block.iter().find(|(_, va)| v == va);
                     assignment.is_none() || assignment.unwrap().0 > *i
                 })
-                .map(|(_, v)| v)
                 .collect::<Vec<_>>(),
         };
 
-        def_vars
+        defs_in_proc
             .iter()
-            .map(|k| used_vars.contains(&k))
+            .map(|k| used_vars.iter().any(|d| d.1 == k.var))
             .collect::<BitVec>()
     }
 
@@ -159,6 +146,21 @@ impl Block {
     }*/
 
     pub fn definitions(&mut self, block_id: usize, quads: &[Quadrupel]) -> Vec<Definition> {
+        quads
+            .iter()
+            .enumerate()
+            .filter_map(move |(i, q)| match &q.result {
+                QuadrupelResult::Var(v) => Some(Definition {
+                    block_id,
+                    quad_id: i,
+                    var: v.clone(),
+                }),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn unique_definitions(&mut self, block_id: usize, quads: &[Quadrupel]) -> Vec<Definition> {
         let defs = quads
             .iter()
             .enumerate()
@@ -170,9 +172,9 @@ impl Block {
                 }),
                 _ => None,
             })
-            .collect::<Vec<_>>();
-        self.defs = Some(defs.clone());
-        defs
+            .map(|d| (d.clone().var, d))
+            .collect::<HashMap<_, _>>();
+        defs.values().cloned().collect()
     }
 }
 
@@ -201,7 +203,7 @@ impl Quadrupel {
 
 impl BlockGraph {
     pub fn live_variables(&mut self, local_table: &SymbolTable) -> LiveVariables {
-        let defs_in_proc = self.definitions(local_table);
+        let defs_in_proc = self.unique_definitions(local_table);
 
         let def = self
             .blocks
@@ -213,8 +215,7 @@ impl BlockGraph {
         let r#use = self
             .blocks
             .iter()
-            .enumerate()
-            .map(|(i, b)| b.get_liv_use(&def[i], &defs_in_proc))
+            .map(|b| b.get_liv_use(&defs_in_proc))
             .collect::<Vec<_>>();
 
         //let edges_prev = self.edges_prev();
@@ -325,6 +326,25 @@ impl BlockGraph {
                 }
             })
             .collect()
+    }
+
+    fn unique_definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
+        let mut defs = HashMap::new();
+        (0..self.blocks.len())
+            .flat_map(|i| -> Vec<_> {
+                match &self.blocks[i].clone().content {
+                    BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
+                    BlockContent::Code(quads) => self.blocks[i].unique_definitions(i, quads),
+                    BlockContent::Stop => vec![],
+                }
+            })
+            .for_each(|d| {
+                if !defs.contains_key(&d.var) {
+                    defs.insert(d.clone().var, d);
+                }
+            });
+
+        defs.values().cloned().collect()
     }
 
     fn edges_prev(&self) -> Vec<HashSet<usize>> {
