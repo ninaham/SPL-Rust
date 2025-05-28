@@ -29,9 +29,6 @@ impl Block {
             defs: None,
         }
     }
-    pub fn is_code(&self) -> bool {
-        matches!(self.content, BlockContent::Code(_))
-    }
     fn new_start(label: Option<String>) -> Self {
         Self::new(label, BlockContent::Start)
     }
@@ -105,49 +102,6 @@ impl BlockGraph {
 
     pub fn edges(&self) -> &[HashSet<usize>] {
         &self.edges
-    }
-
-    pub fn path_exists(
-        &self,
-        start_block: usize,
-        end_block: usize,
-        def: &Definition,
-        quad_nr: usize,
-    ) -> bool {
-        //println!("def: {:?}", def);
-        //println!("path_exists: {} {}", start_block, end_block);
-        let mut visited = vec![false; self.blocks.len()];
-        let mut stack = vec![start_block];
-
-        while let Some(current) = stack.pop() {
-            let block = &self.blocks[current];
-            if current == end_block {
-                //println!("Found path to block {}", end_block);
-                if block.is_code() {
-                    let defs = block.defs.clone().unwrap();
-                    if let Some(n) = defs.iter().find(|d| d.var == def.var) {
-                        return quad_nr < n.quad_id;
-                    }
-                }
-                return true;
-            }
-
-            if visited[current]
-                || (current != start_block
-                    && block.is_code()
-                    && block.defs.clone().unwrap().iter().any(|d| d.var == def.var))
-            {
-                visited[current] = true;
-                continue;
-            }
-            visited[current] = true;
-
-            for &neighbor in &self.edges[current] {
-                stack.push(neighbor);
-            }
-        }
-        //println!("No path to block {}", end_block);
-        false
     }
 
     fn new() -> Self {
