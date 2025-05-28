@@ -240,7 +240,7 @@ impl BlockGraph {
         let mut r#in: Vec<BitVec> = vec![BitVec::repeat(false, defs.len()); self.blocks.len()];
         let mut changed = VecDeque::from_iter(0..self.blocks.len());
 
-        while let Some(node) = changed.pop_front() {
+        while let Some(node) = changed.pop_back() {
             for &s in &edges[node] {
                 r#out[node] |= &r#in[s];
             }
