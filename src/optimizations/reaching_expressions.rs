@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use bitvec::vec::BitVec;
 
-use crate::code_gen::quadrupel::{quad, quad_match, QuadrupelArg, QuadrupelOp};
+use crate::code_gen::quadrupel::{QuadrupelArg, QuadrupelOp, quad, quad_match};
 use crate::table::entry::{Entry, Parameter};
 use crate::table::symbol_table::SymbolTable;
 use crate::{
@@ -29,37 +29,57 @@ impl Block {
             .collect::<BitVec>()
     }
 
-    fn get_last_def<'a>(
-        def_vars: &'a Vec<&Definition>,
-        block_nr: usize,
-        quad_nr: usize,
-        var: &QuadrupelVar,
-        graph: &BlockGraph,
-    ) -> Vec<&'a &'a Definition> {
-        let vars = def_vars
+    pub fn defs_in_block_2(
+        block_id: usize,
+        defs_in_proc: &[Definition],
+        unique_defs: HashSet<QuadrupelVar>,
+    ) -> BitVec {
+        let defs: Vec<_> = defs_in_proc
             .iter()
-            .filter(|dv| {
-                dv.var == var.clone() && graph.path_exists(dv.block_id, block_nr, dv, quad_nr)
-            })
+            .filter(|d| d.block_id == block_id)
+            .cloned()
             .collect();
-        vars
+
+        unique_defs
+            .iter()
+            .map(|v| defs.iter().any(|d| d.var == *v))
+            .collect::<BitVec>()
     }
 
-    fn get_liv_use(
-        def: &BitVec,
-        defs_in_proc: &[Definition],
-        block: &Block,
-        block_nr: usize,
-        graph: &BlockGraph,
-    ) -> BitVec {
-        let def_vars = def
-            .iter()
-            .by_vals()
-            .enumerate()
-            .map(|(i, _)| &defs_in_proc[i])
-            .collect::<Vec<_>>();
+    pub fn assignments_in_block(&self) -> Vec<(usize, QuadrupelVar)> {
+        match self.content.clone() {
+            BlockContent::Start => vec![],
+            BlockContent::Stop => vec![],
+            BlockContent::Code(quadrupels) => quadrupels
+                .into_iter()
+                .enumerate()
+                .filter(|(_, quad)| {
+                    matches!(
+                        quad.op,
+                        QuadrupelOp::Add
+                            | QuadrupelOp::Mul
+                            | QuadrupelOp::Div
+                            | QuadrupelOp::Sub
+                            | QuadrupelOp::Assign
+                    )
+                })
+                .map(|(i, q)| {
+                    (
+                        i,
+                        match q.result.clone() {
+                            QuadrupelResult::Var(v) => v,
+                            _ => unreachable!(),
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
 
-        let used_vars = match block.content.clone() {
+    fn get_liv_use(&self, unique_defs: &HashSet<QuadrupelVar>) -> BitVec {
+        let assignment_in_block = self.assignments_in_block();
+
+        let used_vars = match self.content.clone() {
             BlockContent::Start => vec![],
             BlockContent::Stop => vec![],
             BlockContent::Code(quadrupels) => quadrupels
@@ -82,13 +102,16 @@ impl Block {
                     ]
                 })
                 .flatten()
-                .flat_map(|(i, var)| Self::get_last_def(&def_vars, block_nr, i, &var, graph))
+                .filter(|(i, v)| {
+                    let assignment = assignment_in_block.iter().find(|(_, va)| v == va);
+                    assignment.is_none() || assignment.unwrap().0 > *i
+                })
                 .collect::<Vec<_>>(),
         };
 
-        def_vars
+        unique_defs
             .iter()
-            .map(|k| used_vars.contains(&k))
+            .map(|k| used_vars.iter().any(|d| &d.1 == k))
             .collect::<BitVec>()
     }
 
@@ -112,31 +135,27 @@ impl Block {
         quads: &[Quadrupel],
         symbol_table: &SymbolTable,
     ) -> Vec<Definition> {
-        self.defs
-            .get_or_insert_with(|| {
-                quads
-                    .iter()
-                    .enumerate()
-                    .filter_map(move |(i, q)| match q {
-                        quad_match!((_), _, _ => QuadrupelResult::Var(v)) => Some(Definition {
-                            block_id,
-                            quad_id: i,
-                            var: v.clone(),
-                        }),
-                        quad_match!((p), (~v), _ => _) => {
-                            let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
+        quads
+            .iter()
+            .enumerate()
+            .filter_map(move |(i, q)| match q {
+                quad_match!((_), _, _ => QuadrupelResult::Var(v)) => Some(Definition {
+                    block_id,
+                    quad_id: i,
+                    var: v.clone(),
+                }),
+                quad_match!((p), (~v), _ => _) => {
+                    let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
 
-                            param.is_reference.then(|| Definition {
-                                block_id,
-                                quad_id: i,
-                                var: v.clone(),
-                            })
-                        }
-                        _ => None,
+                    param.is_reference.then(|| Definition {
+                        block_id,
+                        quad_id: i,
+                        var: v.clone(),
                     })
-                    .collect::<Vec<_>>()
+                }
+                _ => None,
             })
-            .clone()
+            .collect::<Vec<_>>()
     }
 }
 
@@ -166,31 +185,42 @@ impl Quadrupel {
 impl BlockGraph {
     pub fn live_variables(&mut self, local_table: &SymbolTable) -> LiveVariables {
         let defs_in_proc = self.definitions(local_table);
+        let unique_defs = defs_in_proc
+            .iter()
+            .map(|d| d.var.clone())
+            .collect::<HashSet<_>>();
+
+        let defs = unique_defs
+            .iter()
+            .map(|qv| Definition {
+                block_id: 0,
+                quad_id: 0,
+                var: qv.clone(),
+            })
+            .collect::<Vec<_>>();
 
         let def = self
             .blocks
             .iter()
             .enumerate()
-            .map(|(block_id, _)| Block::defs_in_block(block_id, &defs_in_proc))
+            .map(|(block_id, _)| {
+                Block::defs_in_block_2(block_id, &defs_in_proc, unique_defs.clone())
+            })
             .collect::<Vec<_>>();
 
         let r#use = self
             .blocks
             .iter()
-            .enumerate()
-            .map(|(i, b)| Block::get_liv_use(&def[i], &defs_in_proc, b, i, self))
+            .map(|b| b.get_liv_use(&unique_defs))
             .collect::<Vec<_>>();
 
-        //let edges_prev = self.edges_prev();
         let edges = self.edges();
 
-        let mut out: Vec<BitVec> =
-            vec![BitVec::repeat(false, defs_in_proc.len()); self.blocks.len()];
-        let mut r#in: Vec<BitVec> =
-            vec![BitVec::repeat(false, defs_in_proc.len()); self.blocks.len()];
+        let mut out: Vec<BitVec> = vec![BitVec::repeat(false, defs.len()); self.blocks.len()];
+        let mut r#in: Vec<BitVec> = vec![BitVec::repeat(false, defs.len()); self.blocks.len()];
         let mut changed = VecDeque::from_iter(0..self.blocks.len());
 
-        while let Some(node) = changed.pop_front() {
+        while let Some(node) = changed.pop_back() {
             for &s in &edges[node] {
                 r#out[node] |= &r#in[s];
             }
@@ -209,7 +239,7 @@ impl BlockGraph {
             }
         }
         LiveVariables {
-            defs: defs_in_proc,
+            defs,
             def,
             use_bits: r#use,
             livin: r#in,
@@ -269,7 +299,7 @@ impl BlockGraph {
 
     fn definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
         (0..self.blocks.len())
-            .flat_map(move |i| -> Vec<_> {
+            .flat_map(|i| -> Vec<_> {
                 match &self.blocks[i].clone().content {
                     BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
                     BlockContent::Code(quads) => self.blocks[i].definitions(i, quads, local_table),

@@ -2,10 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use phaser::{phase_1, phase_2, phase_3};
 
-use crate::{
-    code_gen::quadrupel::{Quadrupel, QuadrupelOp},
-    optimizations::reaching_expressions::Definition,
-};
+use crate::code_gen::quadrupel::{Quadrupel, QuadrupelOp};
 
 mod block_start_iter;
 mod dot_graph;
@@ -18,19 +15,11 @@ type BlockId = usize;
 pub struct Block {
     label: Option<String>,
     pub content: BlockContent,
-    pub defs: Option<Vec<Definition>>,
 }
 
 impl Block {
     fn new(label: Option<String>, content: BlockContent) -> Self {
-        Block {
-            label,
-            content,
-            defs: None,
-        }
-    }
-    pub fn is_code(&self) -> bool {
-        matches!(self.content, BlockContent::Code(_))
+        Block { label, content }
     }
     fn new_start(label: Option<String>) -> Self {
         Self::new(label, BlockContent::Start)
@@ -105,49 +94,6 @@ impl BlockGraph {
 
     pub fn edges(&self) -> &[HashSet<usize>] {
         &self.edges
-    }
-
-    pub fn path_exists(
-        &self,
-        start_block: usize,
-        end_block: usize,
-        def: &Definition,
-        quad_nr: usize,
-    ) -> bool {
-        //println!("def: {:?}", def);
-        //println!("path_exists: {} {}", start_block, end_block);
-        let mut visited = vec![false; self.blocks.len()];
-        let mut stack = vec![start_block];
-
-        while let Some(current) = stack.pop() {
-            let block = &self.blocks[current];
-            let block_defs = block.defs.as_ref().unwrap();
-            if current == end_block {
-                //println!("Found path to block {}", end_block);
-                if block.is_code() {
-                    if let Some(n) = block_defs.iter().find(|d| d.var == def.var) {
-                        return quad_nr < n.quad_id;
-                    }
-                }
-                return true;
-            }
-
-            if visited[current]
-                || (current != start_block
-                    && block.is_code()
-                    && block_defs.iter().any(|d| d.var == def.var))
-            {
-                visited[current] = true;
-                continue;
-            }
-            visited[current] = true;
-
-            for &neighbor in &self.edges[current] {
-                stack.push(neighbor);
-            }
-        }
-        //println!("No path to block {}", end_block);
-        false
     }
 
     fn new() -> Self {
