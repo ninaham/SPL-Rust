@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use bitvec::vec::BitVec;
 
-use crate::code_gen::quadrupel::{QuadrupelArg, QuadrupelOp};
+use crate::code_gen::quadrupel::{QuadrupelArg, QuadrupelOp, quad, quad_match};
 use crate::table::entry::{Entry, Parameter};
 use crate::table::symbol_table::SymbolTable;
 use crate::{
@@ -129,16 +129,30 @@ impl Block {
             .collect::<BitVec>()
     }
 
-    pub fn definitions(&mut self, block_id: usize, quads: &[Quadrupel]) -> Vec<Definition> {
+    pub fn definitions(
+        &mut self,
+        block_id: usize,
+        quads: &[Quadrupel],
+        symbol_table: &SymbolTable,
+    ) -> Vec<Definition> {
         quads
             .iter()
             .enumerate()
-            .filter_map(move |(i, q)| match &q.result {
-                QuadrupelResult::Var(v) => Some(Definition {
+            .filter_map(move |(i, q)| match q {
+                quad_match!((_), _, _ => QuadrupelResult::Var(v)) => Some(Definition {
                     block_id,
                     quad_id: i,
                     var: v.clone(),
                 }),
+                quad_match!((p), (~v), _ => _) => {
+                    let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
+
+                    param.is_reference.then(|| Definition {
+                        block_id,
+                        quad_id: i,
+                        var: v.clone(),
+                    })
+                }
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -283,24 +297,12 @@ impl BlockGraph {
         }
     }
 
-    /*fn definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
-        (0..self.blocks.len())
-            .flat_map(move |i| -> Vec<_> {
-                match &self.blocks[i].clone().content {
-                    BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
-                    BlockContent::Code(quads) => self.blocks[i].definitions(i, quads, local_table),
-                    BlockContent::Stop => vec![],
-                }
-            })
-            .collect()
-    }*/
-
     fn definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
         (0..self.blocks.len())
             .flat_map(|i| -> Vec<_> {
                 match &self.blocks[i].clone().content {
                     BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
-                    BlockContent::Code(quads) => self.blocks[i].definitions(i, quads),
+                    BlockContent::Code(quads) => self.blocks[i].definitions(i, quads, local_table),
                     BlockContent::Stop => vec![],
                 }
             })
