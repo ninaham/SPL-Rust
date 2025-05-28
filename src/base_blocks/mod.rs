@@ -16,7 +16,7 @@ type BlockId = usize;
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    label: Option<String>,
+    pub label: Option<String>,
     pub content: BlockContent,
     pub defs: Option<Vec<Definition>>,
 }
@@ -74,11 +74,11 @@ pub enum BlockContent {
     Code(Vec<Quadrupel>),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct BlockGraph {
     pub blocks: Vec<Block>,
-    edges: Vec<HashSet<BlockId>>,
-    label_to_id: HashMap<String, BlockId>,
+    pub edges: Vec<HashSet<BlockId>>,
+    pub label_to_id: HashMap<String, BlockId>,
 }
 
 impl BlockGraph {
