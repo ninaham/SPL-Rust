@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::fmt::Write;
 
 use bitvec::vec::BitVec;
@@ -26,6 +26,23 @@ impl Block {
         defs_in_proc
             .iter()
             .map(|d| d.block_id == block_id)
+            .collect::<BitVec>()
+    }
+
+    pub fn defs_in_block_2(
+        block_id: usize,
+        defs_in_proc: &[Definition],
+        unique_defs: HashSet<QuadrupelVar>,
+    ) -> BitVec {
+        let defs: Vec<_> = defs_in_proc
+            .iter()
+            .filter(|d| d.block_id == block_id)
+            .cloned()
+            .collect();
+
+        unique_defs
+            .iter()
+            .map(|v| defs.iter().any(|d| d.var == *v))
             .collect::<BitVec>()
     }
 
@@ -59,7 +76,7 @@ impl Block {
         }
     }
 
-    fn get_liv_use(&self, defs_in_proc: &[Definition]) -> BitVec {
+    fn get_liv_use(&self, unique_defs: &HashSet<QuadrupelVar>) -> BitVec {
         let assignment_in_block = self.assignments_in_block();
 
         let used_vars = match self.content.clone() {
@@ -92,9 +109,9 @@ impl Block {
                 .collect::<Vec<_>>(),
         };
 
-        defs_in_proc
+        unique_defs
             .iter()
-            .map(|k| used_vars.iter().any(|d| d.1 == k.var))
+            .map(|k| used_vars.iter().any(|d| &d.1 == k))
             .collect::<BitVec>()
     }
 
@@ -159,23 +176,6 @@ impl Block {
             })
             .collect::<Vec<_>>()
     }
-
-    pub fn unique_definitions(&mut self, block_id: usize, quads: &[Quadrupel]) -> Vec<Definition> {
-        let defs = quads
-            .iter()
-            .enumerate()
-            .filter_map(move |(i, q)| match &q.result {
-                QuadrupelResult::Var(v) => Some(Definition {
-                    block_id,
-                    quad_id: i,
-                    var: v.clone(),
-                }),
-                _ => None,
-            })
-            .map(|d| (d.clone().var, d))
-            .collect::<HashMap<_, _>>();
-        defs.values().cloned().collect()
-    }
 }
 
 impl Quadrupel {
@@ -203,28 +203,41 @@ impl Quadrupel {
 
 impl BlockGraph {
     pub fn live_variables(&mut self, local_table: &SymbolTable) -> LiveVariables {
-        let defs_in_proc = self.unique_definitions(local_table);
+        let defs_in_proc = self.definitions(local_table);
+        let unique_defs = defs_in_proc
+            .iter()
+            .map(|d| d.var.clone())
+            .collect::<HashSet<_>>();
+
+        let defs = unique_defs
+            .iter()
+            .map(|qv| Definition {
+                block_id: 0,
+                quad_id: 0,
+                var: qv.clone(),
+            })
+            .collect::<Vec<_>>();
 
         let def = self
             .blocks
             .iter()
             .enumerate()
-            .map(|(block_id, _)| Block::defs_in_block(block_id, &defs_in_proc))
+            .map(|(block_id, _)| {
+                Block::defs_in_block_2(block_id, &defs_in_proc, unique_defs.clone())
+            })
             .collect::<Vec<_>>();
 
         let r#use = self
             .blocks
             .iter()
-            .map(|b| b.get_liv_use(&defs_in_proc))
+            .map(|b| b.get_liv_use(&unique_defs))
             .collect::<Vec<_>>();
 
         //let edges_prev = self.edges_prev();
         let edges = self.edges();
 
-        let mut out: Vec<BitVec> =
-            vec![BitVec::repeat(false, defs_in_proc.len()); self.blocks.len()];
-        let mut r#in: Vec<BitVec> =
-            vec![BitVec::repeat(false, defs_in_proc.len()); self.blocks.len()];
+        let mut out: Vec<BitVec> = vec![BitVec::repeat(false, defs.len()); self.blocks.len()];
+        let mut r#in: Vec<BitVec> = vec![BitVec::repeat(false, defs.len()); self.blocks.len()];
         let mut changed = VecDeque::from_iter(0..self.blocks.len());
 
         while let Some(node) = changed.pop_front() {
@@ -246,7 +259,7 @@ impl BlockGraph {
             }
         }
         LiveVariables {
-            defs: defs_in_proc,
+            defs,
             def,
             use_bits: r#use,
             livin: r#in,
@@ -326,25 +339,6 @@ impl BlockGraph {
                 }
             })
             .collect()
-    }
-
-    fn unique_definitions<'a>(&'a mut self, local_table: &'a SymbolTable) -> Vec<Definition> {
-        let mut defs = HashMap::new();
-        (0..self.blocks.len())
-            .flat_map(|i| -> Vec<_> {
-                match &self.blocks[i].clone().content {
-                    BlockContent::Start => local_table.entries.iter().map(Into::into).collect(),
-                    BlockContent::Code(quads) => self.blocks[i].unique_definitions(i, quads),
-                    BlockContent::Stop => vec![],
-                }
-            })
-            .for_each(|d| {
-                if !defs.contains_key(&d.var) {
-                    defs.insert(d.clone().var, d);
-                }
-            });
-
-        defs.values().cloned().collect()
     }
 
     fn edges_prev(&self) -> Vec<HashSet<usize>> {
