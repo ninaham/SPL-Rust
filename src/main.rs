@@ -21,6 +21,7 @@ mod test {
 
     use crate::base_blocks::BlockGraph;
     use crate::code_gen::Tac;
+    use crate::optimizations::live_variables::LiveVariables;
     use crate::optimizations::reaching_expressions::ReachingDefinitions;
     use crate::optimizations::worklist::Worklist;
     use crate::parser::parse_everything_else::parse;
@@ -63,7 +64,7 @@ mod test {
 
             bg.common_subexpression_elimination(&table.lock().unwrap());
             ReachingDefinitions::run(&mut bg, local_table);
-            bg.live_variables(local_table);
+            LiveVariables::run(&mut bg, local_table);
 
             bg.to_string();
         }

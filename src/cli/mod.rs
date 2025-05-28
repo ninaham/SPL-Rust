@@ -8,10 +8,11 @@ use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Select};
 
-use crate::optimizations::dead_code_elimination;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
+    optimizations::dead_code_elimination,
+    optimizations::live_variables::LiveVariables,
     optimizations::reaching_expressions::ReachingDefinitions,
     optimizations::worklist::{Definition, Worklist},
     parser::parse_everything_else::parse,
@@ -188,7 +189,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
             unreachable!()
         };
-        let live_variables = graph.live_variables(&proc_def.local_table);
+        let live_variables = LiveVariables::run(&mut graph, &proc_def.local_table);
 
         println!("Definitions:");
         println!("{}", Definition::fmt_table(live_variables.defs.iter()));
@@ -237,7 +238,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
             unreachable!()
         };
-        let live_variables = graph.live_variables(&proc_def.local_table);
+        let live_variables = LiveVariables::run(&mut graph, &proc_def.local_table);
 
         graph = dead_code_elimination::dead_code_elimination(&graph, &live_variables);
 
