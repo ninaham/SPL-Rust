@@ -129,39 +129,6 @@ impl Block {
             .collect::<BitVec>()
     }
 
-    /*pub fn definitions(
-        &mut self,
-        block_id: usize,
-        quads: &[Quadrupel],
-        symbol_table: &SymbolTable,
-    ) -> Vec<Definition> {
-        self.defs
-            .get_or_insert_with(|| {
-                quads
-                    .iter()
-                    .enumerate()
-                    .filter_map(move |(i, q)| match q {
-                        quad_match!((_), _, _ => QuadrupelResult::Var(v)) => Some(Definition {
-                            block_id,
-                            quad_id: i,
-                            var: v.clone(),
-                        }),
-                        quad_match!((p), (~v), _ => _) => {
-                            let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
-
-                            param.is_reference.then(|| Definition {
-                                block_id,
-                                quad_id: i,
-                                var: v.clone(),
-                            })
-                        }
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .clone()
-    }*/
-
     pub fn definitions(&mut self, block_id: usize, quads: &[Quadrupel]) -> Vec<Definition> {
         quads
             .iter()
@@ -233,7 +200,6 @@ impl BlockGraph {
             .map(|b| b.get_liv_use(&unique_defs))
             .collect::<Vec<_>>();
 
-        //let edges_prev = self.edges_prev();
         let edges = self.edges();
 
         let mut out: Vec<BitVec> = vec![BitVec::repeat(false, defs.len()); self.blocks.len()];
