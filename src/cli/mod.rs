@@ -7,6 +7,7 @@ use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
+use crate::optimizations::dead_code_elimination;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
@@ -29,12 +30,15 @@ pub fn load_program_data() -> Command {
             arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
             arg!(rch: -r --rch "Reaching Definitions"),
             arg!(lv: -l --lv "Live Variables"),
+            arg!(dead: -e --dce ["output"] "Dead Code Eliminiation").require_equals(true),
         ])
         .group(
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "tac", "dot", "rch", "lv"]),
+                .args([
+                    "parse", "tables", "semant", "tac", "dot", "rch", "lv", "dead",
+                ]),
         )
 }
 
@@ -211,6 +215,89 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                     .map(|b| b.then_some('1').unwrap_or('0'))
                     .collect::<String>(),
             );
+        }
+
+        return Ok(());
+    }
+
+    if phase == "dead" {
+        let mut filename = format!("{}.dot", graphs[sel_proc]);
+        let outputname = format!("as file: {}", filename);
+        let outputs = vec!["print", &outputname, "dot Tx11", "xdot"];
+
+        let proc_name = graphs[sel_proc];
+        let proc_def = table.lock().unwrap().lookup(proc_name);
+        let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
+            unreachable!()
+        };
+        let live_variables = graph.live_variables(&proc_def.local_table);
+
+        graph = dead_code_elimination::dead_code_elimination(&graph, &live_variables).unwrap();
+
+        let output = matches.get_one::<String>("dot").and_then(|arg| {
+            if arg.ends_with(".dot") {
+                filename = arg.to_string();
+                Some(1)
+            } else {
+                outputs.iter().position(|o| o == arg)
+            }
+        });
+
+        let output = if let Some(output) = output {
+            output
+        } else if std::io::stdout().is_terminal() {
+            Select::with_theme(&theme)
+                .with_prompt("Which output mode?")
+                .items(&outputs)
+                .default(0)
+                .interact()?
+        } else {
+            0 // always write dot code to stdout if not terminal
+        };
+
+        match output {
+            0 => {
+                println!("{}", graph);
+            }
+            1 => {
+                let mut file = File::create(filename)?;
+                writeln!(file, "{}", graph)?;
+            }
+            2 => {
+                process::Command::new("dot")
+                    .arg("--version")
+                    .output()
+                    .map(|output| output.status.success())
+                    .map_err(|_| anyhow!("dot is not installed!".red()))?;
+
+                let mut dot = process::Command::new("dot")
+                    .arg("-Tx11")
+                    .stdin(Stdio::piped())
+                    .spawn()?;
+                if let Some(stdin) = dot.stdin.as_mut() {
+                    stdin.write_all(format!("{}", graph).as_bytes())?;
+                }
+                dot.wait()?;
+            }
+            3 => {
+                process::Command::new("xdot")
+                    .arg("-h")
+                    .output()
+                    .map(|output| output.status.success())
+                    .map_err(|_| anyhow!("xdot is not installed".red()))?;
+
+                let mut xdot = process::Command::new("xdot")
+                    .arg("-")
+                    .stdin(Stdio::piped())
+                    .spawn()?;
+                if let Some(stdin) = xdot.stdin.as_mut() {
+                    stdin.write_all(format!("{}", graph).as_bytes())?;
+                }
+                xdot.wait()?;
+            }
+            _ => {
+                println!("No valid input");
+            }
         }
 
         return Ok(());
