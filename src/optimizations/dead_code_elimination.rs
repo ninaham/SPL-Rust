@@ -28,8 +28,7 @@ pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> Block
                             let mut is_dead: bool = false;
 
                             if let Some(var) = var
-                                && let Some(idx) =
-                                    &livar.defs.iter().position(|def| def.var == *var)
+                                && let Some(idx) = &livar.defs.iter().position(|v| v == var)
                             {
                                 is_dead = !liveout[*idx];
                             }
@@ -50,9 +49,7 @@ pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> Block
                                 None
                             } else {
                                 for var in &vars_from_quad(quad) {
-                                    if let Some(idx) =
-                                        &livar.defs.iter().position(|def| def.var == *var)
-                                    {
+                                    if let Some(idx) = &livar.defs.iter().position(|v| v == var) {
                                         liveout.set(*idx, true);
                                     }
                                 }
