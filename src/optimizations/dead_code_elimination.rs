@@ -1,22 +1,24 @@
 use super::{super::base_blocks::*, live_variables::LiveVariables};
-use crate::code_gen::quadrupel::{QuadrupelOp, QuadrupelResult};
+use crate::code_gen::quadrupel::{
+    Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar,
+};
 use anyhow::Error;
 
 pub fn dead_code_elimination(
     graph: &BlockGraph,
     livar: &LiveVariables,
 ) -> Result<BlockGraph, Error> {
-    println!("defs: {:?}", &livar.defs);
+    // create new Blocks
     let new_blocks = graph
         .blocks
         .iter()
         .enumerate()
         .map(|(blknum, block)| {
-            let liveout = &livar.livout[blknum];
-            println!("livout: {}", liveout);
+            let mut liveout = livar.livout[blknum].clone();
             let new_content = match &block.content {
+                //clone start stop
                 BlockContent::Start | BlockContent::Stop => block.content.clone(),
-
+                // create new block
                 BlockContent::Code(code) => BlockContent::Code(
                     code.iter()
                         .rev()
@@ -33,7 +35,6 @@ pub fn dead_code_elimination(
                                     &livar.defs.iter().position(|def| def.var == *var)
                                 {
                                     is_dead = !liveout[*idx];
-                                    println!("idx: {}, is_dead: {}", idx, is_dead);
                                 }
                             }
 
@@ -52,11 +53,20 @@ pub fn dead_code_elimination(
                             if is_dead && is_safe_to_remove {
                                 None
                             } else {
+                                vars_from_quad(&quad).iter().for_each(|var| {
+                                    if let Some(idx) =
+                                        &livar.defs.iter().position(|def| def.var == *var)
+                                    {
+                                        liveout.set(*idx, true);
+                                    }
+                                });
                                 Some(quad.clone())
                             }
                         })
+                        .collect::<Vec<_>>()
+                        .into_iter()
                         .rev()
-                        .collect::<Vec<_>>(),
+                        .collect(),
                 ),
             };
 
@@ -72,4 +82,22 @@ pub fn dead_code_elimination(
         blocks: new_blocks,
         ..graph.clone()
     })
+}
+
+fn vars_from_quad(quad: &Quadrupel) -> Vec<QuadrupelVar> {
+    let mut vars = Vec::new();
+
+    if let QuadrupelArg::Var(v) = &quad.arg1 {
+        vars.push(v.clone());
+    }
+
+    if let QuadrupelArg::Var(v) = &quad.arg2 {
+        vars.push(v.clone());
+    }
+
+    // if let QuadrupelResult::Var(v) = &quad.result {
+    //     vars.push(v.clone());
+    // }
+
+    vars
 }
