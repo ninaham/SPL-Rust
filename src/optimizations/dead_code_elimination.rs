@@ -24,7 +24,7 @@ pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> Block
                         };
 
                         let is_dead = res_var
-                            .and_then(|var| livar.defs.iter().position(|def| def.var == *var))
+                            .and_then(|var| livar.defs.iter().position(|v| v == var))
                             .is_some_and(|idx| !liveout[idx]);
 
                         let is_safe_to_remove = matches!(
@@ -41,8 +41,7 @@ pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> Block
 
                         if !(is_dead && is_safe_to_remove) {
                             for var in vars_from_quad(quad) {
-                                if let Some(idx) = livar.defs.iter().position(|def| def.var == var)
-                                {
+                                if let Some(idx) = livar.defs.iter().position(|v| v == &var) {
                                     liveout.set(idx, true);
                                 }
                             }

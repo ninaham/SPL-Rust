@@ -10,7 +10,7 @@ use crate::table::symbol_table::SymbolTable;
 use super::worklist::{self, Worklist};
 
 pub struct LiveVariables {
-    pub defs: Vec<Definition>,
+    pub defs: Vec<QuadrupelVar>,
     pub def: Vec<BitVec>,
     pub use_bits: Vec<BitVec>,
     pub livin: Vec<BitVec>,
@@ -19,7 +19,7 @@ pub struct LiveVariables {
 
 impl Worklist for LiveVariables {
     type Lattice = BitVec;
-    type D = Definition;
+    type D = QuadrupelVar;
 
     const EDGE_DIRECTION: worklist::EdgeDirection = worklist::EdgeDirection::Backward;
 
@@ -29,28 +29,22 @@ impl Worklist for LiveVariables {
         local_table: &SymbolTable,
     ) {
         let defs_in_proc = graph.definitions(local_table);
-        let unique_defs = defs_in_proc
+        let defs = defs_in_proc
             .iter()
             .map(|d| d.var.clone())
             .collect::<HashSet<_>>();
-
-        let defs = unique_defs.iter().map(|qv| Definition {
-            block_id: 0,
-            quad_id: 0,
-            var: qv.clone(),
-        });
 
         let def = graph
             .blocks
             .iter()
             .enumerate()
-            .map(|(block_id, _)| Block::defs_in_block_2(block_id, &defs_in_proc, &unique_defs));
+            .map(|(block_id, _)| Block::defs_in_block_2(block_id, &defs_in_proc, &defs));
 
-        let r#use = graph.blocks.iter().map(|b| b.get_liv_use(&unique_defs));
+        let r#use = graph.blocks.iter().map(|b| b.get_liv_use(&defs));
 
-        state.info_all.extend(defs);
         state.block_info_a.extend(r#use);
         state.block_info_b.extend(def);
+        state.info_all.extend(defs);
     }
 
     fn output_first_part(

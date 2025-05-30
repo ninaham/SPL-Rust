@@ -191,8 +191,10 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         };
         let live_variables = LiveVariables::run(&mut graph, &proc_def.local_table);
 
-        println!("Definitions:");
-        println!("{}", Definition::fmt_table(live_variables.defs.iter()));
+        println!("Variables:");
+        for (i, v) in live_variables.defs.iter().enumerate() {
+            println!("{i:>5}: {v}");
+        }
         println!();
 
         let col_width = live_variables.defs.len();
