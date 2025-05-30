@@ -1,34 +1,48 @@
 use super::{super::base_blocks::*, live_variables::LiveVariables};
-use crate::code_gen::quadrupel::QuadrupelOp;
+use crate::code_gen::quadrupel::{QuadrupelOp, QuadrupelResult};
 use anyhow::Error;
 
 pub fn dead_code_elimination(
     graph: &BlockGraph,
     livar: &LiveVariables,
 ) -> Result<BlockGraph, Error> {
+    println!("defs: {:?}", &livar.defs);
     let new_blocks = graph
         .blocks
         .iter()
-        .map(|block| {
+        .enumerate()
+        .map(|(blknum, block)| {
+            let liveout = &livar.livout[blknum];
+            println!("livout: {}", liveout);
             let new_content = match &block.content {
                 BlockContent::Start | BlockContent::Stop => block.content.clone(),
 
                 BlockContent::Code(code) => BlockContent::Code(
                     code.iter()
-                        .enumerate()
                         .rev()
-                        .filter_map(|(i, quad)| {
-                            let liveout = &livar.livout[i];
-                            let defs = &livar.def[i];
+                        .filter_map(|quad| {
+                            let var = match &quad.result {
+                                QuadrupelResult::Var(var) => Some(var),
+                                _ => None,
+                            };
 
-                            let is_dead = defs.iter().zip(liveout).all(|(d, l)| !(*d && *l));
+                            let mut is_dead: bool = false;
+
+                            if let Some(var) = var {
+                                if let Some(idx) =
+                                    &livar.defs.iter().position(|def| def.var == *var)
+                                {
+                                    is_dead = !liveout[*idx];
+                                    println!("idx: {}, is_dead: {}", idx, is_dead);
+                                }
+                            }
 
                             let is_safe_to_remove = matches!(
                                 quad.op,
                                 QuadrupelOp::Assign
                                     | QuadrupelOp::ArrayLoad
                                     | QuadrupelOp::ArrayStore
-                                    | QuadrupelOp::Neq
+                                    | QuadrupelOp::Neg
                                     | QuadrupelOp::Add
                                     | QuadrupelOp::Sub
                                     | QuadrupelOp::Mul
@@ -41,10 +55,8 @@ pub fn dead_code_elimination(
                                 Some(quad.clone())
                             }
                         })
-                        .collect::<Vec<_>>()
-                        .into_iter()
                         .rev()
-                        .collect(),
+                        .collect::<Vec<_>>(),
                 ),
             };
 
