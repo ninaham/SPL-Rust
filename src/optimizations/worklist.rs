@@ -1,6 +1,5 @@
 use std::collections::{HashSet, VecDeque};
 use std::fmt::Write;
-use std::iter;
 
 use bitvec::vec::BitVec;
 
@@ -9,12 +8,11 @@ use crate::code_gen::quadrupel::{quad, quad_match, Quadrupel, QuadrupelResult, Q
 use crate::table::entry::Entry;
 use crate::table::symbol_table::SymbolTable;
 
-pub struct State<L: Lattice, D> {
-    pub info_all: Vec<D>,
-    pub block_info_a: Vec<L>,
-    pub block_info_b: Vec<L>,
-    pub input: Vec<L>,
-    pub output: Vec<L>,
+pub struct State<'a, W: Worklist + ?Sized> {
+    pub block_info_a: &'a mut [W::Lattice],
+    pub block_info_b: &'a mut [W::Lattice],
+    pub input: &'a mut [W::Lattice],
+    pub output: &'a mut [W::Lattice],
 }
 
 pub trait Lattice: Clone + Eq {
@@ -35,15 +33,11 @@ pub trait Worklist {
 
     const EDGE_DIRECTION: self::EdgeDirection;
 
-    fn init(
-        state: &mut State<Self::Lattice, Self::D>,
-        graph: &mut BlockGraph,
-        local_table: &SymbolTable,
-    );
-    fn output_first_part(state: &State<Self::Lattice, Self::D>, node: usize) -> Self::Lattice {
-        state.input[node].meet(&state.block_info_b[node])
+    fn init(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self;
+    fn meet_override(lhs: &Self::Lattice, rhs: &Self::Lattice) -> Self::Lattice {
+        lhs.meet(rhs)
     }
-    fn result(state: State<Self::Lattice, Self::D>) -> Self;
+    fn state(&mut self) -> State<Self>;
 
     fn run(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self
     where
@@ -51,19 +45,16 @@ pub trait Worklist {
     {
         graph.run_worklist(local_table)
     }
+
+    fn init_in_out(graph: &mut BlockGraph, info_all: &[Self::D]) -> Vec<Self::Lattice> {
+        vec![Self::Lattice::init(info_all.len()); graph.blocks.len()]
+    }
 }
 
 impl BlockGraph {
     fn run_worklist<W: Worklist>(&mut self, local_table: &SymbolTable) -> W {
-        let mut state = State::<W::Lattice, W::D> {
-            info_all: Vec::new(),
-            block_info_a: Vec::new(),
-            block_info_b: Vec::new(),
-            input: Vec::new(),
-            output: Vec::new(),
-        };
-
-        W::init(&mut state, self, local_table);
+        let mut state_res = W::init(self, local_table);
+        let mut state = state_res.state();
 
         let mut edges_both = [self.edges(), &self.edges_prev()];
         if matches!(W::EDGE_DIRECTION, self::EdgeDirection::Backward) {
@@ -71,14 +62,10 @@ impl BlockGraph {
         }
         let [edges_forward, edges_backward] = edges_both;
 
-        state.output.extend(iter::repeat_n(
-            W::Lattice::init(state.info_all.len()),
-            self.blocks.len(),
-        ));
-        state.input.extend(iter::repeat_n(
-            W::Lattice::init(state.info_all.len()),
-            self.blocks.len(),
-        ));
+        if matches!(W::EDGE_DIRECTION, self::EdgeDirection::Backward) {
+            std::mem::swap(&mut state.input, &mut state.output);
+        }
+
         let mut changed = match W::EDGE_DIRECTION {
             EdgeDirection::Forward => (0..self.blocks.len()).collect::<VecDeque<_>>(),
             EdgeDirection::Backward => (0..self.blocks.len()).rev().collect::<VecDeque<_>>(),
@@ -89,7 +76,7 @@ impl BlockGraph {
                 state.input[node].join_assign(&state.output[p]);
             }
 
-            let output_first_part = W::output_first_part(&state, node);
+            let output_first_part = W::meet_override(&state.input[node], &state.block_info_b[node]);
 
             let output_old = std::mem::replace(
                 &mut state.output[node],
@@ -101,7 +88,7 @@ impl BlockGraph {
             }
         }
 
-        W::result(state)
+        state_res
     }
 
     pub fn definitions(&self, local_table: &SymbolTable) -> Vec<Definition> {
