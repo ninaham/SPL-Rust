@@ -1,4 +1,4 @@
-#![expect(clippy::enum_variant_names)]
+#![expect(clippy::enum_variant_names, clippy::linkedlist)]
 
 use std::collections::LinkedList;
 

@@ -47,6 +47,7 @@ impl<'a> Tac {
     }
 
     fn eval_assign_statement(&mut self, assign: &'a AssignStatement) {
+        #![expect(clippy::similar_names)]
         let mut assign_quad;
         let val = self.eval_expression(&assign.value);
 
@@ -254,7 +255,7 @@ impl<'a> Tac {
         self.quadrupels.push(new_quad);
     }
 
-    fn create_tmp_var(&mut self) -> QuadrupelVar {
+    const fn create_tmp_var(&mut self) -> QuadrupelVar {
         let n = self.temp_var_count;
         self.temp_var_count += 1;
 
@@ -276,8 +277,8 @@ impl<'a> Tac {
 }
 
 impl Quadrupel {
-    fn new() -> Self {
-        Quadrupel {
+    const fn new() -> Self {
+        Self {
             op: super::QuadrupelOp::Default,
             arg1: QuadrupelArg::Empty,
             arg2: QuadrupelArg::Empty,

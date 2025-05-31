@@ -7,7 +7,7 @@ pub(super) struct AEBEntry {
 }
 
 impl AEBEntry {
-    pub fn new(quad: Quadrupel, pos: usize) -> Self {
+    pub const fn new(quad: Quadrupel, pos: usize) -> Self {
         Self {
             quad,
             pos,

@@ -1,4 +1,6 @@
-use std::{collections::HashMap, rc::Weak, sync::Mutex};
+use std::collections::HashMap;
+use std::rc::{Rc, Weak};
+use std::sync::Mutex;
 
 use crate::semant::SemanticError;
 
@@ -14,7 +16,7 @@ impl SymbolTable {
     pub fn enter(&mut self, name: String, entry: Entry) -> Result<(), SemanticError> {
         if self.entries.contains_key(&name) {
             return Err(SemanticError {
-                _msg: format!("Symbol {} already defined", name),
+                msg: format!("Symbol {name} already defined"),
             });
         }
         self.entries.insert(name, entry);
@@ -31,5 +33,9 @@ impl SymbolTable {
             return u_l.lookup(name);
         }
         None
+    }
+
+    pub fn upper_level(&self) -> Rc<Mutex<Self>> {
+        self.upper_level.as_ref().unwrap().upgrade().unwrap()
     }
 }

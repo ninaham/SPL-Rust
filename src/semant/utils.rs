@@ -7,7 +7,7 @@ impl Type {
     const INT: Self = Self::PrimitiveType(PrimitiveType::Int);
     const BOOL: Self = Self::PrimitiveType(PrimitiveType::Bool);
 
-    pub fn is_array(&self) -> bool {
+    pub const fn is_array(&self) -> bool {
         matches!(self, Self::ArrayType(_))
     }
 
@@ -21,13 +21,13 @@ impl Type {
 }
 
 impl Expression {
-    pub fn is_variable(&self) -> bool {
+    pub const fn is_variable(&self) -> bool {
         matches!(self, Self::VariableExpression(_))
     }
 }
 
 impl Operator {
-    pub fn result_type(&self, left_type: &Type, right_type: &Type) -> Option<Type> {
+    pub fn result_type(self, left_type: &Type, right_type: &Type) -> Option<Type> {
         if !left_type.is_int() || !right_type.is_int() {
             return None;
         }
@@ -40,7 +40,7 @@ impl Operator {
 }
 
 impl UnaryOperator {
-    pub fn result_type(&self, right_type: &Type) -> Option<Type> {
+    pub fn result_type(self, right_type: &Type) -> Option<Type> {
         if !(right_type.is_int()) {
             return None;
         }
