@@ -14,7 +14,7 @@ impl SymbolTable {
     pub fn enter(&mut self, name: String, entry: Entry) -> Result<(), SemanticError> {
         if self.entries.contains_key(&name) {
             return Err(SemanticError {
-                _msg: format!("Symbol {} already defined", name),
+                msg: format!("Symbol {name} already defined"),
             });
         }
         self.entries.insert(name, entry);

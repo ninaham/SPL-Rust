@@ -7,14 +7,14 @@ impl Quadrupel {
         }
 
         if let Some(cond) = self.cmp_const() {
-            return match cond {
-                true => Some(quad!(=> self.result)),
-                false => None,
-            };
+            return cond.then_some(quad!(=> self.result));
         }
 
         Some(match self {
-            quad_match!((+), 0, arg => res) | quad_match!((+)(-), arg, 0 => res) => {
+            quad_match!((+), 0, arg => res)
+            | quad_match!((+)(-), arg, 0 => res)
+            | quad_match!((*), 1, arg => res)
+            | quad_match!((*)(/), arg, 1 => res) => {
                 quad!((:=), (arg), _ => res)
             }
             quad_match!((-), 0, arg => res) => {
@@ -24,9 +24,6 @@ impl Quadrupel {
                 quad!((:=), 0, _ => res)
             }
 
-            quad_match!((*), 1, arg => res) | quad_match!((*)(/), arg, 1 => res) => {
-                quad!((:=), (arg), _ => res)
-            }
             quad_match!((*), 2, arg => res) | quad_match!((*), arg, 2 => res) => {
                 quad!((+), (arg.clone()), (arg) => res)
             }
@@ -44,6 +41,7 @@ impl Quadrupel {
             return None;
         };
 
+        #[expect(clippy::match_wildcard_for_single_variants)]
         let arg2 = match self.arg2 {
             QuadrupelArg::Const(v) => Some(v),
             QuadrupelArg::Empty => None,

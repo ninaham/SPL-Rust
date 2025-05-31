@@ -1,3 +1,5 @@
+#![expect(clippy::linkedlist)]
+
 use std::collections::LinkedList;
 
 use super::{

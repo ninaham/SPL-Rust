@@ -22,9 +22,9 @@ pub struct Tac {
 
 impl fmt::Display for Tac {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for proc in self.proc_table.iter() {
+        for proc in &self.proc_table {
             for quad in proc.1 {
-                writeln!(f, "{}", quad)?;
+                writeln!(f, "{quad}")?;
             }
             writeln!(f, "{:-<58}", "".truecolor(100, 100, 100))?;
             writeln!(f)?;
@@ -35,7 +35,7 @@ impl fmt::Display for Tac {
 
 impl Tac {
     pub fn new(symboltable: Rc<Mutex<SymbolTable>>) -> Self {
-        Tac {
+        Self {
             quadrupels: vec![],
             symboltable,
             label_num: 0,

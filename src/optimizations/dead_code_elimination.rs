@@ -1,13 +1,10 @@
-use super::{super::base_blocks::*, live_variables::LiveVariables};
-use crate::code_gen::quadrupel::{
-    Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar,
+use crate::{
+    base_blocks::{Block, BlockContent, BlockGraph},
+    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
+    optimizations::live_variables::LiveVariables,
 };
-use anyhow::Error;
 
-pub fn dead_code_elimination(
-    graph: &BlockGraph,
-    livar: &LiveVariables,
-) -> Result<BlockGraph, Error> {
+pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> BlockGraph {
     // create new Blocks
     let new_blocks = graph
         .blocks
@@ -30,12 +27,10 @@ pub fn dead_code_elimination(
 
                             let mut is_dead: bool = false;
 
-                            if let Some(var) = var {
-                                if let Some(idx) =
-                                    &livar.defs.iter().position(|def| def.var == *var)
-                                {
-                                    is_dead = !liveout[*idx];
-                                }
+                            if let Some(var) = var
+                                && let Some(idx) = &livar.defs.iter().position(|v| v == var)
+                            {
+                                is_dead = !liveout[*idx];
                             }
 
                             let is_safe_to_remove = matches!(
@@ -53,13 +48,11 @@ pub fn dead_code_elimination(
                             if is_dead && is_safe_to_remove {
                                 None
                             } else {
-                                vars_from_quad(&quad).iter().for_each(|var| {
-                                    if let Some(idx) =
-                                        &livar.defs.iter().position(|def| def.var == *var)
-                                    {
+                                for var in &vars_from_quad(quad) {
+                                    if let Some(idx) = &livar.defs.iter().position(|v| v == var) {
                                         liveout.set(*idx, true);
                                     }
-                                });
+                                }
                                 Some(quad.clone())
                             }
                         })
@@ -73,15 +66,14 @@ pub fn dead_code_elimination(
             Block {
                 label: block.label.clone(),
                 content: new_content,
-                ..block.clone()
             }
         })
         .collect();
 
-    Ok(BlockGraph {
+    BlockGraph {
         blocks: new_blocks,
         ..graph.clone()
-    })
+    }
 }
 
 fn vars_from_quad(quad: &Quadrupel) -> Vec<QuadrupelVar> {
