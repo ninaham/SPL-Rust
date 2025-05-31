@@ -20,11 +20,7 @@ impl Worklist for ReachingDefinitions {
 
     const EDGE_DIRECTION: worklist::EdgeDirection = worklist::EdgeDirection::Forward;
 
-    fn init(
-        state: &mut worklist::State<Self::Lattice, Self::D>,
-        graph: &mut BlockGraph,
-        local_table: &SymbolTable,
-    ) {
+    fn init(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self {
         let defs_all = graph.definitions(local_table);
         let defs_per_block = graph.defs_per_block(&defs_all);
         let r#gen = defs_per_block;
@@ -33,18 +29,21 @@ impl Worklist for ReachingDefinitions {
             .map(|r#gen| Block::get_rch_prsrv(r#gen, &defs_all))
             .collect::<Vec<_>>();
 
-        state.info_all = defs_all;
-        state.block_info_a = r#gen;
-        state.block_info_b = prsv;
+        Self {
+            gen_bits: r#gen,
+            prsv,
+            rchin: Self::init_in_out(graph, &defs_all),
+            rchout: Self::init_in_out(graph, &defs_all),
+            defs: defs_all,
+        }
     }
 
-    fn result(state: worklist::State<Self::Lattice, Self::D>) -> Self {
-        Self {
-            defs: state.info_all,
-            gen_bits: state.block_info_a,
-            prsv: state.block_info_b,
-            rchin: state.input,
-            rchout: state.output,
+    fn state(&mut self) -> worklist::State<'_, Self> {
+        worklist::State::<Self> {
+            block_info_a: &mut self.gen_bits,
+            block_info_b: &mut self.prsv,
+            input: &mut self.rchin,
+            output: &mut self.rchout,
         }
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::ops::Not;
 
 use bitvec::vec::BitVec;
 
@@ -23,49 +24,43 @@ impl Worklist for LiveVariables {
 
     const EDGE_DIRECTION: worklist::EdgeDirection = worklist::EdgeDirection::Backward;
 
-    fn init(
-        state: &mut worklist::State<Self::Lattice, Self::D>,
-        graph: &mut BlockGraph,
-        local_table: &SymbolTable,
-    ) {
+    fn init(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self {
         let defs_in_proc = graph.definitions(local_table);
         let defs = defs_in_proc
             .iter()
             .map(|d| d.var.clone())
-            .collect::<HashSet<_>>();
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
 
         let def = graph
             .blocks
             .iter()
             .enumerate()
-            .map(|(block_id, _)| Block::defs_in_block_2(block_id, &defs_in_proc, &defs));
+            .map(|(block_id, _)| Block::defs_in_block_2(block_id, &defs_in_proc, &defs))
+            .collect();
 
-        let r#use = graph.blocks.iter().map(|b| b.get_liv_use(&defs));
+        let r#use = graph.blocks.iter().map(|b| b.get_liv_use(&defs)).collect();
 
-        state.block_info_a.extend(r#use);
-        state.block_info_b.extend(def);
-        state.info_all.extend(defs);
-    }
-
-    fn output_first_part(
-        state: &worklist::State<Self::Lattice, Self::D>,
-        node: usize,
-    ) -> Self::Lattice {
-        state.input[node]
-            .iter()
-            .by_vals()
-            .enumerate()
-            .map(|(i, b)| b && !state.block_info_b[node][i])
-            .collect::<BitVec>()
-    }
-
-    fn result(state: worklist::State<Self::Lattice, Self::D>) -> Self {
         Self {
-            defs: state.info_all,
-            def: state.block_info_b,
-            use_bits: state.block_info_a,
-            livin: state.output,
-            livout: state.input,
+            def,
+            use_bits: r#use,
+            livin: Self::init_in_out(graph, &defs),
+            livout: Self::init_in_out(graph, &defs),
+            defs,
+        }
+    }
+
+    fn meet_override(lhs: &Self::Lattice, rhs: &Self::Lattice) -> Self::Lattice {
+        rhs.clone().not() & lhs
+    }
+
+    fn state(&mut self) -> worklist::State<Self> {
+        worklist::State::<Self> {
+            block_info_a: &mut self.use_bits,
+            block_info_b: &mut self.def,
+            input: &mut self.livout,
+            output: &mut self.livin,
         }
     }
 }
@@ -74,7 +69,7 @@ impl Block {
     pub fn defs_in_block_2(
         block_id: usize,
         defs_in_proc: &[Definition],
-        unique_defs: &HashSet<QuadrupelVar>,
+        unique_defs: &[QuadrupelVar],
     ) -> BitVec {
         let defs: Vec<_> = defs_in_proc
             .iter()
@@ -102,7 +97,7 @@ impl Block {
         }
     }
 
-    fn get_liv_use(&self, unique_defs: &HashSet<QuadrupelVar>) -> BitVec {
+    fn get_liv_use(&self, unique_defs: &[QuadrupelVar]) -> BitVec {
         let assignment_in_block = self.assignments_in_block();
 
         let used_vars = match &self.content {
