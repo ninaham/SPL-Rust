@@ -1,0 +1,49 @@
+proc beispiel2() {
+// Beispiel aus der Vorlesung
+var a:int;
+var b:int;
+var c:int;
+var d:int;
+var x:int;
+
+a:=2;
+b:=3;
+d:=4;
+x:=100;  // kann eliminiert werden
+
+if (a>b)
+  { c:=a+b;    // kann eliminiert werden
+    d:=2; }
+
+c:=4;
+
+printi(b+d*c);
+}
+
+
+proc beispiel1 () {
+var a:int;
+var b:int;
+var c:int;
+
+// Block B1
+// In := { }
+a:=2;
+b:=3;
+
+// Block B2
+// In = { a, b }
+  c:=a+b;
+
+// Block B3
+// In = { a, b}
+  while (c<=100) { c := a+b; }
+
+// Block B4
+// In = {a, c}
+  printi(a+c);
+}
+
+proc main() {
+exit();
+}
