@@ -4,10 +4,7 @@ use crate::code_gen::quadrupel::{
 };
 use anyhow::Error;
 
-pub fn dead_code_elimination(
-    graph: &BlockGraph,
-    livar: &LiveVariables,
-) -> Result<BlockGraph, Error> {
+pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> BlockGraph {
     let new_blocks = graph
         .blocks
         .iter()
@@ -64,10 +61,10 @@ pub fn dead_code_elimination(
         })
         .collect();
 
-    Ok(BlockGraph {
+    BlockGraph {
         blocks: new_blocks,
         ..graph.clone()
-    })
+    }
 }
 
 fn vars_from_quad(quad: &Quadrupel) -> Vec<QuadrupelVar> {
