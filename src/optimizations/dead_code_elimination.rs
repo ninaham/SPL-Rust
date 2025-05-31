@@ -28,15 +28,9 @@ pub fn dead_code_elimination(
                                 _ => None,
                             };
 
-                            let mut is_dead: bool = false;
-
-                            if let Some(var) = var {
-                                if let Some(idx) =
-                                    &livar.defs.iter().position(|def| def.var == *var)
-                                {
-                                    is_dead = !liveout[*idx];
-                                }
-                            }
+                            let is_dead = var
+                                .and_then(|var| livar.defs.iter().position(|def| def.var == *var))
+                                .map_or(false, |idx| !liveout[idx]);
 
                             let is_safe_to_remove = matches!(
                                 quad.op,
