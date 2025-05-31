@@ -94,10 +94,5 @@ fn vars_from_quad(quad: &Quadrupel) -> Vec<QuadrupelVar> {
     if let QuadrupelArg::Var(v) = &quad.arg2 {
         vars.push(v.clone());
     }
-
-    // if let QuadrupelResult::Var(v) = &quad.result {
-    //     vars.push(v.clone());
-    // }
-
     vars
 }
