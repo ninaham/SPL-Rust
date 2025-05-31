@@ -8,60 +8,52 @@ pub fn dead_code_elimination(
     graph: &BlockGraph,
     livar: &LiveVariables,
 ) -> Result<BlockGraph, Error> {
-    // create new Blocks
     let new_blocks = graph
         .blocks
         .iter()
         .enumerate()
         .map(|(blknum, block)| {
             let mut liveout = livar.livout[blknum].clone();
+
             let new_content = match &block.content {
-                //clone start stop
                 BlockContent::Start | BlockContent::Stop => block.content.clone(),
-                // create new block
-                BlockContent::Code(code) => BlockContent::Code(
-                    code.iter()
-                        .rev()
-                        .filter_map(|quad| {
-                            let var = match &quad.result {
-                                QuadrupelResult::Var(var) => Some(var),
-                                _ => None,
-                            };
+                BlockContent::Code(code) => {
+                    let mut new_code = Vec::new();
 
-                            let is_dead = var
-                                .and_then(|var| livar.defs.iter().position(|def| def.var == *var))
-                                .map_or(false, |idx| !liveout[idx]);
+                    code.iter().rev().for_each(|quad| {
+                        let res_var = match &quad.result {
+                            QuadrupelResult::Var(var) => Some(var),
+                            _ => None,
+                        };
 
-                            let is_safe_to_remove = matches!(
-                                quad.op,
-                                QuadrupelOp::Assign
-                                    | QuadrupelOp::ArrayLoad
-                                    | QuadrupelOp::ArrayStore
-                                    | QuadrupelOp::Neg
-                                    | QuadrupelOp::Add
-                                    | QuadrupelOp::Sub
-                                    | QuadrupelOp::Mul
-                                    | QuadrupelOp::Div
-                            );
+                        let is_dead = res_var
+                            .and_then(|var| livar.defs.iter().position(|def| def.var == *var))
+                            .map_or(false, |idx| !liveout[idx]);
 
-                            if is_dead && is_safe_to_remove {
-                                None
-                            } else {
-                                vars_from_quad(&quad).iter().for_each(|var| {
-                                    if let Some(idx) =
-                                        &livar.defs.iter().position(|def| def.var == *var)
-                                    {
-                                        liveout.set(*idx, true);
-                                    }
-                                });
-                                Some(quad.clone())
+                        let is_safe_to_remove = matches!(
+                            quad.op,
+                            QuadrupelOp::Assign
+                                | QuadrupelOp::ArrayLoad
+                                | QuadrupelOp::ArrayStore
+                                | QuadrupelOp::Neg
+                                | QuadrupelOp::Add
+                                | QuadrupelOp::Sub
+                                | QuadrupelOp::Mul
+                                | QuadrupelOp::Div
+                        );
+
+                        if !(is_dead && is_safe_to_remove) {
+                            for var in vars_from_quad(quad) {
+                                if let Some(idx) = livar.defs.iter().position(|def| def.var == var)
+                                {
+                                    liveout.set(idx, true);
+                                }
                             }
-                        })
-                        .collect::<Vec<_>>()
-                        .into_iter()
-                        .rev()
-                        .collect(),
-                ),
+                            new_code.push(quad.clone());
+                        }
+                    });
+                    BlockContent::Code(new_code.into_iter().rev().collect())
+                }
             };
 
             Block {
