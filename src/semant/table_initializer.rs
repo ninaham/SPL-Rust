@@ -6,120 +6,121 @@ use crate::table::{
     types::{PrimitiveType, Type},
 };
 
-pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
-    let types = ["int"];
-    let procedures = [
-        (
-            "printi",
-            vec![Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            }],
-        ),
-        (
-            "printc",
-            vec![Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            }],
-        ),
-        (
-            "readi",
-            vec![Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: true,
-            }],
-        ),
-        (
-            "readc",
-            vec![Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: true,
-            }],
-        ),
-        ("exit", vec![]),
-        (
-            "time",
-            vec![Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: true,
-            }],
-        ),
-        (
-            "clearAll",
-            vec![Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            }],
-        ),
-        (
-            "setPixel",
-            vec![
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-            ],
-        ),
-        (
-            "drawLine",
-            vec![
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-            ],
-        ),
-        (
-            "drawCircle",
-            vec![
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-                Parameter {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                    is_reference: false,
-                },
-            ],
-        ),
-    ];
+const TYPES: [&str; 1] = ["int"];
 
+const PROCEDURES: [(&str, &[Parameter]); 10] = [
+    (
+        "printi",
+        &[Parameter {
+            typ: Type::PrimitiveType(PrimitiveType::Int),
+            is_reference: false,
+        }],
+    ),
+    (
+        "printc",
+        &[Parameter {
+            typ: Type::PrimitiveType(PrimitiveType::Int),
+            is_reference: false,
+        }],
+    ),
+    (
+        "readi",
+        &[Parameter {
+            typ: Type::PrimitiveType(PrimitiveType::Int),
+            is_reference: true,
+        }],
+    ),
+    (
+        "readc",
+        &[Parameter {
+            typ: Type::PrimitiveType(PrimitiveType::Int),
+            is_reference: true,
+        }],
+    ),
+    ("exit", &[]),
+    (
+        "time",
+        &[Parameter {
+            typ: Type::PrimitiveType(PrimitiveType::Int),
+            is_reference: true,
+        }],
+    ),
+    (
+        "clearAll",
+        &[Parameter {
+            typ: Type::PrimitiveType(PrimitiveType::Int),
+            is_reference: false,
+        }],
+    ),
+    (
+        "setPixel",
+        &[
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+        ],
+    ),
+    (
+        "drawLine",
+        &[
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+        ],
+    ),
+    (
+        "drawCircle",
+        &[
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+            Parameter {
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: false,
+            },
+        ],
+    ),
+];
+
+pub fn init_symbol_table(s_t: &Rc<Mutex<SymbolTable>>) {
     let mut symbol_table = s_t.lock().unwrap();
 
-    for t in types {
+    for t in TYPES {
         symbol_table
             .enter(
                 t.to_string(),
@@ -127,21 +128,21 @@ pub fn init_symbol_table(s_t: Rc<Mutex<SymbolTable>>) {
                     typ: Type::PrimitiveType(PrimitiveType::Int),
                 }),
             )
-            .unwrap()
+            .unwrap();
     }
 
-    for (name, params) in procedures {
+    for (name, params) in PROCEDURES {
         symbol_table
             .enter(
                 name.to_string(),
                 Entry::ProcedureEntry(ProcedureEntry {
                     local_table: SymbolTable {
                         entries: HashMap::new(),
-                        upper_level: Some(Rc::downgrade(&s_t)),
+                        upper_level: Some(Rc::downgrade(s_t)),
                     },
-                    parameters: params,
+                    parameters: params.into(),
                 }),
             )
-            .unwrap()
+            .unwrap();
     }
 }

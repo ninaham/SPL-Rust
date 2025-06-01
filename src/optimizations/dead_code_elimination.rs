@@ -1,69 +1,51 @@
-use super::{super::base_blocks::*, live_variables::LiveVariables};
-use crate::code_gen::quadrupel::{
-    Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar,
+use crate::{
+    base_blocks::{BlockContent, BlockGraph},
+    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
+    optimizations::live_variables::LiveVariables,
 };
-use anyhow::Error;
 
-pub fn dead_code_elimination(graph: &BlockGraph, livar: &LiveVariables) -> BlockGraph {
-    let new_blocks = graph
-        .blocks
-        .iter()
-        .enumerate()
-        .map(|(blknum, block)| {
+impl BlockGraph {
+    pub fn dead_code_elimination(&mut self, livar: &LiveVariables) {
+        for (blknum, block) in self.blocks.iter_mut().enumerate() {
             let mut liveout = livar.livout[blknum].clone();
 
-            let new_content = match &block.content {
-                BlockContent::Start | BlockContent::Stop => block.content.clone(),
-                BlockContent::Code(code) => {
-                    let mut new_code = Vec::new();
+            if let BlockContent::Code(code) = &mut block.content {
+                for quad in code.iter_mut().rev() {
+                    let res_var = match &quad.result {
+                        QuadrupelResult::Var(var) => Some(var),
+                        _ => None,
+                    };
 
-                    code.iter().rev().for_each(|quad| {
-                        let res_var = match &quad.result {
-                            QuadrupelResult::Var(var) => Some(var),
-                            _ => None,
-                        };
+                    let is_dead = res_var
+                        .and_then(|var| livar.defs.iter().position(|v| v == var))
+                        .is_some_and(|idx| !liveout[idx]);
 
-                        let is_dead = res_var
-                            .and_then(|var| livar.defs.iter().position(|def| def.var == *var))
-                            .map_or(false, |idx| !liveout[idx]);
+                    let is_safe_to_remove = matches!(
+                        quad.op,
+                        QuadrupelOp::Assign
+                            | QuadrupelOp::ArrayLoad
+                            | QuadrupelOp::ArrayStore
+                            | QuadrupelOp::Neg
+                            | QuadrupelOp::Add
+                            | QuadrupelOp::Sub
+                            | QuadrupelOp::Mul
+                            | QuadrupelOp::Div
+                    );
 
-                        let is_safe_to_remove = matches!(
-                            quad.op,
-                            QuadrupelOp::Assign
-                                | QuadrupelOp::ArrayLoad
-                                | QuadrupelOp::ArrayStore
-                                | QuadrupelOp::Neg
-                                | QuadrupelOp::Add
-                                | QuadrupelOp::Sub
-                                | QuadrupelOp::Mul
-                                | QuadrupelOp::Div
-                        );
-
-                        if !(is_dead && is_safe_to_remove) {
-                            for var in vars_from_quad(quad) {
-                                if let Some(idx) = livar.defs.iter().position(|def| def.var == var)
-                                {
-                                    liveout.set(idx, true);
-                                }
+                    if is_dead && is_safe_to_remove {
+                        *quad = Quadrupel::EMPTY;
+                    } else {
+                        for var in vars_from_quad(quad) {
+                            if let Some(idx) = livar.defs.iter().position(|v| v == &var) {
+                                liveout.set(idx, true);
                             }
-                            new_code.push(quad.clone());
                         }
-                    });
-                    BlockContent::Code(new_code.into_iter().rev().collect())
+                    }
                 }
-            };
 
-            Block {
-                label: block.label.clone(),
-                content: new_content,
-                ..block.clone()
+                code.retain(|quad| quad != &Quadrupel::EMPTY);
             }
-        })
-        .collect();
-
-    BlockGraph {
-        blocks: new_blocks,
-        ..graph.clone()
+        }
     }
 }
 

@@ -21,8 +21,12 @@ mod test {
 
     use crate::base_blocks::BlockGraph;
     use crate::code_gen::Tac;
+    use crate::optimizations::live_variables::LiveVariables;
+    use crate::optimizations::reaching_expressions::ReachingDefinitions;
+    use crate::optimizations::worklist::Worklist;
     use crate::parser::parse_everything_else::parse;
     use crate::semant::{build_symbol_table::build_symbol_table, check_def_global};
+    use crate::table::entry::Entry;
 
     #[rstest]
     fn test_all_files(
@@ -43,16 +47,26 @@ mod test {
         absyn
             .definitions
             .iter_mut()
-            .try_for_each(|def| check_def_global(def, table.clone()))?;
+            .try_for_each(|def| check_def_global(def, &table))?;
 
         let mut address_code = Tac::new(table.clone());
         address_code.code_generation(&absyn);
 
         assert!(address_code.proc_table.contains_key("main"));
 
-        for code in address_code.proc_table.values() {
+        for (proc_name, code) in &address_code.proc_table {
+            let Some(Entry::ProcedureEntry(proc_entry)) = table.lock().unwrap().lookup(proc_name)
+            else {
+                unreachable!()
+            };
+            let local_table = &proc_entry.local_table;
             let mut bg = BlockGraph::from_tac(code);
+
             bg.common_subexpression_elimination(&table.lock().unwrap());
+            ReachingDefinitions::run(&mut bg, local_table);
+            let live_variables = LiveVariables::run(&mut bg, local_table);
+            bg.dead_code_elimination(&live_variables);
+
             bg.to_string();
         }
 

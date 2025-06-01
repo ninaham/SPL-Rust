@@ -1,22 +1,25 @@
 use std::io::{IsTerminal, Write};
+use std::path::Path;
 use std::process::Stdio;
 use std::{fs::File, process};
 
-use anyhow::{Ok, anyhow, bail};
-use clap::{ArgGroup, Command, Id, arg};
+use anyhow::{anyhow, bail, Ok};
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
-use crate::optimizations::dead_code_elimination;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
-    optimizations::reaching_expressions::Definition,
+    optimizations::live_variables::LiveVariables,
+    optimizations::reaching_expressions::ReachingDefinitions,
+    optimizations::worklist::{Definition, Worklist},
     parser::parse_everything_else::parse,
     semant::{build_symbol_table::build_symbol_table, check_def_global},
     table::entry::Entry,
 };
 
+#[expect(clippy::cognitive_complexity)]
 pub fn load_program_data() -> Command {
     Command::new("SPl Rust Compiler")
         .version("0.1.0")
@@ -42,6 +45,7 @@ pub fn load_program_data() -> Command {
         )
 }
 
+#[expect(clippy::too_many_lines)]
 pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     let file = matches.get_one::<String>("file").unwrap();
     let input = std::fs::read_to_string(file)?.leak();
@@ -53,21 +57,21 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     let mut absyn = parse(input)?;
 
     if phase == "parse" {
-        println!("{:#?}", absyn);
+        println!("{absyn:#?}");
         return Ok(());
     }
 
     let table = build_symbol_table(&absyn)?;
 
     if phase == "tables" {
-        println!("{:#?}", table);
+        println!("{table:#?}");
         return Ok(());
     }
 
     absyn
         .definitions
         .iter_mut()
-        .try_for_each(|def| check_def_global(def, table.clone()))?;
+        .try_for_each(|def| check_def_global(def, &table))?;
 
     if phase == "semant" {
         return Ok(());
@@ -77,7 +81,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     address_code.code_generation(&absyn);
 
     if phase == "tac" {
-        println!("{}", address_code);
+        println!("{address_code}");
         return Ok(());
     }
 
@@ -103,11 +107,14 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
     if phase == "dot" {
         let mut filename = format!("{}.dot", graphs[sel_proc]);
-        let outputname = format!("as file: {}", filename);
+        let outputname = format!("as file: {filename}");
         let outputs = vec!["print", &outputname, "dot Tx11", "xdot"];
 
         let output = matches.get_one::<String>("dot").and_then(|arg| {
-            if arg.ends_with(".dot") {
+            if Path::new(arg)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("dot"))
+            {
                 filename = arg.to_string();
                 Some(1)
             } else {
@@ -129,11 +136,11 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
         match output {
             0 => {
-                println!("{}", graph);
+                println!("{graph}");
             }
             1 => {
                 let mut file = File::create(filename)?;
-                writeln!(file, "{}", graph)?;
+                writeln!(file, "{graph}")?;
             }
             2 => {
                 process::Command::new("dot")
@@ -147,7 +154,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                     .stdin(Stdio::piped())
                     .spawn()?;
                 if let Some(stdin) = dot.stdin.as_mut() {
-                    stdin.write_all(format!("{}", graph).as_bytes())?;
+                    write!(stdin, "{graph}")?;
                 }
                 dot.wait()?;
             }
@@ -163,7 +170,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                     .stdin(Stdio::piped())
                     .spawn()?;
                 if let Some(stdin) = xdot.stdin.as_mut() {
-                    stdin.write_all(format!("{}", graph).as_bytes())?;
+                    write!(stdin, "{graph}")?;
                 }
                 xdot.wait()?;
             }
@@ -181,10 +188,12 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
             unreachable!()
         };
-        let live_variables = graph.live_variables(&proc_def.local_table);
+        let live_variables = LiveVariables::run(&mut graph, &proc_def.local_table);
 
-        println!("Definitions:");
-        println!("{}", Definition::fmt_table(live_variables.defs.iter()));
+        println!("Variables:");
+        for (i, v) in live_variables.defs.iter().enumerate() {
+            println!("{i:>5}: {v}");
+        }
         println!();
 
         let col_width = live_variables.defs.len();
@@ -222,7 +231,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
     if phase == "dead" {
         let mut filename = format!("{}.dot", graphs[sel_proc]);
-        let outputname = format!("as file: {}", filename);
+        let outputname = format!("as file: {filename}");
         let outputs = vec!["print", &outputname, "dot Tx11", "xdot"];
 
         let proc_name = graphs[sel_proc];
@@ -230,12 +239,15 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
             unreachable!()
         };
-        let live_variables = graph.live_variables(&proc_def.local_table);
+        let live_variables = LiveVariables::run(&mut graph, &proc_def.local_table);
 
-        graph = dead_code_elimination::dead_code_elimination(&graph, &live_variables).unwrap();
+        graph.dead_code_elimination(&live_variables);
 
         let output = matches.get_one::<String>("dot").and_then(|arg| {
-            if arg.ends_with(".dot") {
+            if Path::new(arg)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("dot"))
+            {
                 filename = arg.to_string();
                 Some(1)
             } else {
@@ -257,11 +269,11 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
         match output {
             0 => {
-                println!("{}", graph);
+                println!("{graph}");
             }
             1 => {
                 let mut file = File::create(filename)?;
-                writeln!(file, "{}", graph)?;
+                writeln!(file, "{graph}")?;
             }
             2 => {
                 process::Command::new("dot")
@@ -275,7 +287,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                     .stdin(Stdio::piped())
                     .spawn()?;
                 if let Some(stdin) = dot.stdin.as_mut() {
-                    stdin.write_all(format!("{}", graph).as_bytes())?;
+                    write!(stdin, "{graph}")?;
                 }
                 dot.wait()?;
             }
@@ -291,7 +303,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                     .stdin(Stdio::piped())
                     .spawn()?;
                 if let Some(stdin) = xdot.stdin.as_mut() {
-                    stdin.write_all(format!("{}", graph).as_bytes())?;
+                    write!(stdin, "{graph}")?;
                 }
                 xdot.wait()?;
             }
@@ -309,7 +321,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
             unreachable!()
         };
-        let reaching_definitions = graph.reaching_definitions(&proc_def.local_table);
+        let reaching_definitions = ReachingDefinitions::run(&mut graph, &proc_def.local_table);
 
         println!("Definitions:");
         println!(

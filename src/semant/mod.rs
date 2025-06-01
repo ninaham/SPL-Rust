@@ -18,13 +18,13 @@ use crate::{
 
 #[derive(Debug)]
 pub struct SemanticError {
-    pub _msg: String,
+    pub msg: String,
     //pos: i64,
 }
 
 impl fmt::Display for SemanticError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SemanticError: \"{}\"", self._msg)?;
+        write!(f, "SemanticError: \"{}\"", self.msg)?;
         //write!(f, "          pos: {}", self.pos)?;
         Ok(())
     }
@@ -36,7 +36,7 @@ impl std::error::Error for SemanticError {}
 
 pub fn check_def_global(
     def: &mut Definition,
-    table: Rc<Mutex<SymbolTable>>,
+    table: &Rc<Mutex<SymbolTable>>,
 ) -> Result<(), SemanticError> {
     match def {
         Definition::TypeDefinition(_) => Ok(()),
@@ -46,7 +46,7 @@ pub fn check_def_global(
 
 fn check_def_proc(
     proc: &mut ProcedureDefinition,
-    table: Rc<Mutex<SymbolTable>>,
+    table: &Rc<Mutex<SymbolTable>>,
 ) -> Result<(), SemanticError> {
     let table = table.lock().unwrap();
     let local_table: &SymbolTable = &table
@@ -76,7 +76,7 @@ fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(),
             let cond_expr_type = check_expression(&mut s.condition, table)?;
             if !cond_expr_type.is_bool() {
                 return Err(SemanticError {
-                    _msg: format!("IfConditionMustBeBoolean: {s:?}"),
+                    msg: format!("IfConditionMustBeBoolean: {s:?}"),
                     //pos: s.condition.pos,
                 });
             }
@@ -93,20 +93,20 @@ fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(),
         Statement::EmptyStatement => Ok(()),
 
         Statement::CallStatement(s) => {
-            let proc = table.lookup(&s.name).ok_or(SemanticError {
-                _msg: format!("UndefinedIdentifier: {s:?}"),
+            let proc = table.lookup(&s.name).ok_or_else(|| SemanticError {
+                msg: format!("UndefinedIdentifier: {s:?}"),
                 //pos: s.pos,
             })?;
             let Entry::ProcedureEntry(proc) = proc else {
                 return Err(SemanticError {
-                    _msg: format!("CallOfNonProcedure: {proc:?} {s:?}"),
+                    msg: format!("CallOfNonProcedure: {proc:?} {s:?}"),
                     //pos: s.pos,
                 });
             };
 
             if s.arguments.len() != proc.parameters.len() {
                 return Err(SemanticError {
-                    _msg: format!(
+                    msg: format!(
                         "ArgumentCountMismatch: {:?} {:?}",
                         s.arguments, proc.parameters
                     ),
@@ -123,7 +123,7 @@ fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(),
                 let arg_type = check_expression(arg, table)?;
                 if arg_type != param.typ {
                     return Err(SemanticError {
-                        _msg: format!(
+                        msg: format!(
                             "ArgumentTypeMismatch: {}(): arg {i}: [{param:?}] {arg:?}",
                             s.name
                         ),
@@ -132,7 +132,7 @@ fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(),
                 }
                 if param.is_reference && !arg.is_variable() {
                     return Err(SemanticError {
-                        _msg: format!(
+                        msg: format!(
                             "ArgumentMustBeAVariable: {}(): arg {i}: [{param:?}] {arg:?}",
                             s.name
                         ),
@@ -148,7 +148,7 @@ fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(),
             let cond_expr_type = check_expression(&mut s.condition, table)?;
             if !cond_expr_type.is_bool() {
                 return Err(SemanticError {
-                    _msg: format!("WhileConditionMustBeBoolean: {s:?}"),
+                    msg: format!("WhileConditionMustBeBoolean: {s:?}"),
                     //pos: s.condition.pos,
                 });
             }
@@ -164,7 +164,7 @@ fn check_statement(statement: &mut Statement, table: &SymbolTable) -> Result<(),
 
             if target_type.is_array() || target_type != value_type {
                 return Err(SemanticError {
-                    _msg: format!("IllegalAssignment: {s:?}"),
+                    msg: format!("IllegalAssignment: {s:?}"),
                     //pos: s.pos,
                 });
             }
@@ -189,7 +189,7 @@ fn check_expression<'a>(
 
             let Some(result_type) = expr.operator.result_type(&left_type, &right_type) else {
                 return Err(SemanticError {
-                    _msg: format!("OperandTypeMismatch: {expr:?}"),
+                    msg: format!("OperandTypeMismatch: {expr:?}"),
                     //pos: expr.pos,
                 });
             };
@@ -201,7 +201,7 @@ fn check_expression<'a>(
 
             let Some(result_type) = expr.operator.result_type(&right_type) else {
                 return Err(SemanticError {
-                    _msg: format!("OperandTypeMismatch: {expr:?}"),
+                    msg: format!("OperandTypeMismatch: {expr:?}"),
                     //pos: expr.pos,
                 });
             };
@@ -216,13 +216,13 @@ fn check_expression<'a>(
 fn check_variable(var: &mut Variable, table: &SymbolTable) -> Result<Type, SemanticError> {
     match var {
         Variable::NamedVariable(var_name) => {
-            let entry = table.lookup(var_name).ok_or(SemanticError {
-                _msg: format!("UndefinedIdentifier: {var:?}"),
+            let entry = table.lookup(var_name).ok_or_else(|| SemanticError {
+                msg: format!("UndefinedIdentifier: {var:?}"),
                 //pos: var.pos,
             })?;
             let Entry::VariableEntry(entry) = entry else {
                 return Err(SemanticError {
-                    _msg: format!("NotAVariable: {entry:?} {var:?}"),
+                    msg: format!("NotAVariable: {entry:?} {var:?}"),
                     //pos: var.pos,
                 });
             };
@@ -233,7 +233,7 @@ fn check_variable(var: &mut Variable, table: &SymbolTable) -> Result<Type, Seman
             let array_type = check_variable(&mut arr_acc.array, table)?;
             let Type::ArrayType(array_type) = array_type else {
                 return Err(SemanticError {
-                    _msg: format!("IndexingNonArray: {var:?}"),
+                    msg: format!("IndexingNonArray: {var:?}"),
                     //pos: arr_acc.pos,
                 });
             };
@@ -243,7 +243,7 @@ fn check_variable(var: &mut Variable, table: &SymbolTable) -> Result<Type, Seman
             let index_type = check_expression(&mut arr_acc.index, table)?;
             if !index_type.is_int() {
                 return Err(SemanticError {
-                    _msg: format!("IndexTypeMismatch: {var:?}"),
+                    msg: format!("IndexTypeMismatch: {var:?}"),
                     //pos: arr_acc.pos,
                 });
             }

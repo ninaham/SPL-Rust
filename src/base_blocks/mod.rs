@@ -18,16 +18,16 @@ pub struct Block {
 }
 
 impl Block {
-    fn new(label: Option<String>, content: BlockContent) -> Self {
-        Block { label, content }
+    const fn new(label: Option<String>, content: BlockContent) -> Self {
+        Self { label, content }
     }
-    fn new_start(label: Option<String>) -> Self {
+    const fn new_start(label: Option<String>) -> Self {
         Self::new(label, BlockContent::Start)
     }
-    fn new_stop(label: Option<String>) -> Self {
+    const fn new_stop(label: Option<String>) -> Self {
         Self::new(label, BlockContent::Stop)
     }
-    fn new_code(label: Option<String>, code: Vec<Quadrupel>) -> Self {
+    const fn new_code(label: Option<String>, code: Vec<Quadrupel>) -> Self {
         Self::new(label, BlockContent::Code(code))
     }
 
@@ -97,7 +97,7 @@ impl BlockGraph {
     }
 
     fn new() -> Self {
-        BlockGraph {
+        Self {
             blocks: vec![],
             edges: vec![],
             label_to_id: HashMap::new(),
