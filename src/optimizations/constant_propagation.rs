@@ -1,9 +1,11 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Debug};
+
+use colored::Colorize;
 
 use crate::{
     base_blocks::{Block, BlockContent, BlockGraph},
     code_gen::quadrupel::{
-        quad, quad_match, Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar,
+        Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar, quad, quad_match,
     },
     table::symbol_table::SymbolTable,
 };
@@ -17,6 +19,16 @@ pub enum Constness {
     Undefined,
     Constant(i32),
     Variable,
+}
+
+impl Debug for Constness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Undefined => write!(f, "{}", "U".red()),
+            Constant(c) => write!(f, "C{}", c.to_string().green()),
+            Variable => write!(f, "{}", "V".blue()),
+        }
+    }
 }
 
 impl Lattice for Constness {

@@ -34,6 +34,7 @@ pub fn load_program_data() -> Command {
             arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
             arg!(rch: -r --rch "Reaching Definitions"),
             arg!(lv: -l --lv "Live Variables"),
+            arg!(gcp: -g --gcp "Constant Propagation"),
             arg!(dead: -e --dce ["output"] "Dead Code Eliminiation").require_equals(true),
         ])
         .group(
@@ -41,7 +42,7 @@ pub fn load_program_data() -> Command {
                 .required(false)
                 .multiple(false)
                 .args([
-                    "parse", "tables", "semant", "tac", "dot", "rch", "lv", "dead",
+                    "parse", "tables", "semant", "gcp", "tac", "dot", "rch", "lv", "dead",
                 ]),
         )
 }
@@ -224,6 +225,42 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                 o.iter()
                     .map(|b| b.then_some('1').unwrap_or('0'))
                     .collect::<String>(),
+            );
+        }
+
+        return Ok(());
+    }
+
+    if phase == "gcp" {
+        let proc_name = graphs[sel_proc];
+        let proc_def = table.lock().unwrap().lookup(proc_name);
+        let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
+            unreachable!()
+        };
+        let gcp = ConstantPropagation::run(&mut graph, &proc_def.local_table);
+
+        println!("Variables:");
+        for (i, v) in gcp.vars.iter().enumerate() {
+            println!("{i:>5}: {v}");
+        }
+        println!();
+
+        let col_width = gcp.vars.len() * 4;
+        println!(
+            "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
+            "Block", "GEN", "PRSV", "IN", "OUT",
+        );
+        for (n, (((g, p), i), o)) in gcp
+            .gens
+            .iter()
+            .zip(gcp.prsv)
+            .zip(gcp.r#in)
+            .zip(gcp.out)
+            .enumerate()
+        {
+            println!(
+                "{n:>5} {:<col_width$?} {:<col_width$?} {:<col_width$?} {:<col_width$?}",
+                g, p, i, o,
             );
         }
 
