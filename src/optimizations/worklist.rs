@@ -4,7 +4,7 @@ use std::fmt::Write;
 use bitvec::vec::BitVec;
 
 use crate::base_blocks::{Block, BlockContent, BlockGraph};
-use crate::code_gen::quadrupel::{quad, quad_match, Quadrupel, QuadrupelResult, QuadrupelVar};
+use crate::code_gen::quadrupel::{Quadrupel, QuadrupelResult, QuadrupelVar, quad, quad_match};
 use crate::table::entry::Entry;
 use crate::table::symbol_table::SymbolTable;
 
@@ -100,7 +100,7 @@ impl BlockGraph {
         state_res
     }
 
-    pub fn definitions(&self, local_table: &SymbolTable) -> Vec<Definition> {
+    pub(super) fn definitions(&self, local_table: &SymbolTable) -> Vec<Definition> {
         (0..self.blocks.len())
             .flat_map(|i| -> Vec<_> {
                 match &self.blocks[i].clone().content {
@@ -112,7 +112,7 @@ impl BlockGraph {
             .collect()
     }
 
-    pub fn edges_prev(&self) -> Vec<HashSet<usize>> {
+    fn edges_prev(&self) -> Vec<HashSet<usize>> {
         let mut edges_prev = vec![HashSet::new(); self.blocks.len()];
 
         self.edges()
@@ -127,7 +127,7 @@ impl BlockGraph {
         edges_prev
     }
 
-    pub fn defs_per_block(&self, defs_in_proc: &[Definition]) -> Vec<BitVec> {
+    pub(super) fn defs_per_block(&self, defs_in_proc: &[Definition]) -> Vec<BitVec> {
         self.blocks
             .iter()
             .enumerate()
@@ -137,14 +137,14 @@ impl BlockGraph {
 }
 
 impl Block {
-    pub fn defs_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
+    fn defs_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
         defs_in_proc
             .iter()
             .map(|d| d.block_id == block_id)
             .collect::<BitVec>()
     }
 
-    pub fn definitions(
+    fn definitions(
         block_id: usize,
         quads: &[Quadrupel],
         symbol_table: &SymbolTable,

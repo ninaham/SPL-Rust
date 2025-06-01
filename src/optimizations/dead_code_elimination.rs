@@ -1,6 +1,6 @@
 use crate::{
     base_blocks::{BlockContent, BlockGraph},
-    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
+    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar},
     optimizations::live_variables::LiveVariables,
 };
 
@@ -20,19 +20,7 @@ impl BlockGraph {
                         .and_then(|var| livar.defs.iter().position(|v| v == var))
                         .is_some_and(|idx| !liveout[idx]);
 
-                    let is_safe_to_remove = matches!(
-                        quad.op,
-                        QuadrupelOp::Assign
-                            | QuadrupelOp::ArrayLoad
-                            | QuadrupelOp::ArrayStore
-                            | QuadrupelOp::Neg
-                            | QuadrupelOp::Add
-                            | QuadrupelOp::Sub
-                            | QuadrupelOp::Mul
-                            | QuadrupelOp::Div
-                    );
-
-                    if is_dead && is_safe_to_remove {
+                    if is_dead {
                         *quad = Quadrupel::EMPTY;
                     } else {
                         for var in vars_from_quad(quad) {
