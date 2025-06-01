@@ -64,7 +64,8 @@ mod test {
 
             bg.common_subexpression_elimination(&table.lock().unwrap());
             ReachingDefinitions::run(&mut bg, local_table);
-            LiveVariables::run(&mut bg, local_table);
+            let live_variables = LiveVariables::run(&mut bg, local_table);
+            bg.dead_code_elimination(&live_variables);
 
             bg.to_string();
         }

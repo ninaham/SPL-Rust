@@ -11,7 +11,6 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
-    optimizations::dead_code_elimination,
     optimizations::live_variables::LiveVariables,
     optimizations::reaching_expressions::ReachingDefinitions,
     optimizations::worklist::{Definition, Worklist},
@@ -242,7 +241,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         };
         let live_variables = LiveVariables::run(&mut graph, &proc_def.local_table);
 
-        graph = dead_code_elimination::dead_code_elimination(&graph, &live_variables);
+        graph.dead_code_elimination(&live_variables);
 
         let output = matches.get_one::<String>("dot").and_then(|arg| {
             if Path::new(arg)

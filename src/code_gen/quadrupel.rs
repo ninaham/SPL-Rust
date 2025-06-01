@@ -81,7 +81,7 @@ impl fmt::Display for QuadrupelVar {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QuadrupelResult {
     Var(QuadrupelVar),
     Label(String),
@@ -111,12 +111,21 @@ impl fmt::Display for QuadrupelResult {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Quadrupel {
     pub op: QuadrupelOp,
     pub arg1: QuadrupelArg,
     pub arg2: QuadrupelArg,
     pub result: QuadrupelResult,
+}
+
+impl Quadrupel {
+    pub const EMPTY: Self = Self {
+        op: QuadrupelOp::Default,
+        arg1: QuadrupelArg::Empty,
+        arg2: QuadrupelArg::Empty,
+        result: QuadrupelResult::Empty,
+    };
 }
 
 impl fmt::Display for Quadrupel {
