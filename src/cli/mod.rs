@@ -3,11 +3,12 @@ use std::path::Path;
 use std::process::Stdio;
 use std::{fs::File, process};
 
-use anyhow::{anyhow, bail, Ok};
-use clap::{arg, ArgGroup, Command, Id};
+use anyhow::{Ok, anyhow, bail};
+use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{Select, theme::ColorfulTheme};
 
+use crate::optimizations::constant_propagation::ConstantPropagation;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
