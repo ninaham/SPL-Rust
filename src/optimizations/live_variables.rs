@@ -59,8 +59,8 @@ impl Worklist for LiveVariables {
         worklist::State::<Self> {
             block_info_a: &mut self.use_bits,
             block_info_b: &mut self.def,
-            input: &mut self.livout,
-            output: &mut self.livin,
+            input: &mut self.livin,
+            output: &mut self.livout,
         }
     }
 }
