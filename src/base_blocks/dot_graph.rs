@@ -48,21 +48,22 @@ impl fmt::Display for Block {
 
 fn to_dot_html(b: &str, re: &Regex) -> String {
     re.replace_all(b, |caps: &Captures| {
-        let color = if let Some(color) = caps.name("color") {
-            match color.as_str() {
-                "35" => "magenta",
-                "94" => "lightblue",
+        let color = caps.name("color").map_or_else(
+            || {
+                let [r, g, b] = caps["truecolor"]
+                    .split(';')
+                    .map(|s| s.parse::<u8>().unwrap())
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap();
+                format!("#{r:x}{g:x}{b:x}")
+            },
+            |color| match color.as_str() {
+                "35" => "magenta".to_string(),
+                "94" => "lightblue".to_string(),
                 c => panic!("unknown color {c}"),
-            }
-        } else {
-            let [r, g, b] = caps["truecolor"]
-                .split(';')
-                .map(|s| s.parse::<u8>().unwrap())
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-            &format!("#{r:x}{g:x}{b:x}")
-        };
+            },
+        );
         format!("<font color=\"{color}\">{}</font>", &caps["text"])
     })
     .replace("  ", "&nbsp; ")

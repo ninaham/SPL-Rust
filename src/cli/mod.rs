@@ -1,23 +1,27 @@
-use std::io::{IsTerminal, Write};
+use std::fmt::{self, Display, Write as _};
+use std::io::{IsTerminal, Write as _};
 use std::path::Path;
 use std::process::Stdio;
+use std::sync::Mutex;
 use std::{fs::File, process};
 
-use anyhow::{Ok, anyhow, bail};
-use clap::{ArgGroup, Command, Id, arg};
+use anyhow::{anyhow, bail};
+use bitvec::vec::BitVec;
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
-use crate::optimizations::constant_propagation::ConstantPropagation;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
+    optimizations::constant_propagation::ConstantPropagation,
     optimizations::live_variables::LiveVariables,
     optimizations::reaching_expressions::ReachingDefinitions,
-    optimizations::worklist::{Definition, Worklist},
+    optimizations::worklist::{Lattice, Worklist},
     parser::parse_everything_else::parse,
     semant::{build_symbol_table::build_symbol_table, check_def_global},
-    table::entry::Entry,
+    table::entry::{Entry, ProcedureEntry},
+    table::symbol_table::SymbolTable,
 };
 
 #[expect(clippy::cognitive_complexity)]
@@ -31,19 +35,16 @@ pub fn load_program_data() -> Command {
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
+            arg!(optis: -O --optis <optis> "Optimizations to apply: [cse,rch,lv,dead,gcp]")
+                .num_args(1..)
+                .value_delimiter(','),
             arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
-            arg!(rch: -r --rch "Reaching Definitions"),
-            arg!(lv: -l --lv "Live Variables"),
-            arg!(gcp: -g --gcp "Constant Propagation"),
-            arg!(dead: -e --dce ["output"] "Dead Code Eliminiation").require_equals(true),
         ])
         .group(
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args([
-                    "parse", "tables", "semant", "gcp", "tac", "dot", "rch", "lv", "dead",
-                ]),
+                .args(["parse", "tables", "semant", "tac", "dot"]),
         )
 }
 
@@ -92,7 +93,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
     let sel_proc = matches
         .get_one::<String>("proc")
-        .and_then(|phase_arg| graphs.iter().position(|p| p == &phase_arg));
+        .and_then(|proc_arg| graphs.iter().position(|p| p == &proc_arg));
 
     let sel_proc = if let Some(sel_proc) = sel_proc {
         sel_proc
@@ -104,37 +105,48 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
             .interact()?
     };
     let mut graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_proc]).unwrap());
+    let proc_name = graphs[sel_proc];
+    let proc_def = table.lock().unwrap().lookup(proc_name);
+    let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
+        unreachable!()
+    };
 
-    graph.common_subexpression_elimination(&table.lock().unwrap());
+    if let Some(optis) = matches.get_many::<String>("optis") {
+        graph.run_optimizations(optis, &table, &proc_def)?;
+    }
 
     if phase == "dot" {
         let mut filename = format!("{}.dot", graphs[sel_proc]);
         let outputname = format!("as file: {filename}");
-        let outputs = vec!["print", &outputname, "dot Tx11", "xdot"];
+        let outputs = ["print", &outputname, "dot Tx11", "xdot"];
 
-        let output = matches.get_one::<String>("dot").and_then(|arg| {
-            if Path::new(arg)
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("dot"))
-            {
-                filename = arg.to_string();
-                Some(1)
-            } else {
-                outputs.iter().position(|o| o == arg)
-            }
-        });
-
-        let output = if let Some(output) = output {
-            output
-        } else if std::io::stdout().is_terminal() {
-            Select::with_theme(&theme)
-                .with_prompt("Which output mode?")
-                .items(&outputs)
-                .default(0)
-                .interact()?
-        } else {
-            0 // always write dot code to stdout if not terminal
-        };
+        let output = matches
+            .get_one::<String>("dot")
+            .and_then(|arg| {
+                if Path::new(arg)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("dot"))
+                {
+                    filename = arg.to_string();
+                    Some(1)
+                } else {
+                    outputs.iter().position(|o| o == arg)
+                }
+            })
+            .map_or_else(
+                || {
+                    if std::io::stdout().is_terminal() {
+                        Select::with_theme(&theme)
+                            .with_prompt("Which output mode?")
+                            .items(&outputs)
+                            .default(0)
+                            .interact()
+                    } else {
+                        Ok(0) // always write dot code to stdout if not terminal
+                    }
+                },
+                Ok,
+            )?;
 
         match output {
             0 => {
@@ -145,261 +157,168 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
                 writeln!(file, "{graph}")?;
             }
             2 => {
-                process::Command::new("dot")
-                    .arg("--version")
-                    .output()
-                    .map(|output| output.status.success())
-                    .map_err(|_| anyhow!("dot is not installed!".red()))?;
-
-                let mut dot = process::Command::new("dot")
-                    .arg("-Tx11")
-                    .stdin(Stdio::piped())
-                    .spawn()?;
-                if let Some(stdin) = dot.stdin.as_mut() {
-                    write!(stdin, "{graph}")?;
-                }
-                dot.wait()?;
+                ShowDot::DotTx11.show(&graph)?;
             }
             3 => {
-                process::Command::new("xdot")
-                    .arg("-h")
-                    .output()
-                    .map(|output| output.status.success())
-                    .map_err(|_| anyhow!("xdot is not installed".red()))?;
-
-                let mut xdot = process::Command::new("xdot")
-                    .arg("-")
-                    .stdin(Stdio::piped())
-                    .spawn()?;
-                if let Some(stdin) = xdot.stdin.as_mut() {
-                    write!(stdin, "{graph}")?;
-                }
-                xdot.wait()?;
+                ShowDot::XDot.show(&graph)?;
             }
             _ => {
-                println!("No valid input");
+                bail!("No valid output given");
             }
-        }
-
-        return Ok(());
-    }
-
-    if phase == "lv" {
-        let proc_name = graphs[sel_proc];
-        let proc_def = table.lock().unwrap().lookup(proc_name);
-        let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
-            unreachable!()
-        };
-        let live_variables = LiveVariables::run(&mut graph, &proc_def.local_table);
-
-        println!("Variables:");
-        for (i, v) in live_variables.defs.iter().enumerate() {
-            println!("{i:>5}: {v}");
-        }
-        println!();
-
-        let col_width = live_variables.defs.len();
-        println!(
-            "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
-            "Block", "DEF", "USE", "LIVin", "LIVout",
-        );
-        for (n, (((g, p), i), o)) in live_variables
-            .def
-            .iter()
-            .zip(live_variables.use_bits)
-            .zip(live_variables.livin)
-            .zip(live_variables.livout)
-            .enumerate()
-        {
-            println!(
-                "{n:>5} {} {} {} {}",
-                g.iter()
-                    .map(|b| b.then_some('1').unwrap_or('0'))
-                    .collect::<String>(),
-                p.iter()
-                    .map(|b| b.then_some('1').unwrap_or('0'))
-                    .collect::<String>(),
-                i.iter()
-                    .map(|b| b.then_some('1').unwrap_or('0'))
-                    .collect::<String>(),
-                o.iter()
-                    .map(|b| b.then_some('1').unwrap_or('0'))
-                    .collect::<String>(),
-            );
-        }
-
-        return Ok(());
-    }
-
-    if phase == "gcp" {
-        let proc_name = graphs[sel_proc];
-        let proc_def = table.lock().unwrap().lookup(proc_name);
-        let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
-            unreachable!()
-        };
-        let gcp = ConstantPropagation::run(&mut graph, &proc_def.local_table);
-
-        println!("Variables:");
-        for (i, v) in gcp.vars.iter().enumerate() {
-            println!("{i:>5}: {v}");
-        }
-        println!();
-
-        let col_width = gcp.vars.len() * 4;
-        println!(
-            "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
-            "Block", "GEN", "PRSV", "IN", "OUT",
-        );
-        for (n, (((g, p), i), o)) in gcp
-            .gens
-            .iter()
-            .zip(gcp.prsv)
-            .zip(gcp.r#in)
-            .zip(gcp.out)
-            .enumerate()
-        {
-            println!(
-                "{n:>5} {:<col_width$?} {:<col_width$?} {:<col_width$?} {:<col_width$?}",
-                g, p, i, o,
-            );
-        }
-
-        return Ok(());
-    }
-
-    if phase == "dead" {
-        let mut filename = format!("{}.dot", graphs[sel_proc]);
-        let outputname = format!("as file: {filename}");
-        let outputs = vec!["print", &outputname, "dot Tx11", "xdot"];
-
-        let proc_name = graphs[sel_proc];
-        let proc_def = table.lock().unwrap().lookup(proc_name);
-        let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
-            unreachable!()
-        };
-        let live_variables = LiveVariables::run(&mut graph, &proc_def.local_table);
-
-        graph.dead_code_elimination(&live_variables);
-
-        let output = matches.get_one::<String>("dot").and_then(|arg| {
-            if Path::new(arg)
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("dot"))
-            {
-                filename = arg.to_string();
-                Some(1)
-            } else {
-                outputs.iter().position(|o| o == arg)
-            }
-        });
-
-        let output = if let Some(output) = output {
-            output
-        } else if std::io::stdout().is_terminal() {
-            Select::with_theme(&theme)
-                .with_prompt("Which output mode?")
-                .items(&outputs)
-                .default(0)
-                .interact()?
-        } else {
-            0 // always write dot code to stdout if not terminal
-        };
-
-        match output {
-            0 => {
-                println!("{graph}");
-            }
-            1 => {
-                let mut file = File::create(filename)?;
-                writeln!(file, "{graph}")?;
-            }
-            2 => {
-                process::Command::new("dot")
-                    .arg("--version")
-                    .output()
-                    .map(|output| output.status.success())
-                    .map_err(|_| anyhow!("dot is not installed!".red()))?;
-
-                let mut dot = process::Command::new("dot")
-                    .arg("-Tx11")
-                    .stdin(Stdio::piped())
-                    .spawn()?;
-                if let Some(stdin) = dot.stdin.as_mut() {
-                    write!(stdin, "{graph}")?;
-                }
-                dot.wait()?;
-            }
-            3 => {
-                process::Command::new("xdot")
-                    .arg("-h")
-                    .output()
-                    .map(|output| output.status.success())
-                    .map_err(|_| anyhow!("xdot is not installed".red()))?;
-
-                let mut xdot = process::Command::new("xdot")
-                    .arg("-")
-                    .stdin(Stdio::piped())
-                    .spawn()?;
-                if let Some(stdin) = xdot.stdin.as_mut() {
-                    write!(stdin, "{graph}")?;
-                }
-                xdot.wait()?;
-            }
-            _ => {
-                println!("No valid input");
-            }
-        }
-
-        return Ok(());
-    }
-
-    if phase == "rch" {
-        let proc_name = graphs[sel_proc];
-        let proc_def = table.lock().unwrap().lookup(proc_name);
-        let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
-            unreachable!()
-        };
-        let reaching_definitions = ReachingDefinitions::run(&mut graph, &proc_def.local_table);
-
-        println!("Definitions:");
-        println!(
-            "{}",
-            Definition::fmt_table(reaching_definitions.defs.iter())
-        );
-        println!();
-
-        let col_width = reaching_definitions.defs.len();
-        println!(
-            "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
-            "Block", "GEN", "PRSV", "RCHin", "RCHout",
-        );
-        for (n, (((g, p), i), o)) in reaching_definitions
-            .gen_bits
-            .iter()
-            .zip(reaching_definitions.prsv)
-            .zip(reaching_definitions.rchin)
-            .zip(reaching_definitions.rchout)
-            .enumerate()
-        {
-            println!(
-                "{n:>5} {} {} {} {}",
-                g.iter()
-                    .map(|b| b.then_some('1').unwrap_or('0'))
-                    .collect::<String>(),
-                p.iter()
-                    .map(|b| b.then_some('1').unwrap_or('0'))
-                    .collect::<String>(),
-                i.iter()
-                    .map(|b| b.then_some('1').unwrap_or('0'))
-                    .collect::<String>(),
-                o.iter()
-                    .map(|b| b.then_some('1').unwrap_or('0'))
-                    .collect::<String>(),
-            );
         }
 
         return Ok(());
     }
 
     unreachable!()
+}
+
+impl BlockGraph {
+    fn run_optimizations<'a>(
+        &mut self,
+        optis: impl Iterator<Item = &'a String>,
+        symbol_table: &Mutex<SymbolTable>,
+        proc_def: &ProcedureEntry,
+    ) -> anyhow::Result<()> {
+        for opti in optis {
+            match opti.as_str() {
+                "cse" => {
+                    println!("{}", ">>> Common Subexpression Elimination".green());
+                    self.common_subexpression_elimination(&symbol_table.lock().unwrap());
+                }
+                "rch" => {
+                    println!("{}", ">>> Reaching Definitions:".green());
+                    let rch = ReachingDefinitions::run(self, &proc_def.local_table);
+                    show_worklist_table(
+                        ("Definitions", &rch.defs),
+                        1,
+                        ("GEN", &rch.gen_bits),
+                        ("PRSV", &rch.prsv),
+                        ("RCHin", &rch.rchin),
+                        ("RCHout", &rch.rchout),
+                        fmt_bitvec,
+                    )?;
+                }
+                "lv" => {
+                    println!("{}", ">>> Live Variables:".green());
+                    let lv = LiveVariables::run(self, &proc_def.local_table);
+                    show_worklist_table(
+                        ("Variables", &lv.vars),
+                        1,
+                        ("DEF", &lv.def),
+                        ("USE", &lv.use_bits),
+                        ("LIVin", &lv.livin),
+                        ("LIVout", &lv.livout),
+                        fmt_bitvec,
+                    )?;
+                }
+                "dead" => {
+                    println!("{}", ">>> Dead Code Elimination".green());
+                    let lv = LiveVariables::run(self, &proc_def.local_table);
+                    self.dead_code_elimination(&lv);
+                }
+                "gcp" => {
+                    println!("{}", ">>> Constant Propagation:".green());
+                    let gcp = ConstantPropagation::run(self, &proc_def.local_table);
+                    show_worklist_table(
+                        ("Variables", &gcp.vars),
+                        5,
+                        ("GEN", &gcp.gens),
+                        ("PRSV", &gcp.prsv),
+                        ("IN", &gcp.r#in),
+                        ("OUT", &gcp.out),
+                        |v| format!("{v:?}"),
+                    )?;
+                }
+                _ => panic!("Unknown optimization: {opti}"),
+            }
+            println!();
+        }
+
+        Ok(())
+    }
+}
+
+fn show_worklist_table<L: Lattice, D: FmtTable>(
+    (defs_name, defs): (&str, &[D]),
+    col_width_factor: usize,
+    (al, av): (&str, &[L]),
+    (bl, bv): (&str, &[L]),
+    (il, iv): (&str, &[L]),
+    (ol, ov): (&str, &[L]),
+    f: impl Fn(&L) -> String,
+) -> fmt::Result {
+    println!("{defs_name}:");
+    println!("{}", D::fmt_table(defs)?);
+    println!();
+
+    let col_width = defs.len() * col_width_factor;
+    println!(
+        "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
+        "Block", al, bl, il, ol,
+    );
+    for (n, (((a, b), i), o)) in av.iter().zip(bv).zip(iv).zip(ov).enumerate() {
+        println!(
+            "{n:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
+            f(a),
+            f(b),
+            f(i),
+            f(o),
+        );
+    }
+
+    Ok(())
+}
+
+fn fmt_bitvec(bv: &BitVec) -> String {
+    bv.iter()
+        .map(|b| b.then_some('1').unwrap_or('0'))
+        .collect::<String>()
+}
+
+pub trait FmtTable: Sized {
+    fn fmt_table(defs: &[Self]) -> Result<String, fmt::Error>;
+}
+impl<D: Display> FmtTable for D {
+    fn fmt_table(defs: &[Self]) -> Result<String, fmt::Error> {
+        let mut out = String::new();
+
+        for (i, v) in defs.iter().enumerate() {
+            writeln!(out, "{i:>5}: {v}")?;
+        }
+
+        Ok(out)
+    }
+}
+
+enum ShowDot {
+    XDot,
+    DotTx11,
+}
+impl ShowDot {
+    fn show(&self, graph: &BlockGraph) -> anyhow::Result<process::ExitStatus> {
+        let (bin_name, args, test_args) = self.cmd_info();
+
+        process::Command::new(bin_name)
+            .args(test_args)
+            .output()
+            .map(|output| output.status.success())
+            .map_err(|_| anyhow!("dot is not installed!".red()))?;
+
+        let mut dot = process::Command::new("dot")
+            .args(args)
+            .stdin(Stdio::piped())
+            .spawn()?;
+        if let Some(stdin) = dot.stdin.as_mut() {
+            write!(stdin, "{graph}")?;
+        }
+        Ok(dot.wait()?)
+    }
+
+    const fn cmd_info(&self) -> (&str, &[&str], &[&str]) {
+        match self {
+            Self::XDot => ("xdot", &["-"], &["-h"]),
+            Self::DotTx11 => ("dot", &["-Tx11"], &["--version"]),
+        }
+    }
 }

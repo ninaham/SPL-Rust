@@ -64,7 +64,9 @@ mod test {
             let mut bg = BlockGraph::from_tac(code);
 
             bg.common_subexpression_elimination(&table.lock().unwrap());
+
             ReachingDefinitions::run(&mut bg, local_table);
+
             let live_variables = LiveVariables::run(&mut bg, local_table);
             bg.dead_code_elimination(&live_variables);
             ConstantPropagation::run(&mut bg, local_table);
