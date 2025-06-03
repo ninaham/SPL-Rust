@@ -191,7 +191,7 @@ impl BlockGraph {
                     let rch = ReachingDefinitions::run(self, &proc_def.local_table);
                     show_worklist_table(
                         ("Definitions", &rch.defs),
-                        1,
+                        (1, 1),
                         ("GEN", &rch.gen_bits),
                         ("PRSV", &rch.prsv),
                         ("RCHin", &rch.rchin),
@@ -204,7 +204,7 @@ impl BlockGraph {
                     let lv = LiveVariables::run(self, &proc_def.local_table);
                     show_worklist_table(
                         ("Variables", &lv.vars),
-                        1,
+                        (1, 1),
                         ("DEF", &lv.def),
                         ("USE", &lv.use_bits),
                         ("LIVin", &lv.livin),
@@ -222,7 +222,7 @@ impl BlockGraph {
                     let gcp = ConstantPropagation::run(self, &proc_def.local_table);
                     show_worklist_table(
                         ("Variables", &gcp.vars),
-                        5,
+                        (5, 14),
                         ("GEN", &gcp.gens),
                         ("PRSV", &gcp.prsv),
                         ("IN", &gcp.r#in),
@@ -241,7 +241,7 @@ impl BlockGraph {
 
 fn show_worklist_table<L: Lattice, D: FmtTable>(
     (defs_name, defs): (&str, &[D]),
-    col_width_factor: usize,
+    (col_width_factor, col_width_factor_colored): (usize, usize),
     (al, av): (&str, &[L]),
     (bl, bv): (&str, &[L]),
     (il, iv): (&str, &[L]),
@@ -252,11 +252,13 @@ fn show_worklist_table<L: Lattice, D: FmtTable>(
     println!("{}", D::fmt_table(defs)?);
     println!();
 
-    let col_width = defs.len() * col_width_factor;
+    let label_len = [al, bl, il, ol].iter().map(|s| s.len()).max().unwrap();
+    let col_width = (defs.len() * col_width_factor).max(label_len);
     println!(
         "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
         "Block", al, bl, il, ol,
     );
+    let col_width = (defs.len() * col_width_factor_colored).max(label_len);
     for (n, (((a, b), i), o)) in av.iter().zip(bv).zip(iv).zip(ov).enumerate() {
         println!(
             "{n:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
