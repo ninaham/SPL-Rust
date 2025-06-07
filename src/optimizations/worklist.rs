@@ -4,7 +4,8 @@ use std::fmt::Write;
 use bitvec::vec::BitVec;
 
 use crate::base_blocks::{Block, BlockContent, BlockGraph};
-use crate::code_gen::quadrupel::{Quadrupel, QuadrupelResult, QuadrupelVar, quad, quad_match};
+use crate::cli::FmtTable;
+use crate::code_gen::quadrupel::{quad, quad_match, Quadrupel, QuadrupelResult, QuadrupelVar};
 use crate::table::entry::Entry;
 use crate::table::symbol_table::SymbolTable;
 
@@ -180,21 +181,20 @@ pub struct Definition {
     pub var: QuadrupelVar,
 }
 
-impl Definition {
-    pub fn fmt_table<'a>(defs: impl Iterator<Item = &'a Self>) -> String {
+impl FmtTable for Definition {
+    fn fmt_table(defs: &[Self]) -> Result<String, std::fmt::Error> {
         let mut out = String::new();
 
         writeln!(
             out,
             "{:>5}  {:<5} {:<5} {:<5}",
             "#", "Block", "Line", "Variable"
-        )
-        .unwrap();
-        for (i, d) in defs.enumerate() {
-            writeln!(out, "{i:>5}: {:>5} {:>5} {}", d.block_id, d.quad_id, d.var).unwrap();
+        )?;
+        for (i, d) in defs.iter().enumerate() {
+            writeln!(out, "{i:>5}: {:>5} {:>5} {}", d.block_id, d.quad_id, d.var)?;
         }
 
-        out
+        Ok(out)
     }
 }
 
