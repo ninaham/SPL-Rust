@@ -69,7 +69,9 @@ mod test {
 
             let live_variables = LiveVariables::run(&mut bg, local_table);
             bg.dead_code_elimination(&live_variables);
-            ConstantPropagation::run(&mut bg, local_table);
+
+            let mut const_prop = ConstantPropagation::run(&mut bg, local_table);
+            while { bg.constant_folding(&mut const_prop, &table.lock().unwrap()) }.is_continue() {}
 
             bg.to_string();
         }
