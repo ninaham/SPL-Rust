@@ -52,13 +52,21 @@ impl BlockGraph {
         stack.push(id);
         on_stack.insert(id);
 
-        for succ in &self.edges[id] {
-            if !index_map.contains_key(succ) {
-                self.strong_connect(*succ, index, index_map, lowlink_map, on_stack, stack, sccs);
-                let lowlink = lowlink_map[&id].min(lowlink_map[succ]);
+        for next_block in &self.edges[id] {
+            if !index_map.contains_key(next_block) {
+                self.strong_connect(
+                    *next_block,
+                    index,
+                    index_map,
+                    lowlink_map,
+                    on_stack,
+                    stack,
+                    sccs,
+                );
+                let lowlink = lowlink_map[&id].min(lowlink_map[next_block]);
                 lowlink_map.insert(id, lowlink);
-            } else if on_stack.contains(succ) {
-                let lowlink = lowlink_map[&id].min(index_map[succ]);
+            } else if on_stack.contains(next_block) {
+                let lowlink = lowlink_map[&id].min(index_map[next_block]);
                 lowlink_map.insert(id, lowlink);
             }
         }
