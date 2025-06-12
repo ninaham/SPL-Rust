@@ -8,7 +8,7 @@ use crate::code_gen::quadrupel::{QuadrupelResult, QuadrupelVar};
 use crate::optimizations::worklist::Definition;
 use crate::table::symbol_table::SymbolTable;
 
-use super::worklist::{self, Worklist};
+use super::worklist::{self, GetVarIdx, Worklist};
 
 pub struct LiveVariables {
     pub vars: Vec<QuadrupelVar>,
@@ -62,6 +62,12 @@ impl Worklist for LiveVariables {
             input: &mut self.livin,
             output: &mut self.livout,
         }
+    }
+}
+
+impl GetVarIdx<QuadrupelVar> for LiveVariables {
+    fn vars(&self) -> &[QuadrupelVar] {
+        &self.vars
     }
 }
 

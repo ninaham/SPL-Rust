@@ -250,3 +250,15 @@ impl<L: Lattice> LatticeJoinAssign for Vec<L> {
         }
     }
 }
+
+pub trait GetVarIdx<V: PartialEq> {
+    fn vars(&self) -> &[V];
+
+    fn get_var_idx_in(vars: &[V], var: &V) -> Option<usize> {
+        vars.iter().position(|v| v == var)
+    }
+
+    fn get_var_idx(&self, var: &V) -> Option<usize> {
+        Self::get_var_idx_in(self.vars(), var)
+    }
+}

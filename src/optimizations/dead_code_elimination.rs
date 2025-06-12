@@ -1,7 +1,7 @@
 use crate::{
     base_blocks::{BlockContent, BlockGraph},
     code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar},
-    optimizations::live_variables::LiveVariables,
+    optimizations::{live_variables::LiveVariables, worklist::GetVarIdx},
 };
 
 impl BlockGraph {
@@ -17,21 +17,21 @@ impl BlockGraph {
                     };
 
                     let is_dead = res_var
-                        .and_then(|var| livar.vars.iter().position(|v| v == var))
+                        .and_then(|var| livar.get_var_idx(var))
                         .is_some_and(|idx| !liveout[idx]);
 
                     if is_dead {
                         *quad = Quadrupel::EMPTY;
                     } else {
                         for var in vars_from_quad(quad) {
-                            if let Some(idx) = livar.vars.iter().position(|v| v == &var) {
+                            if let Some(idx) = livar.get_var_idx(&var) {
                                 liveout.set(idx, true);
                             }
                         }
                     }
                 }
 
-                code.retain(|quad| quad != &Quadrupel::EMPTY);
+                Quadrupel::filter_empty(code);
             }
         }
     }
@@ -48,4 +48,10 @@ fn vars_from_quad(quad: &Quadrupel) -> Vec<QuadrupelVar> {
         vars.push(v.clone());
     }
     vars
+}
+
+impl Quadrupel {
+    pub fn filter_empty(quads: &mut Vec<Self>) {
+        quads.retain(|quad| quad != &Self::EMPTY);
+    }
 }
