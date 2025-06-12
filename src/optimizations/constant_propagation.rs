@@ -5,12 +5,11 @@ use colored::Colorize;
 use crate::{
     base_blocks::{Block, BlockContent, BlockGraph},
     code_gen::quadrupel::{
-        Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar, quad, quad_match,
+        quad, quad_match, Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar,
     },
+    optimizations::worklist::{self, Lattice, LatticeJoinAssignCopy, Worklist},
     table::symbol_table::SymbolTable,
 };
-
-use super::worklist::{self, Lattice, LatticeJoinAssignCopy, Worklist};
 
 use self::Constness::{Constant, Undefined, Variable};
 

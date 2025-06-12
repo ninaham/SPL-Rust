@@ -17,14 +17,14 @@ impl BlockGraph {
                     };
 
                     let is_dead = res_var
-                        .and_then(|var| livar.defs.iter().position(|v| v == var))
+                        .and_then(|var| livar.vars.iter().position(|v| v == var))
                         .is_some_and(|idx| !liveout[idx]);
 
                     if is_dead {
                         *quad = Quadrupel::EMPTY;
                     } else {
                         for var in vars_from_quad(quad) {
-                            if let Some(idx) = livar.defs.iter().position(|v| v == &var) {
+                            if let Some(idx) = livar.vars.iter().position(|v| v == &var) {
                                 liveout.set(idx, true);
                             }
                         }

@@ -11,7 +11,7 @@ use crate::table::symbol_table::SymbolTable;
 use super::worklist::{self, Worklist};
 
 pub struct LiveVariables {
-    pub defs: Vec<QuadrupelVar>,
+    pub vars: Vec<QuadrupelVar>,
     pub def: Vec<BitVec>,
     pub use_bits: Vec<BitVec>,
     pub livin: Vec<BitVec>,
@@ -26,7 +26,7 @@ impl Worklist for LiveVariables {
 
     fn init(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self {
         let defs_in_proc = graph.definitions(local_table);
-        let defs = defs_in_proc
+        let vars = defs_in_proc
             .iter()
             .map(|d| d.var.clone())
             .collect::<HashSet<_>>()
@@ -37,17 +37,17 @@ impl Worklist for LiveVariables {
             .blocks
             .iter()
             .enumerate()
-            .map(|(block_id, _)| Block::defs_in_block_2(block_id, &defs_in_proc, &defs))
+            .map(|(block_id, _)| Block::defs_in_block_2(block_id, &defs_in_proc, &vars))
             .collect();
 
-        let r#use = graph.blocks.iter().map(|b| b.get_liv_use(&defs)).collect();
+        let r#use = graph.blocks.iter().map(|b| b.get_liv_use(&vars)).collect();
 
         Self {
             def,
             use_bits: r#use,
-            livin: Self::init_in_out(graph, &defs),
-            livout: Self::init_in_out(graph, &defs),
-            defs,
+            livin: Self::init_in_out(graph, &vars),
+            livout: Self::init_in_out(graph, &vars),
+            vars,
         }
     }
 
