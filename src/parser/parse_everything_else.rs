@@ -3,12 +3,13 @@
 use std::collections::LinkedList;
 
 use nom::{
+    IResult, Parser,
     branch::alt,
     character::complete::{char, space0},
+    combinator::eof,
     error::Error,
     multi::fold_many0,
     sequence::{delimited, preceded},
-    IResult, Parser,
 };
 
 use crate::{
@@ -36,7 +37,8 @@ use super::{
 };
 
 pub fn parse(input: &str) -> Result<Program, nom::Err<Error<&str>>> {
-    let (_, n) = program(input)?;
+    let (rem, n) = program(input)?;
+    let (_, _) = eof(rem)?;
 
     Ok(n)
 }
