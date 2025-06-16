@@ -7,9 +7,9 @@ use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{arg, ArgGroup, Command, Id};
+use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -54,7 +54,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     let input = std::fs::read_to_string(file)?.leak();
 
     let Some(phase) = matches.get_one::<Id>("phase") else {
-        bail!("Gode Generation for ECO32 not yet implemented")
+        bail!("Code Generation for ECO32 not yet implemented")
     };
 
     let mut absyn = parse(input)?;
