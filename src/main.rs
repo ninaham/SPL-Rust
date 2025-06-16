@@ -38,6 +38,12 @@ mod test {
         test_file(&path)
     }
 
+    #[rstest]
+    fn test_syntax_errors(#[files("spl-testfiles/syntax_errors/*.spl")] path: PathBuf) {
+        let code = fs::read_to_string(path).unwrap();
+        parse(&code).expect_err("Parsing should fail");
+    }
+
     fn test_file(path: &Path) -> anyhow::Result<()> {
         let code = fs::read_to_string(path).unwrap();
 
