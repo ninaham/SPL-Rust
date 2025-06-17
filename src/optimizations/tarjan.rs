@@ -9,6 +9,8 @@ pub struct Scc<'a> {
     pub scc: Vec<Vec<&'a Block>>,
 }
 
+//TODO: Umbenennen Bob, Datenstruktur für einzelne SCC: Liste Blöcke und Parent (optional), strong_connect Argumente so, dass Clippy nicht mehr nervt
+
 struct Bob<'a> {
     id: BlockId,
     index: &mut usize,
