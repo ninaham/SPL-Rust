@@ -7,7 +7,7 @@ const REGEX_TEMINAL_COLORS: &str =
     r"\u{1b}\[(?:(?<color>[39][0-7])|38;2;(?<truecolor>\d+;\d+;\d+))m(?<text>.*?)\u{1b}\[0m";
 
 const DOT_ATTRIBUTES: &str = "
-    graph[bgcolor=grey16,fontcolor=grey64,ranksep=1,nodesep=0.5];
+    graph[bgcolor=grey16,fontname=monospace,fontcolor=grey64,pencolor=grey32,ranksep=1,nodesep=0.5,labeljust=l];
     node [shape=box,color=grey64,fontname=monospace,fontcolor=grey64];
     edge [color=grey64,fontcolor=grey64];
 ";
@@ -21,13 +21,26 @@ impl fmt::Display for BlockGraph {
 
         let re = Regex::new(REGEX_TEMINAL_COLORS).unwrap();
         self.blocks.iter().enumerate().try_for_each(|(i, b)| {
-            writeln!(f, "{i} [label=<{}>];", to_dot_html(&b.to_string(), &re))
+            let dot_html = to_dot_html(&b.to_string(), &re);
+            writeln!(f, "{i} [xlabel=\"B{i}\",label=<{dot_html}>];")
         })?;
 
         self.edges
             .iter()
             .enumerate()
             .try_for_each(|(i, e)| e.iter().try_for_each(|j| writeln!(f, "{i}:s -> {j}:n;")))?;
+
+        if let Some(scc) = &self.scc {
+            for (i, l) in scc.scc.iter().enumerate() {
+                writeln!(f, "subgraph cluster{i} {{")?;
+                writeln!(f, "margin=40;")?;
+                writeln!(f, "label=\"Loop {i}\";")?;
+                for n in l {
+                    writeln!(f, "{n};")?;
+                }
+                writeln!(f, "}}")?;
+            }
+        }
 
         writeln!(f, "}}")?;
 

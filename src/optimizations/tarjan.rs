@@ -1,23 +1,21 @@
 #![allow(clippy::too_many_arguments)]
 use std::collections::{HashMap, HashSet};
 
-use crate::base_blocks::{Block, BlockGraph};
+use crate::base_blocks::{BlockGraph, BlockId};
 
-#[derive(Debug, Default)]
-pub struct Scc<'a> {
-    pub scc: Vec<Vec<&'a Block>>,
+#[derive(Debug, Default, Clone)]
+pub struct Scc {
+    pub scc: Vec<Vec<BlockId>>,
 }
 
-type BlockId = usize;
-
 impl BlockGraph {
-    pub fn tarjan(&self) -> Scc<'_> {
+    pub fn tarjan(&mut self) -> &Scc {
         let mut index = 0;
-        let mut index_map = HashMap::<BlockId, usize>::new();
-        let mut lowlink_map = HashMap::<BlockId, usize>::new();
-        let mut on_stack = HashSet::<BlockId>::new();
-        let mut stack = Vec::<BlockId>::new();
-        let mut sccs = Vec::<Vec<&Block>>::new();
+        let mut index_map = HashMap::new();
+        let mut lowlink_map = HashMap::new();
+        let mut on_stack = HashSet::new();
+        let mut stack = Vec::new();
+        let mut sccs = Vec::new();
 
         for id in 0..self.blocks.len() {
             if !index_map.contains_key(&id) {
@@ -33,18 +31,18 @@ impl BlockGraph {
             }
         }
 
-        Scc { scc: sccs }
+        self.scc.insert(Scc { scc: sccs })
     }
 
-    fn strong_connect<'a>(
-        &'a self,
+    fn strong_connect(
+        &self,
         id: BlockId,
-        index: &mut usize,
+        index: &mut BlockId,
         index_map: &mut HashMap<BlockId, usize>,
         lowlink_map: &mut HashMap<BlockId, usize>,
         on_stack: &mut HashSet<BlockId>,
         stack: &mut Vec<BlockId>,
-        sccs: &mut Vec<Vec<&'a Block>>,
+        sccs: &mut Vec<Vec<BlockId>>,
     ) {
         index_map.insert(id, *index);
         lowlink_map.insert(id, *index);
@@ -76,7 +74,7 @@ impl BlockGraph {
             let mut component = Vec::new();
             while let Some(w) = stack.pop() {
                 on_stack.remove(&w);
-                component.push(&self.blocks[w]);
+                component.push(w);
                 if w == id {
                     break;
                 }

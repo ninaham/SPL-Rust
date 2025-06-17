@@ -7,9 +7,9 @@ use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{ArgGroup, Command, Id, arg};
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -60,14 +60,14 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     let mut absyn = parse(input)?;
 
     if phase == "parse" {
-        println!("{absyn:#?}");
+        eprintln!("{absyn:#?}");
         return Ok(());
     }
 
     let table = build_symbol_table(&absyn)?;
 
     if phase == "tables" {
-        println!("{table:#?}");
+        eprintln!("{table:#?}");
         return Ok(());
     }
 
@@ -84,7 +84,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     address_code.code_generation(&absyn);
 
     if phase == "tac" {
-        println!("{address_code}");
+        eprintln!("{address_code}");
         return Ok(());
     }
 
@@ -183,11 +183,11 @@ impl BlockGraph {
         for opti in optis {
             match opti.as_str() {
                 "cse" => {
-                    println!("{}", ">>> Common Subexpression Elimination".green());
+                    eprintln!("{}", ">>> Common Subexpression Elimination".green());
                     self.common_subexpression_elimination(&symbol_table.lock().unwrap());
                 }
                 "rch" => {
-                    println!("{}", ">>> Reaching Definitions:".green());
+                    eprintln!("{}", ">>> Reaching Definitions:".green());
                     let rch = ReachingDefinitions::run(self, &proc_def.local_table);
                     show_worklist_table(
                         ("Definitions", &rch.defs),
@@ -200,7 +200,7 @@ impl BlockGraph {
                     )?;
                 }
                 "lv" => {
-                    println!("{}", ">>> Live Variables:".green());
+                    eprintln!("{}", ">>> Live Variables:".green());
                     let lv = LiveVariables::run(self, &proc_def.local_table);
                     show_worklist_table(
                         ("Variables", &lv.vars),
@@ -213,12 +213,12 @@ impl BlockGraph {
                     )?;
                 }
                 "dead" => {
-                    println!("{}", ">>> Dead Code Elimination".green());
+                    eprintln!("{}", ">>> Dead Code Elimination".green());
                     let lv = LiveVariables::run(self, &proc_def.local_table);
                     self.dead_code_elimination(&lv);
                 }
                 "gcp" => {
-                    println!("{}", ">>> Constant Propagation:".green());
+                    eprintln!("{}", ">>> Constant Propagation:".green());
                     let gcp = ConstantPropagation::run(self, &proc_def.local_table);
                     show_worklist_table(
                         ("Variables", &gcp.vars),
@@ -231,13 +231,13 @@ impl BlockGraph {
                     )?;
                 }
                 "scc" => {
-                    println!("{}", ">>> Strongly Connected Components:".green());
+                    eprintln!("{}", ">>> Strongly Connected Components:".green());
                     let scc = self.tarjan();
-                    println!("{:?}", scc.scc);
+                    eprintln!("{:?}", scc.scc);
                 }
                 _ => panic!("Unknown optimization: {opti}"),
             }
-            println!();
+            eprintln!();
         }
 
         Ok(())
@@ -253,19 +253,19 @@ fn show_worklist_table<L: Lattice, D: FmtTable>(
     (ol, ov): (&str, &[L]),
     f: impl Fn(&L) -> String,
 ) -> fmt::Result {
-    println!("{defs_name}:");
-    println!("{}", D::fmt_table(defs)?);
-    println!();
+    eprintln!("{defs_name}:");
+    eprintln!("{}", D::fmt_table(defs)?);
+    eprintln!();
 
     let label_len = [al, bl, il, ol].iter().map(|s| s.len()).max().unwrap();
     let col_width = (defs.len() * col_width_factor).max(label_len);
-    println!(
+    eprintln!(
         "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
         "Block", al, bl, il, ol,
     );
     let col_width = (defs.len() * col_width_factor_colored).max(label_len);
     for (n, (((a, b), i), o)) in av.iter().zip(bv).zip(iv).zip(ov).enumerate() {
-        println!(
+        eprintln!(
             "{n:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
             f(a),
             f(b),
