@@ -35,7 +35,7 @@ pub fn load_program_data() -> Command {
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
-            arg!(optis: -O --optis <optis> "Optimizations to apply: [cse,rch,lv,dead,gcp]")
+            arg!(optis: -O --optis <optis> "Optimizations to apply: [cse, rch, lv, dead, gcp, scc]")
                 .num_args(1..)
                 .value_delimiter(','),
             arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
@@ -229,6 +229,11 @@ impl BlockGraph {
                         ("OUT", &gcp.out),
                         |v| format!("{v:?}"),
                     )?;
+                }
+                "scc" => {
+                    println!("{}", ">>> Strongly Connected Components:".green());
+                    let scc = self.tarjan();
+                    println!("{:?}", scc.scc);
                 }
                 _ => panic!("Unknown optimization: {opti}"),
             }
