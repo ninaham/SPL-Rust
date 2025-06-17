@@ -5,7 +5,7 @@ use colored::Colorize;
 use crate::{
     base_blocks::{Block, BlockContent, BlockGraph},
     code_gen::quadrupel::{
-        quad, quad_match, Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar,
+        Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar, quad, quad_match,
     },
     optimizations::worklist::{self, Lattice, LatticeJoinAssignCopy, Worklist},
     table::symbol_table::SymbolTable,
@@ -85,7 +85,7 @@ impl Worklist for ConstantPropagation {
         }
     }
 
-    fn state(&mut self) -> worklist::State<Self> {
+    fn state(&mut self) -> worklist::State<'_, Self> {
         worklist::State::<Self> {
             block_info_a: &mut self.gens,
             block_info_b: &mut self.prsv,
