@@ -3,14 +3,14 @@ use std::collections::{HashMap, HashSet};
 use crate::base_blocks::{Block, BlockGraph};
 
 #[derive(Debug, Default)]
-pub struct SCC<'a> {
-    scc: Vec<Vec<&'a Block>>,
+pub struct Scc<'a> {
+    pub scc: Vec<Vec<&'a Block>>,
 }
 
 type BlockId = usize;
 
 impl BlockGraph {
-    pub fn tarjan(&self) -> SCC {
+    pub fn tarjan(&self) -> Scc {
         let mut index = 0;
         let mut index_map = HashMap::<BlockId, usize>::new();
         let mut lowlink_map = HashMap::<BlockId, usize>::new();
@@ -32,7 +32,7 @@ impl BlockGraph {
             }
         }
 
-        SCC { scc: sccs }
+        Scc { scc: sccs }
     }
 
     fn strong_connect<'a>(
