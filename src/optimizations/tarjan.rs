@@ -81,7 +81,11 @@ impl BlockGraph {
                     break;
                 }
             }
-            sccs.push(component);
+
+            if component.len() > 1 {
+                // our loops always have more than one node
+                sccs.push(component);
+            }
         }
     }
 }
