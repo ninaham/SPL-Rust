@@ -55,7 +55,7 @@ impl Worklist for LiveVariables {
         rhs.clone().not() & lhs
     }
 
-    fn state(&mut self) -> worklist::State<Self> {
+    fn state(&mut self) -> worklist::State<'_, Self> {
         worklist::State::<Self> {
             block_info_a: &mut self.use_bits,
             block_info_b: &mut self.def,
