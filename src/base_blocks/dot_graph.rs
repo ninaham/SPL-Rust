@@ -31,7 +31,7 @@ impl fmt::Display for BlockGraph {
             .try_for_each(|(i, e)| e.iter().try_for_each(|j| writeln!(f, "{i}:s -> {j}:n;")))?;
 
         if let Some(scc) = &self.scc {
-            for (i, l) in scc.scc.iter().enumerate() {
+            for (i, l) in scc.iter().enumerate() {
                 writeln!(f, "subgraph cluster{i} {{")?;
                 writeln!(f, "margin=40;")?;
                 writeln!(f, "label=\"Loop {i}\";")?;

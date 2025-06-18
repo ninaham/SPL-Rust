@@ -3,10 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::base_blocks::{BlockGraph, BlockId};
 
-#[derive(Debug, Default, Clone)]
-pub struct Scc {
-    pub scc: Vec<Vec<BlockId>>,
-}
+pub type Scc = Vec<Vec<BlockId>>;
 
 impl BlockGraph {
     pub fn tarjan(&mut self) -> &Scc {
@@ -31,7 +28,7 @@ impl BlockGraph {
             }
         }
 
-        self.scc.insert(Scc { scc: sccs })
+        self.scc.insert(sccs)
     }
 
     fn strong_connect(
