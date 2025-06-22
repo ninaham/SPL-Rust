@@ -52,9 +52,13 @@ impl fmt::Display for BlockGraph {
 fn write_subgraph(f: &mut fmt::Formatter<'_>, scc_idx: usize, sccs: &[Scc]) -> fmt::Result {
     let scc = &sccs[scc_idx];
 
+    let colors = ["red", "blue", "green", "orange", "purple", "yellow"];
+
     writeln!(f, "subgraph cluster{scc_idx} {{")?;
     writeln!(f, "margin=40;")?;
     writeln!(f, "label=\"Loop {scc_idx}\";")?;
+    let color = colors[scc_idx % colors.len()];
+    writeln!(f, "pencolor={color};")?;
     for n in &scc.nodes {
         writeln!(f, "{n};")?;
     }
