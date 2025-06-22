@@ -1,20 +1,47 @@
 #![allow(clippy::too_many_arguments)]
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    ops::RangeBounds,
+};
 
 use crate::base_blocks::{BlockGraph, BlockId};
 
-pub type Scc = Vec<Vec<BlockId>>;
+#[derive(Clone)]
+pub struct Scc {
+    pub nodes: Vec<BlockId>,
+    pub parent_idx: Option<usize>,
+    pub children_idx: Vec<usize>,
+}
+impl Scc {
+    const fn new(nodes: Vec<BlockId>, parent_idx: Option<usize>) -> Self {
+        Self {
+            nodes,
+            parent_idx,
+            children_idx: Vec::new(),
+        }
+    }
+}
 
 impl BlockGraph {
-    pub fn tarjan(&mut self) -> &Scc {
+    pub fn tarjan(&mut self) -> &Vec<Scc> {
+        let mut sccs = Vec::new();
+        self.tarjan_internal(&mut sccs, 0..self.blocks.len(), None);
+        self.sccs.insert(sccs)
+    }
+    fn tarjan_internal(
+        &self,
+        sccs: &mut Vec<Scc>,
+        subgraph: impl RangeBounds<BlockId> + Clone + IntoIterator<Item = BlockId>,
+        parent: Option<usize>,
+    ) {
         let mut index = 0;
         let mut index_map = HashMap::new();
         let mut lowlink_map = HashMap::new();
         let mut on_stack = HashSet::new();
         let mut stack = Vec::new();
-        let mut sccs = Vec::new();
 
-        for id in 0..self.blocks.len() {
+        for id in subgraph.clone() {
             if !index_map.contains_key(&id) {
                 self.strong_connect(
                     id,
@@ -23,12 +50,12 @@ impl BlockGraph {
                     &mut lowlink_map,
                     &mut on_stack,
                     &mut stack,
-                    &mut sccs,
+                    sccs,
+                    &subgraph,
+                    parent,
                 );
             }
         }
-
-        self.scc.insert(sccs)
     }
 
     fn strong_connect(
@@ -39,7 +66,9 @@ impl BlockGraph {
         lowlink_map: &mut HashMap<BlockId, usize>,
         on_stack: &mut HashSet<BlockId>,
         stack: &mut Vec<BlockId>,
-        sccs: &mut Vec<Vec<BlockId>>,
+        sccs: &mut Vec<Scc>,
+        subgraph: &impl RangeBounds<BlockId>,
+        parent: Option<usize>,
     ) {
         index_map.insert(id, *index);
         lowlink_map.insert(id, *index);
@@ -48,7 +77,7 @@ impl BlockGraph {
         stack.push(id);
         on_stack.insert(id);
 
-        for next_block in &self.edges[id] {
+        for next_block in self.edges[id].iter().filter(|i| subgraph.contains(i)) {
             if !index_map.contains_key(next_block) {
                 self.strong_connect(
                     *next_block,
@@ -58,6 +87,8 @@ impl BlockGraph {
                     on_stack,
                     stack,
                     sccs,
+                    subgraph,
+                    parent,
                 );
                 let lowlink = lowlink_map[&id].min(lowlink_map[next_block]);
                 lowlink_map.insert(id, lowlink);
@@ -77,10 +108,30 @@ impl BlockGraph {
                 }
             }
 
+            // our loops always have more than one node
             if component.len() > 1 {
-                // our loops always have more than one node
-                sccs.push(component);
+                component.reverse();
+                component.sort_unstable();
+                let min = *component.first().unwrap();
+                let max = *component.last().unwrap();
+
+                sccs.push(Scc::new(component, parent));
+                let component_idx = sccs.len() - 1;
+
+                #[expect(clippy::range_minus_one)]
+                self.tarjan_internal(sccs, (min + 1)..=(max - 1), Some(component_idx));
+
+                let sccs_len = sccs.len();
+                sccs[component_idx]
+                    .children_idx
+                    .extend((component_idx + 1)..sccs_len);
             }
         }
+    }
+}
+
+impl fmt::Debug for Scc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.nodes)
     }
 }

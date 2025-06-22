@@ -7,9 +7,9 @@ use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{ArgGroup, Command, Id, arg};
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -233,7 +233,7 @@ impl BlockGraph {
                 "scc" => {
                     eprintln!("{}", ">>> Strongly Connected Components:".green());
                     let scc = self.tarjan();
-                    eprintln!("{:?}", scc);
+                    eprintln!("{scc:#?}");
                 }
                 _ => panic!("Unknown optimization: {opti}"),
             }

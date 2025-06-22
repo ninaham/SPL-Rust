@@ -1,6 +1,8 @@
 use regex::{Captures, Regex};
 use std::fmt;
 
+use crate::optimizations::tarjan::Scc;
+
 use super::{Block, BlockContent, BlockGraph};
 
 const REGEX_TEMINAL_COLORS: &str =
@@ -30,15 +32,13 @@ impl fmt::Display for BlockGraph {
             .enumerate()
             .try_for_each(|(i, e)| e.iter().try_for_each(|j| writeln!(f, "{i}:s -> {j}:n;")))?;
 
-        if let Some(scc) = &self.scc {
-            for (i, l) in scc.iter().enumerate() {
-                writeln!(f, "subgraph cluster{i} {{")?;
-                writeln!(f, "margin=40;")?;
-                writeln!(f, "label=\"Loop {i}\";")?;
-                for n in l {
-                    writeln!(f, "{n};")?;
-                }
-                writeln!(f, "}}")?;
+        if let Some(sccs) = &self.sccs {
+            for (scc_idx, _) in sccs
+                .iter()
+                .enumerate()
+                .filter(|(_, scc)| scc.parent_idx.is_none())
+            {
+                write_subgraph(f, scc_idx, sccs)?;
             }
         }
 
@@ -47,6 +47,22 @@ impl fmt::Display for BlockGraph {
         colored::control::unset_override();
         Ok(())
     }
+}
+
+fn write_subgraph(f: &mut fmt::Formatter<'_>, scc_idx: usize, sccs: &[Scc]) -> fmt::Result {
+    let scc = &sccs[scc_idx];
+
+    writeln!(f, "subgraph cluster{scc_idx} {{")?;
+    writeln!(f, "margin=40;")?;
+    writeln!(f, "label=\"Loop {scc_idx}\";")?;
+    for n in &scc.nodes {
+        writeln!(f, "{n};")?;
+    }
+    for &c in &scc.children_idx {
+        write_subgraph(f, c, sccs)?;
+    }
+    writeln!(f, "}}")?;
+    Ok(())
 }
 
 impl fmt::Display for Block {

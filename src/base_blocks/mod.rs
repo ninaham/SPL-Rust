@@ -71,7 +71,7 @@ pub struct BlockGraph {
     pub blocks: Vec<Block>,
     pub edges: Vec<HashSet<BlockId>>,
     pub label_to_id: HashMap<String, BlockId>,
-    pub scc: Option<Scc>,
+    pub sccs: Option<Vec<Scc>>,
 }
 
 impl BlockGraph {
