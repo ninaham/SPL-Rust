@@ -52,7 +52,7 @@ impl fmt::Display for BlockGraph {
 fn write_subgraph(f: &mut fmt::Formatter<'_>, scc_idx: usize, sccs: &[Scc]) -> fmt::Result {
     let scc = &sccs[scc_idx];
 
-    let colors = ["red", "blue", "green", "orange", "purple", "yellow"];
+    let colors = ["magenta", "cyan", "lime", "hotpink", "honeydew", "plum"];
 
     writeln!(f, "subgraph cluster{scc_idx} {{")?;
     writeln!(f, "margin=40;")?;
