@@ -4,6 +4,7 @@ mod absyn;
 mod base_blocks;
 mod cli;
 mod code_gen;
+mod interpreter;
 mod optimizations;
 mod parser;
 mod semant;
