@@ -79,7 +79,9 @@ fn get_builtins<'a>() -> Vec<(String, Value<'a>)> {
                 print!(
                     "{}",
                     match v[0] {
-                        Value::Int(i) => i,
+                        Value::Int(i) => u8::try_from(i).unwrap_or_else(|_| panic!(
+                            "Argument to printc() should be a valid ASCII value: {i}"
+                        )) as char,
                         _ => unreachable!(),
                     }
                 );
