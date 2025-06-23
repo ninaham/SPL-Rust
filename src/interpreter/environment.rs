@@ -1,20 +1,22 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap};
 
-use crate::{interpreter::value::Value, table::symbol_table::SymbolTable};
+use crate::interpreter::value::Value;
 
-pub struct Environment {
-    parent: Box<Environment>,
-    vars: HashMap<String, Value>,
+#[derive(Clone)]
+pub struct Environment<'a> {
+    pub parent: Option<&'a Environment<'a>>,
+    pub vars: RefCell<HashMap<String, Value<'a>>>,
 }
 
-impl Environment {
-    pub fn new(table: &SymbolTable) -> Self {
-        todo!()
+impl<'a> Environment<'a> {
+    pub fn get(&self, key: &str) -> Option<Value> {
+        self.vars
+            .borrow()
+            .get(key)
+            .map_or_else(|| self.parent.and_then(|p| p.get(key)), |v| Some(v.clone()))
     }
 
-    pub fn get(&self, key: &String) -> Option<Value> {
-        todo!()
+    pub fn insert(&self, key: &str, value: Value<'a>) {
+        self.vars.borrow_mut().insert(key.to_string(), value);
     }
-
-    pub fn insert(&mut self, key: &String, value: Value) {}
 }

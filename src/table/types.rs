@@ -1,3 +1,5 @@
+use crate::interpreter::value::Value;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     ArrayType(ArrayType),
@@ -14,4 +16,18 @@ pub struct ArrayType {
 pub enum PrimitiveType {
     Int,
     Bool,
+}
+
+impl Type {
+    pub fn default_value(&self) -> Value<'static> {
+        match self {
+            Self::ArrayType(array_type) => {
+                Value::Array(vec![array_type.base_type.default_value(); array_type.size])
+            }
+            Self::PrimitiveType(primitive_type) => match primitive_type {
+                PrimitiveType::Int => Value::Int(0),
+                PrimitiveType::Bool => Value::Bool(false),
+            },
+        }
+    }
 }

@@ -7,7 +7,7 @@ use crate::{
     interpreter::{environment::Environment, value::Value},
 };
 
-pub fn eval_expression(expression: &Expression, env: &Environment) -> Value {
+pub fn eval_expression<'a>(expression: &Expression, env: &'a Environment) -> Value<'a> {
     match expression {
         Expression::BinaryExpression(binary_expression) => eval_binary(binary_expression, env),
         Expression::UnaryExpression(unary_expression) => eval_unary(unary_expression, env),
@@ -16,7 +16,7 @@ pub fn eval_expression(expression: &Expression, env: &Environment) -> Value {
     }
 }
 
-pub fn eval_var(variable: &Variable, env: &Environment) -> Value {
+pub fn eval_var<'a>(variable: &Variable, env: &'a Environment) -> Value<'a> {
     match variable {
         Variable::NamedVariable(v) => env.get(v).unwrap(),
         Variable::ArrayAccess(array_access) => {
@@ -32,7 +32,7 @@ pub fn eval_var(variable: &Variable, env: &Environment) -> Value {
     }
 }
 
-pub fn eval_binary(binary_expression: &BinaryExpression, env: &Environment) -> Value {
+pub fn eval_binary<'a>(binary_expression: &BinaryExpression, env: &'a Environment) -> Value<'a> {
     let op1 = eval_expression(&binary_expression.left, env);
     let op2 = eval_expression(&binary_expression.right, env);
 
@@ -50,7 +50,7 @@ pub fn eval_binary(binary_expression: &BinaryExpression, env: &Environment) -> V
     }
 }
 
-pub fn eval_unary(unary: &UnaryExpression, env: &Environment) -> Value {
+pub fn eval_unary<'a>(unary: &UnaryExpression, env: &'a Environment) -> Value<'a> {
     let op = eval_expression(&unary.operand, env);
 
     match unary.operator {

@@ -6,86 +6,58 @@ use std::{
 use crate::absyn::procedure_definition::ProcedureDefinition;
 
 #[derive(Clone)]
-pub enum Value {
+pub enum Value<'a> {
     Int(i32),
     Bool(bool),
-    Array(Box<[Value]>),
-    Function(Box<ProcedureDefinition>),
+    Array(Vec<Value<'a>>),
+    Function(&'a ProcedureDefinition),
 }
 
-impl Add for Value {
+impl Add for Value<'_> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let i = match self {
-            Self::Int(i) => i,
-            _ => unreachable!(),
-        };
-
-        let j = match rhs {
-            Self::Int(j) => j,
-            _ => unreachable!(),
-        };
+        let Self::Int(i) = self else { unreachable!() };
+        let Self::Int(j) = rhs else { unreachable!() };
 
         Self::Int(i + j)
     }
 }
 
-impl Sub for Value {
+impl Sub for Value<'_> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let i = match self {
-            Self::Int(i) => i,
-            _ => unreachable!(),
-        };
-
-        let j = match rhs {
-            Self::Int(j) => j,
-            _ => unreachable!(),
-        };
+        let Self::Int(i) = self else { unreachable!() };
+        let Self::Int(j) = rhs else { unreachable!() };
 
         Self::Int(i - j)
     }
 }
 
-impl Mul for Value {
+impl Mul for Value<'_> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let i = match self {
-            Self::Int(i) => i,
-            _ => unreachable!(),
-        };
-
-        let j = match rhs {
-            Self::Int(j) => j,
-            _ => unreachable!(),
-        };
+        let Self::Int(i) = self else { unreachable!() };
+        let Self::Int(j) = rhs else { unreachable!() };
 
         Self::Int(i * j)
     }
 }
 
-impl Div for Value {
+impl Div for Value<'_> {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        let i = match self {
-            Self::Int(i) => i,
-            _ => unreachable!(),
-        };
-
-        let j = match rhs {
-            Self::Int(j) => j,
-            _ => unreachable!(),
-        };
+        let Self::Int(i) = self else { unreachable!() };
+        let Self::Int(j) = rhs else { unreachable!() };
 
         Self::Int(i / j)
     }
 }
 
-impl PartialEq for Value {
+impl PartialEq for Value<'_> {
     fn eq(&self, other: &Self) -> bool {
         let i = match self {
             Self::Int(i) => *i,
@@ -103,7 +75,7 @@ impl PartialEq for Value {
     }
 }
 
-impl PartialOrd for Value {
+impl PartialOrd for Value<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let i = match self {
             Self::Int(i) => *i,
@@ -121,14 +93,11 @@ impl PartialOrd for Value {
     }
 }
 
-impl Neg for Value {
+impl Neg for Value<'_> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        let i = match self {
-            Self::Int(i) => i,
-            _ => unreachable!(),
-        };
+        let Self::Int(i) = self else { unreachable!() };
 
         Self::Int(-i)
     }
