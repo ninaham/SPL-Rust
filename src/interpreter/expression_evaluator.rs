@@ -25,20 +25,22 @@ pub fn eval_var<'a>(variable: &Variable, env: Rc<Environment<'a>>) -> Value<'a> 
             let Value::Int(index) = eval_expression(&array_access.index, env.clone()) else {
                 unreachable!()
             };
-            let Value::Array(var) = eval_var(&array_access.array, env) else {
+            let Value::Array(array) = eval_var(&array_access.array, env) else {
                 unreachable!()
             };
 
-            assert!(
-                !(index < 0 || index >= var.len() as i32),
-                "Index out of bounds"
-            );
+            let index = eval_array_index(index, array.len());
 
-            let index: usize = index.try_into().unwrap();
-
-            var[index].clone()
+            array[index].clone()
         }
     }
+}
+
+pub fn eval_array_index(index: i32, arr_len: usize) -> usize {
+    usize::try_from(index)
+        .ok()
+        .filter(|&i| i < arr_len)
+        .unwrap_or_else(|| panic!("index out of bounds for array length {arr_len}: {index}"))
 }
 
 pub fn eval_binary<'a>(

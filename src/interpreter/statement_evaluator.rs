@@ -10,12 +10,11 @@ use crate::{
     },
     interpreter::{
         definition_evaluator::eval_local_var, environment::Environment,
-        expression_evaluator::eval_expression, value::Value,
+        expression_evaluator::eval_array_index, expression_evaluator::eval_expression,
+        value::Value, value::ValueFunction,
     },
     table::{entry::Entry, symbol_table::SymbolTable},
 };
-
-use super::value::ValueFunction;
 
 pub fn eval_statement<'a, 'b: 'a>(
     statement: &Statement,
@@ -85,12 +84,7 @@ pub fn eval_var_mut<'a>(
             };
             eval_var_mut(&array_access.array, env, &move |a| {
                 let Value::Array(a) = a else { unreachable!() };
-                let index = std::convert::TryInto::<usize>::try_into(index)
-                    .ok()
-                    .filter(|&i| i < a.len())
-                    .unwrap_or_else(|| {
-                        panic!("index out of bounds for array length {}: {index}", a.len())
-                    });
+                let index = eval_array_index(index, a.len());
                 f(&mut a[index]);
             });
         }
@@ -102,10 +96,7 @@ pub fn eval_while_statement<'a, 'b: 'a>(
     table: &SymbolTable,
     env: &Rc<Environment<'b>>,
 ) {
-    while let Value::Bool(b) = eval_expression(&statement.condition, env.clone()) {
-        if !b {
-            break;
-        }
+    while eval_expression(&statement.condition, env.clone()) == Value::Bool(true) {
         eval_statement(&statement.body, table, env.clone());
     }
 }

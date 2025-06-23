@@ -17,8 +17,10 @@ pub enum Value<'a> {
 #[derive(Clone)]
 pub enum ValueFunction<'a> {
     Spl(&'a ProcedureDefinition),
-    BuiltIn(Rc<dyn Fn(&[Value])>),
+    BuiltIn(BuiltInFn),
 }
+
+pub type BuiltInFn = Rc<dyn Fn(&[Value])>;
 
 impl Add for Value<'_> {
     type Output = Self;
