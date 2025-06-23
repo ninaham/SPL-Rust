@@ -18,8 +18,17 @@ pub fn eval_expression(expression: &Expression, env: &Environment) -> Value {
 
 pub fn eval_var(variable: &Variable, env: &Environment) -> Value {
     match variable {
-        Variable::NamedVariable(v) => env.vars.get(v).unwrap().clone(),
-        Variable::ArrayAccess(array_access) => todo!(),
+        Variable::NamedVariable(v) => env.get(v).unwrap(),
+        Variable::ArrayAccess(array_access) => {
+            let Value::Int(index) = eval_expression(&array_access.index, env) else {
+                unreachable!()
+            };
+            let Value::Array(var) = eval_var(&array_access.array, env) else {
+                unreachable!()
+            };
+
+            var[index as usize].clone()
+        }
     }
 }
 

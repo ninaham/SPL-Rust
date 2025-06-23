@@ -3,11 +3,14 @@ use std::{
     ops::{Add, Div, Mul, Neg, Sub},
 };
 
+use crate::absyn::procedure_definition::ProcedureDefinition;
+
 #[derive(Clone)]
 pub enum Value {
     Int(i32),
     Bool(bool),
     Array(Box<[Value]>),
+    Function(Box<ProcedureDefinition>),
 }
 
 impl Add for Value {
@@ -16,12 +19,12 @@ impl Add for Value {
     fn add(self, rhs: Self) -> Self::Output {
         let i = match self {
             Self::Int(i) => i,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         let j = match rhs {
             Self::Int(j) => j,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         Self::Int(i + j)
@@ -34,12 +37,12 @@ impl Sub for Value {
     fn sub(self, rhs: Self) -> Self::Output {
         let i = match self {
             Self::Int(i) => i,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         let j = match rhs {
             Self::Int(j) => j,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         Self::Int(i - j)
@@ -52,12 +55,12 @@ impl Mul for Value {
     fn mul(self, rhs: Self) -> Self::Output {
         let i = match self {
             Self::Int(i) => i,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         let j = match rhs {
             Self::Int(j) => j,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         Self::Int(i * j)
@@ -70,12 +73,12 @@ impl Div for Value {
     fn div(self, rhs: Self) -> Self::Output {
         let i = match self {
             Self::Int(i) => i,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         let j = match rhs {
             Self::Int(j) => j,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         Self::Int(i / j)
@@ -87,13 +90,13 @@ impl PartialEq for Value {
         let i = match self {
             Self::Int(i) => *i,
             Self::Bool(b) => i32::from(*b),
-            Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         let j = match other {
             Self::Int(j) => *j,
             Self::Bool(b) => i32::from(*b),
-            Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         i == j
@@ -105,13 +108,13 @@ impl PartialOrd for Value {
         let i = match self {
             Self::Int(i) => *i,
             Self::Bool(b) => i32::from(*b),
-            Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         let j = match other {
             Self::Int(j) => *j,
             Self::Bool(b) => i32::from(*b),
-            Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         i.partial_cmp(&j)
@@ -124,7 +127,7 @@ impl Neg for Value {
     fn neg(self) -> Self::Output {
         let i = match self {
             Self::Int(i) => i,
-            Self::Bool(_) | Self::Array(_) => unreachable!(),
+            _ => unreachable!(),
         };
 
         Self::Int(-i)
