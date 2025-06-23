@@ -57,14 +57,13 @@ mod test {
         assert!(address_code.proc_table.contains_key("main"));
 
         for (proc_name, code) in &address_code.proc_table {
-            let Some(Entry::ProcedureEntry(proc_entry)) = table.lock().unwrap().lookup(proc_name)
-            else {
+            let Some(Entry::ProcedureEntry(proc_entry)) = table.borrow().lookup(proc_name) else {
                 unreachable!()
             };
             let local_table = &proc_entry.local_table;
             let mut bg = BlockGraph::from_tac(code);
 
-            bg.common_subexpression_elimination(&table.lock().unwrap());
+            bg.common_subexpression_elimination(&table.borrow());
 
             ReachingDefinitions::run(&mut bg, local_table);
 

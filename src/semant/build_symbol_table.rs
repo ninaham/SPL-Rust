@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::Mutex};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     absyn::{
@@ -17,13 +17,13 @@ use crate::{
 
 use super::{table_initializer, SemanticError};
 
-pub fn build_symbol_table(program: &Program) -> Result<Rc<Mutex<SymbolTable>>, SemanticError> {
+pub fn build_symbol_table(program: &Program) -> Result<Rc<RefCell<SymbolTable>>, SemanticError> {
     let global_table = SymbolTable {
         entries: HashMap::new(),
         upper_level: None,
     };
 
-    let global_table = Rc::new(Mutex::new(global_table));
+    let global_table = Rc::new(RefCell::new(global_table));
 
     table_initializer::init_symbol_table(&global_table);
 
@@ -37,16 +37,16 @@ pub fn build_symbol_table(program: &Program) -> Result<Rc<Mutex<SymbolTable>>, S
 
 pub fn enter_global_def(
     def: &Definition,
-    table: &Rc<Mutex<SymbolTable>>,
+    table: &Rc<RefCell<SymbolTable>>,
 ) -> Result<(), SemanticError> {
     match def {
         Definition::ProcedureDefinition(procedure_definition) => {
             let (name, entry) = enter_procedure_def(procedure_definition, table)?;
-            let mut t = table.lock().unwrap();
+            let mut t = table.borrow_mut();
             t.enter(name, entry)?;
         }
         Definition::TypeDefinition(type_definition) => {
-            let mut t = table.lock().unwrap();
+            let mut t = table.borrow_mut();
             let (name, entry) = enter_type_def(type_definition, &t)?;
             t.enter(name, entry)?;
         }
@@ -68,7 +68,7 @@ pub fn enter_type_def(
 
 pub fn enter_procedure_def(
     def: &ProcedureDefinition,
-    table: &Rc<Mutex<SymbolTable>>,
+    table: &Rc<RefCell<SymbolTable>>,
 ) -> Result<(String, Entry), SemanticError> {
     let mut local_table = SymbolTable {
         entries: HashMap::new(),

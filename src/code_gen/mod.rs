@@ -6,7 +6,7 @@ use crate::{
     absyn::absyn::{Definition, Program},
     table::symbol_table::SymbolTable,
 };
-use std::{collections::HashMap, fmt, rc::Rc, sync::Mutex};
+use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
 mod procedure_def;
 pub mod quadrupel;
 mod utils;
@@ -14,7 +14,7 @@ mod utils;
 #[derive(Clone)]
 pub struct Tac {
     pub quadrupels: Vec<Quadrupel>,
-    symboltable: Rc<Mutex<SymbolTable>>,
+    symboltable: Rc<RefCell<SymbolTable>>,
     label_num: i64,
     pub proc_table: HashMap<String, Vec<Quadrupel>>,
     temp_var_count: usize,
@@ -34,7 +34,7 @@ impl fmt::Display for Tac {
 }
 
 impl Tac {
-    pub fn new(symboltable: Rc<Mutex<SymbolTable>>) -> Self {
+    pub fn new(symboltable: Rc<RefCell<SymbolTable>>) -> Self {
         Self {
             quadrupels: vec![],
             symboltable,

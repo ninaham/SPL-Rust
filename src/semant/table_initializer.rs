@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::Mutex};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::table::{
     entry::{Entry, Parameter, ProcedureEntry, TypeEntry},
@@ -117,8 +117,8 @@ const PROCEDURES: [(&str, &[Parameter]); 10] = [
     ),
 ];
 
-pub fn init_symbol_table(s_t: &Rc<Mutex<SymbolTable>>) {
-    let mut symbol_table = s_t.lock().unwrap();
+pub fn init_symbol_table(s_t: &Rc<RefCell<SymbolTable>>) {
+    let mut symbol_table = s_t.borrow_mut();
 
     for t in TYPES {
         symbol_table

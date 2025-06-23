@@ -1,15 +1,15 @@
+use std::cell::RefCell;
 use std::fmt::{self, Display, Write as _};
 use std::io::{IsTerminal, Write as _};
 use std::path::Path;
 use std::process::Stdio;
-use std::sync::Mutex;
 use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{ArgGroup, Command, Id, arg};
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use crate::interpreter::definition_evaluator::start_main;
 use crate::{
@@ -83,7 +83,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     }
 
     if phase == "interpret" {
-        let t = table.lock().unwrap();
+        let t = table.borrow();
         start_main(&absyn, &t);
         return Ok(());
     }
@@ -114,7 +114,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
     let mut graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_proc]).unwrap());
     let proc_name = graphs[sel_proc];
-    let proc_def = table.lock().unwrap().lookup(proc_name);
+    let proc_def = table.borrow().lookup(proc_name);
     let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
         unreachable!()
     };
@@ -185,14 +185,14 @@ impl BlockGraph {
     fn run_optimizations<'a>(
         &mut self,
         optis: impl Iterator<Item = &'a String>,
-        symbol_table: &Mutex<SymbolTable>,
+        symbol_table: &RefCell<SymbolTable>,
         proc_def: &ProcedureEntry,
     ) -> anyhow::Result<()> {
         for opti in optis {
             match opti.as_str() {
                 "cse" => {
                     println!("{}", ">>> Common Subexpression Elimination".green());
-                    self.common_subexpression_elimination(&symbol_table.lock().unwrap());
+                    self.common_subexpression_elimination(&symbol_table.borrow());
                 }
                 "rch" => {
                     println!("{}", ">>> Reaching Definitions:".green());
