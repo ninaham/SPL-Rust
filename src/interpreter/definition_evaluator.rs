@@ -16,6 +16,8 @@ use crate::{
     table::{entry::Entry, symbol_table::SymbolTable},
 };
 
+use super::value::ValueFunction;
+
 pub fn eval_program(program: &Program) -> Environment {
     let env = Environment {
         parent: None,
@@ -31,7 +33,7 @@ pub fn eval_program(program: &Program) -> Environment {
             Definition::ProcedureDefinition(procedure_definition) => {
                 env.insert(
                     &procedure_definition.name,
-                    Value::Function(procedure_definition),
+                    Value::Function(ValueFunction::Spl(procedure_definition)),
                 );
             }
             Definition::TypeDefinition(_) => {}
@@ -47,7 +49,7 @@ pub fn start_main(program: &Program, table: &SymbolTable) {
         name: "main".to_string(),
         arguments: LinkedList::new(),
     };
-    eval_call_statement(&call_stmt, table, env);
+    eval_call_statement(&call_stmt, table, &env);
 }
 
 pub fn eval_local_var(var: &VariableDefinition, table: &SymbolTable, env: &Environment) {
@@ -61,7 +63,7 @@ fn get_builtins<'a>() -> Vec<(String, Value<'a>)> {
     vec![
         (
             "printi".to_string(),
-            Value::BuiltIn(Rc::new(|v: &[Value]| {
+            Value::Function(ValueFunction::BuiltIn(Rc::new(|v: &[Value]| {
                 print!(
                     "{}",
                     match v[0] {
@@ -69,11 +71,11 @@ fn get_builtins<'a>() -> Vec<(String, Value<'a>)> {
                         _ => unreachable!(),
                     }
                 );
-            })),
+            }))),
         ),
         (
             "printc".to_string(),
-            Value::BuiltIn(Rc::new(|v: &[Value]| {
+            Value::Function(ValueFunction::BuiltIn(Rc::new(|v: &[Value]| {
                 print!(
                     "{}",
                     match v[0] {
@@ -81,7 +83,7 @@ fn get_builtins<'a>() -> Vec<(String, Value<'a>)> {
                         _ => unreachable!(),
                     }
                 );
-            })),
+            }))),
         ),
     ]
 }

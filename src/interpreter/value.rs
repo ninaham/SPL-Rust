@@ -11,7 +11,12 @@ pub enum Value<'a> {
     Int(i32),
     Bool(bool),
     Array(Vec<Value<'a>>),
-    Function(&'a ProcedureDefinition),
+    Function(ValueFunction<'a>),
+}
+
+#[derive(Clone)]
+pub enum ValueFunction<'a> {
+    Spl(&'a ProcedureDefinition),
     BuiltIn(Rc<dyn Fn(&[Value])>),
 }
 

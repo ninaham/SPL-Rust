@@ -3,13 +3,13 @@
 use std::collections::LinkedList;
 
 use nom::{
-    IResult, Parser,
     branch::alt,
     character::complete::{char, space0},
     combinator::eof,
     error::Error,
     multi::fold_many0,
     sequence::{delimited, preceded},
+    IResult, Parser,
 };
 
 use crate::{
@@ -143,7 +143,7 @@ fn procedure_definition(input: &str) -> IResult<&str, Definition> {
         name,
         parameters: pl,
         body: stl,
-        variales: vl,
+        variables: vl,
     };
 
     Ok((rem, Definition::ProcedureDefinition(Box::new(pd))))

@@ -1,8 +1,4 @@
-use std::{
-    cell::{RefCell, RefMut},
-    collections::HashMap,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     absyn::{
@@ -19,6 +15,8 @@ use crate::{
     table::{entry::Entry, symbol_table::SymbolTable},
 };
 
+use super::value::ValueFunction;
+
 pub fn eval_statement<'a, 'b: 'a>(
     statement: &Statement,
     table: &SymbolTable,
@@ -26,13 +24,15 @@ pub fn eval_statement<'a, 'b: 'a>(
 ) {
     match statement {
         Statement::AssignStatement(assign_statement) => {
-            eval_assign_statement(assign_statement, env);
+            eval_assign_statement(assign_statement, &env);
         }
         Statement::IfStatement(if_statement) => eval_if_statement(if_statement, table, env),
         Statement::WhileStatement(while_statement) => {
-            eval_while_statement(while_statement, table, env);
+            eval_while_statement(while_statement, table, &env);
         }
-        Statement::CallStatement(call_statement) => eval_call_statement(call_statement, table, env),
+        Statement::CallStatement(call_statement) => {
+            eval_call_statement(call_statement, table, &env);
+        }
         Statement::EmptyStatement => (),
         Statement::CompoundStatement(statements) => {
             statements
@@ -61,27 +61,46 @@ pub fn eval_if_statement<'a, 'b: 'a>(
     }
 }
 
-pub fn eval_assign_statement<'a, 'b: 'a>(statement: &AssignStatement, env: Rc<Environment<'b>>) {
-    let new_val = eval_expression(&statement.value, env.clone());
-    eval_var_mut(&statement.target, &env, new_val);
+pub fn eval_assign_statement<'a, 'b: 'a>(statement: &AssignStatement, env: &Rc<Environment<'b>>) {
+    let val = eval_expression(&statement.value, env.clone());
+    eval_var_mut(&statement.target, env, &|var| {
+        *var = val.clone();
+    });
 }
 
-pub fn eval_var_mut<'a, 'b: 'a>(variable: &Variable, env: &'b Rc<Environment<'a>>, val: Value) {
+pub fn eval_var_mut<'a>(
+    variable: &Variable,
+    env: &Rc<Environment<'a>>,
+    f: &dyn Fn(&mut Value<'a>),
+) {
     match variable {
-        Variable::NamedVariable(v) => *env.get_mut(v) = val,
+        Variable::NamedVariable(var_name) => f(env
+            .vars
+            .borrow_mut()
+            .get_mut(var_name)
+            .unwrap_or_else(|| panic!("not found: {var_name}"))),
         Variable::ArrayAccess(array_access) => {
             let Value::Int(index) = eval_expression(&array_access.index, env.clone()) else {
                 unreachable!()
             };
-            eval_var_mut(&array_access.array, env, val);
+            eval_var_mut(&array_access.array, env, &move |a| {
+                let Value::Array(a) = a else { unreachable!() };
+                let index = std::convert::TryInto::<usize>::try_into(index)
+                    .ok()
+                    .filter(|&i| i < a.len())
+                    .unwrap_or_else(|| {
+                        panic!("index out of bounds for array length {}: {index}", a.len())
+                    });
+                f(&mut a[index]);
+            });
         }
-    };
+    }
 }
 
 pub fn eval_while_statement<'a, 'b: 'a>(
     statement: &WhileStatement,
     table: &SymbolTable,
-    env: Rc<Environment<'b>>,
+    env: &Rc<Environment<'b>>,
 ) {
     while let Value::Bool(b) = eval_expression(&statement.condition, env.clone()) {
         if !b {
@@ -94,7 +113,7 @@ pub fn eval_while_statement<'a, 'b: 'a>(
 pub fn eval_call_statement<'a, 'b: 'a>(
     statement: &CallStatement,
     table: &SymbolTable,
-    env: Rc<Environment>,
+    env: &Rc<Environment>,
 ) {
     let args = statement
         .arguments
@@ -111,20 +130,25 @@ pub fn eval_call_statement<'a, 'b: 'a>(
         unreachable!()
     };
 
-    let local_table = match table.lookup(&statement.name).unwrap() {
-        Entry::ProcedureEntry(procedure_entry) => procedure_entry.local_table,
-        _ => unreachable!(),
-    };
+    match proc {
+        ValueFunction::Spl(proc) => {
+            let local_table = match table.lookup(&statement.name).unwrap() {
+                Entry::ProcedureEntry(procedure_entry) => procedure_entry.local_table,
+                _ => unreachable!(),
+            };
 
-    for var in &proc.variales {
-        eval_local_var(var, &local_table, &new_env.clone());
-    }
+            for var in &proc.variables {
+                eval_local_var(var, &local_table, &new_env.clone());
+            }
 
-    for (i, var) in proc.parameters.iter().enumerate() {
-        new_env.insert(&var.name, args[i].clone());
-    }
+            for (i, var) in proc.parameters.iter().enumerate() {
+                new_env.insert(&var.name, args[i].clone());
+            }
 
-    for s in &proc.body {
-        eval_statement(s, &local_table, new_env.clone())
+            for s in &proc.body {
+                eval_statement(s, &local_table, new_env.clone());
+            }
+        }
+        ValueFunction::BuiltIn(f) => f(&args),
     }
 }

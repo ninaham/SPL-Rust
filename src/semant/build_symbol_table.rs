@@ -94,7 +94,7 @@ pub fn enter_procedure_def(
         })
         .collect::<Result<Vec<Parameter>, SemanticError>>()?;
 
-    def.variales
+    def.variables
         .iter()
         .try_for_each(|def| enter_var_def(def, &mut local_table))?;
 
