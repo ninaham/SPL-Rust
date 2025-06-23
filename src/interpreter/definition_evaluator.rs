@@ -1,13 +1,18 @@
-#![expect(dead_code)]
-
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, LinkedList},
+    rc::Rc,
+};
 
 use crate::{
     absyn::{
         absyn::{Definition, Program},
+        call_statement::CallStatement,
         variable_definition::VariableDefinition,
     },
-    interpreter::{environment::Environment, statement_evaluator::eval_statement, value::Value},
+    interpreter::{
+        environment::Environment, statement_evaluator::eval_call_statement, value::Value,
+    },
     table::{entry::Entry, symbol_table::SymbolTable},
 };
 
@@ -16,6 +21,10 @@ pub fn eval_program(program: &Program) -> Environment {
         parent: None,
         vars: RefCell::new(HashMap::new()),
     };
+
+    get_builtins()
+        .iter()
+        .for_each(|b| env.insert(b.0.as_str(), b.1.clone()));
 
     for def in &program.definitions {
         match def.as_ref() {
@@ -33,19 +42,12 @@ pub fn eval_program(program: &Program) -> Environment {
 }
 
 pub fn start_main(program: &Program, table: &SymbolTable) {
-    let env = eval_program(program);
-    match env.get("main").unwrap() {
-        Value::Function(procedure_definition) => {
-            let local_env = Environment {
-                parent: Some(&env),
-                vars: RefCell::new(HashMap::new()),
-            };
-            for s in &procedure_definition.body {
-                eval_statement(s, table, &local_env);
-            }
-        }
-        _ => unreachable!(),
-    }
+    let env = Rc::new(eval_program(program));
+    let call_stmt = CallStatement {
+        name: "main".to_string(),
+        arguments: LinkedList::new(),
+    };
+    eval_call_statement(&call_stmt, table, env);
 }
 
 pub fn eval_local_var(var: &VariableDefinition, table: &SymbolTable, env: &Environment) {
@@ -53,4 +55,33 @@ pub fn eval_local_var(var: &VariableDefinition, table: &SymbolTable, env: &Envir
         unreachable!()
     };
     env.insert(&var.name, var_ent.typ.default_value());
+}
+
+fn get_builtins<'a>() -> Vec<(String, Value<'a>)> {
+    vec![
+        (
+            "printi".to_string(),
+            Value::BuiltIn(Rc::new(|v: &[Value]| {
+                print!(
+                    "{}",
+                    match v[0] {
+                        Value::Int(i) => i,
+                        _ => unreachable!(),
+                    }
+                );
+            })),
+        ),
+        (
+            "printc".to_string(),
+            Value::BuiltIn(Rc::new(|v: &[Value]| {
+                print!(
+                    "{}",
+                    match v[0] {
+                        Value::Int(i) => i,
+                        _ => unreachable!(),
+                    }
+                );
+            })),
+        ),
+    ]
 }

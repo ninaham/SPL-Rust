@@ -1,6 +1,7 @@
 use std::{
     cmp::Ordering,
     ops::{Add, Div, Mul, Neg, Sub},
+    rc::Rc,
 };
 
 use crate::absyn::procedure_definition::ProcedureDefinition;
@@ -11,6 +12,7 @@ pub enum Value<'a> {
     Bool(bool),
     Array(Vec<Value<'a>>),
     Function(&'a ProcedureDefinition),
+    BuiltIn(Rc<dyn Fn(&[Value])>),
 }
 
 impl Add for Value<'_> {

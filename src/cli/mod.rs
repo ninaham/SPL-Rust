@@ -11,6 +11,7 @@ use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
+use crate::interpreter::definition_evaluator::start_main;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
@@ -33,6 +34,7 @@ pub fn load_program_data() -> Command {
             arg!(parse: -p --parse "Parse input file, returns the abstract syntax tree"),
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
+            arg!(interpret: -i --interpret "SPL Interpreter"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
             arg!(optis: -O --optis <optis> "Optimizations to apply: [cse,rch,lv,dead,gcp]")
@@ -44,7 +46,7 @@ pub fn load_program_data() -> Command {
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "tac", "dot"]),
+                .args(["parse", "tables", "semant", "interpret", "tac", "dot"]),
         )
 }
 
@@ -53,11 +55,11 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     let file = matches.get_one::<String>("file").unwrap();
     let input = std::fs::read_to_string(file)?.leak();
 
+    let mut absyn = parse(input)?;
+
     let Some(phase) = matches.get_one::<Id>("phase") else {
         bail!("Code Generation for ECO32 not yet implemented")
     };
-
-    let mut absyn = parse(input)?;
 
     if phase == "parse" {
         println!("{absyn:#?}");
@@ -77,6 +79,12 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         .try_for_each(|def| check_def_global(def, &table))?;
 
     if phase == "semant" {
+        return Ok(());
+    }
+
+    if phase == "interpret" {
+        let t = table.lock().unwrap();
+        start_main(&absyn, &t);
         return Ok(());
     }
 

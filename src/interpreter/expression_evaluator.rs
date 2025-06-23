@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     absyn::{
         absyn::{Expression, Variable},
@@ -7,7 +9,7 @@ use crate::{
     interpreter::{environment::Environment, value::Value},
 };
 
-pub fn eval_expression<'a>(expression: &Expression, env: &'a Environment) -> Value<'a> {
+pub fn eval_expression<'a>(expression: &Expression, env: Rc<Environment<'a>>) -> Value<'a> {
     match expression {
         Expression::BinaryExpression(binary_expression) => eval_binary(binary_expression, env),
         Expression::UnaryExpression(unary_expression) => eval_unary(unary_expression, env),
@@ -16,24 +18,34 @@ pub fn eval_expression<'a>(expression: &Expression, env: &'a Environment) -> Val
     }
 }
 
-pub fn eval_var<'a>(variable: &Variable, env: &'a Environment) -> Value<'a> {
+pub fn eval_var<'a>(variable: &Variable, env: Rc<Environment<'a>>) -> Value<'a> {
     match variable {
         Variable::NamedVariable(v) => env.get(v).unwrap(),
         Variable::ArrayAccess(array_access) => {
-            let Value::Int(index) = eval_expression(&array_access.index, env) else {
+            let Value::Int(index) = eval_expression(&array_access.index, env.clone()) else {
                 unreachable!()
             };
             let Value::Array(var) = eval_var(&array_access.array, env) else {
                 unreachable!()
             };
 
-            var[index as usize].clone()
+            assert!(
+                !(index < 0 || index >= var.len() as i32),
+                "Index out of bounds"
+            );
+
+            let index: usize = index.try_into().unwrap();
+
+            var[index].clone()
         }
     }
 }
 
-pub fn eval_binary<'a>(binary_expression: &BinaryExpression, env: &'a Environment) -> Value<'a> {
-    let op1 = eval_expression(&binary_expression.left, env);
+pub fn eval_binary<'a>(
+    binary_expression: &BinaryExpression,
+    env: Rc<Environment<'a>>,
+) -> Value<'a> {
+    let op1 = eval_expression(&binary_expression.left, env.clone());
     let op2 = eval_expression(&binary_expression.right, env);
 
     match binary_expression.operator {
@@ -50,7 +62,7 @@ pub fn eval_binary<'a>(binary_expression: &BinaryExpression, env: &'a Environmen
     }
 }
 
-pub fn eval_unary<'a>(unary: &UnaryExpression, env: &'a Environment) -> Value<'a> {
+pub fn eval_unary<'a>(unary: &UnaryExpression, env: Rc<Environment<'a>>) -> Value<'a> {
     let op = eval_expression(&unary.operand, env);
 
     match unary.operator {
