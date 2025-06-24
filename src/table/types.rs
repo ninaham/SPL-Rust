@@ -1,4 +1,6 @@
-use crate::interpreter::value::Value;
+use std::cell::RefCell;
+
+use crate::interpreter::value::{Value, ValueRef};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
@@ -21,9 +23,12 @@ pub enum PrimitiveType {
 impl Type {
     pub fn default_value<'a>(&self) -> Value<'a> {
         match self {
-            Self::ArrayType(array_type) => {
-                Value::Array(vec![array_type.base_type.default_value(); array_type.size])
-            }
+            Self::ArrayType(array_type) => Value::Array(vec![
+                ValueRef::new(RefCell::new(
+                    array_type.base_type.default_value()
+                ));
+                array_type.size
+            ]),
             Self::PrimitiveType(primitive_type) => match primitive_type {
                 PrimitiveType::Int => Value::Int(0),
                 PrimitiveType::Bool => Value::Bool(false),

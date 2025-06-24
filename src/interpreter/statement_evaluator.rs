@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     absyn::{
-        absyn::{Expression, Statement, Variable},
+        absyn::{Expression, Statement},
         assign_statement::AssignStatement,
         call_statement::CallStatement,
         if_statement::IfStatement,
@@ -11,13 +11,11 @@ use crate::{
     interpreter::{
         definition_evaluator::eval_local_var,
         environment::Environment,
-        expression_evaluator::{eval_array_index, eval_expression},
-        value::{Value, ValueFunction},
+        expression_evaluator::{eval_expression, eval_var},
+        value::{Value, ValueFunction, ValueRef},
     },
     table::{entry::Entry, symbol_table::SymbolTable},
 };
-
-use super::value::ValueRef;
 
 pub fn eval_statement<'a, 'b: 'a>(
     statement: &'b Statement,
@@ -65,35 +63,7 @@ pub fn eval_if_statement<'a, 'b: 'a>(
 
 pub fn eval_assign_statement<'a, 'b: 'a>(statement: &AssignStatement, env: &Rc<Environment<'b>>) {
     let val = eval_expression(&statement.value, env.clone());
-    eval_var_mut(&statement.target, env, &|var| {
-        var.assign(val.clone());
-    });
-}
-
-pub fn eval_var_mut<'a>(
-    variable: &Variable,
-    env: &Rc<Environment<'a>>,
-    f: &dyn Fn(&mut Value<'a>),
-) {
-    match variable {
-        Variable::NamedVariable(var_name) => f(env
-            .vars
-            .borrow_mut()
-            .get_mut(var_name)
-            .unwrap_or_else(|| panic!("not found: {var_name}"))),
-        Variable::ArrayAccess(array_access) => {
-            let Value::Int(index) = eval_expression(&array_access.index, env.clone()) else {
-                unreachable!()
-            };
-            eval_var_mut(&array_access.array, env, &move |a| {
-                let Value::Array(a) = a else {
-                    unreachable!("not an Array {a:?}");
-                };
-                let index = eval_array_index(index, a.len());
-                f(&mut a[index]);
-            });
-        }
-    }
+    *eval_var(&statement.target, env).borrow_mut() = val;
 }
 
 pub fn eval_while_statement<'a, 'b: 'a>(
@@ -111,8 +81,8 @@ pub fn eval_call_statement<'a, 'b: 'a>(
     table: &SymbolTable,
     env: &Rc<Environment<'a>>,
 ) {
-    let Some(Value::Function(proc)) = env.get(&statement.name) else {
-        unimplemented!("Function `{}()` not found!", statement.name);
+    let Some(Value::Function(proc)) = env.get(&statement.name).map(|v| v.borrow().clone()) else {
+        unimplemented!("SPL-builtin `{}()`", statement.name);
     };
 
     let args = statement
@@ -124,12 +94,9 @@ pub fn eval_call_statement<'a, 'b: 'a>(
                 let Expression::VariableExpression(var) = e else {
                     unreachable!()
                 };
-                Value::Ref(ValueRef {
-                    var: var.as_ref(),
-                    env: env.clone(),
-                })
+                eval_var(var, env)
             } else {
-                eval_expression(e, env.clone())
+                ValueRef::new(RefCell::new(eval_expression(e, env.clone())))
             }
         })
         .collect::<Vec<_>>();
@@ -150,8 +117,8 @@ pub fn eval_call_statement<'a, 'b: 'a>(
                 eval_local_var(var, &local_table, &new_env.clone());
             }
 
-            for (i, var) in proc.parameters.iter().enumerate() {
-                new_env.insert(&var.name, args[i].clone());
+            for (var, arg) in proc.parameters.iter().zip(args.into_iter()) {
+                new_env.insert_ref(&var.name, arg);
             }
 
             for s in &proc.body {

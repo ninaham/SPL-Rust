@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     cmp::Ordering,
     fmt::Debug,
     ops::{Add, Div, Mul, Neg, Sub},
@@ -6,22 +7,18 @@ use std::{
 };
 
 use crate::absyn::{
-    absyn::{TypeExpression, Variable},
-    parameter_definition::ParameterDefinition,
+    absyn::TypeExpression, parameter_definition::ParameterDefinition,
     procedure_definition::ProcedureDefinition,
 };
 
-use super::{
-    environment::Environment, expression_evaluator::eval_var, statement_evaluator::eval_var_mut,
-};
+pub type ValueRef<'a> = Rc<RefCell<Value<'a>>>;
 
 #[derive(Clone, Debug)]
 pub enum Value<'a> {
     Int(i32),
     Bool(bool),
-    Array(Vec<Value<'a>>),
+    Array(Vec<ValueRef<'a>>),
     Function(ValueFunction<'a>),
-    Ref(ValueRef<'a>),
 }
 
 #[derive(Clone, Debug)]
@@ -43,9 +40,9 @@ pub struct BuiltInProc {
     implementation: Rc<BuiltInProcFn>,
     parameters: Vec<ParameterDefinition>,
 }
-type BuiltInProcFn = dyn Fn(&[Value]);
+type BuiltInProcFn = dyn Fn(&[ValueRef]);
 impl BuiltInProc {
-    pub fn call(&self, args: &[Value]) {
+    pub fn call(&self, args: &[ValueRef]) {
         (self.implementation)(args);
     }
 }
@@ -67,7 +64,7 @@ impl Debug for BuiltInProc {
 impl Value<'_> {
     pub fn new_builtin_proc<const N: usize>(
         params: &[(&str, bool); N],
-        f: impl Fn(&[Value]) + 'static,
+        f: impl Fn(&[ValueRef]) + 'static,
     ) -> Self {
         Value::Function(ValueFunction::BuiltIn(BuiltInProc {
             implementation: Rc::new(f),
@@ -81,12 +78,6 @@ impl Value<'_> {
                 .collect(),
         }))
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct ValueRef<'a> {
-    pub var: &'a Variable,
-    pub env: Rc<Environment<'a>>,
 }
 
 impl Add for Value<'_> {
@@ -192,31 +183,5 @@ impl Neg for Value<'_> {
         let Self::Int(i) = self else { unreachable!() };
 
         Self::Int(-i)
-    }
-}
-
-impl Value<'_> {
-    pub fn assign(&mut self, new_val: Self) {
-        match self {
-            Self::Ref(val_ref) => val_ref.assign(&new_val),
-            _ => *self = new_val,
-        }
-    }
-
-    pub fn read(self) -> Self {
-        match self {
-            Self::Ref(val_ref) => val_ref.read(),
-            _ => self,
-        }
-    }
-}
-
-impl<'a> ValueRef<'a> {
-    fn assign(&self, new_val: &Value<'a>) {
-        eval_var_mut(self.var, &self.env, &|var| var.assign(new_val.clone()));
-    }
-
-    fn read(&self) -> Value<'a> {
-        eval_var(self.var, self.env.clone())
     }
 }

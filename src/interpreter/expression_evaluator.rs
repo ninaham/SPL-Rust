@@ -9,23 +9,26 @@ use crate::{
     interpreter::{environment::Environment, value::Value},
 };
 
+use super::value::ValueRef;
+
 pub fn eval_expression<'a>(expression: &Expression, env: Rc<Environment<'a>>) -> Value<'a> {
     match expression {
         Expression::BinaryExpression(binary_expression) => eval_binary(binary_expression, env),
         Expression::UnaryExpression(unary_expression) => eval_unary(unary_expression, env),
         Expression::IntLiteral(i) => Value::Int(*i),
-        Expression::VariableExpression(variable) => eval_var(variable, env),
+        Expression::VariableExpression(variable) => eval_var(variable, &env).borrow().clone(),
     }
 }
 
-pub fn eval_var<'a>(variable: &Variable, env: Rc<Environment<'a>>) -> Value<'a> {
+pub fn eval_var<'a>(variable: &Variable, env: &Rc<Environment<'a>>) -> ValueRef<'a> {
     match variable {
         Variable::NamedVariable(v) => env.get(v).unwrap(),
         Variable::ArrayAccess(array_access) => {
             let Value::Int(index) = eval_expression(&array_access.index, env.clone()) else {
                 unreachable!()
             };
-            let Value::Array(array) = eval_var(&array_access.array, env).read() else {
+            let array = eval_var(&array_access.array, env);
+            let Value::Array(ref array) = *array.borrow() else {
                 unreachable!()
             };
 

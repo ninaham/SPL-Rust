@@ -18,6 +18,8 @@ use crate::{
     table::{entry::Entry, symbol_table::SymbolTable},
 };
 
+use super::value::ValueRef;
+
 pub fn eval_program(program: &Program) -> Environment {
     let env = Environment {
         parent: None,
@@ -26,12 +28,12 @@ pub fn eval_program(program: &Program) -> Environment {
 
     get_builtins()
         .iter()
-        .for_each(|b| env.insert(b.0, b.1.clone()));
+        .for_each(|b| env.insert_val(b.0, b.1.clone()));
 
     for def in &program.definitions {
         match def.as_ref() {
             Definition::ProcedureDefinition(procedure_definition) => {
-                env.insert(
+                env.insert_val(
                     &procedure_definition.name,
                     Value::Function(ValueFunction::Spl(procedure_definition)),
                 );
@@ -56,17 +58,17 @@ pub fn eval_local_var(var: &VariableDefinition, table: &SymbolTable, env: &Envir
     let Entry::VariableEntry(var_ent) = table.lookup(&var.name).unwrap() else {
         unreachable!()
     };
-    env.insert(&var.name, var_ent.typ.default_value());
+    env.insert_val(&var.name, var_ent.typ.default_value());
 }
 
 fn get_builtins<'a>() -> [(&'static str, Value<'a>); 2] {
     [
         (
             "printi",
-            Value::new_builtin_proc(&[("i", false)], |v: &[Value]| {
+            Value::new_builtin_proc(&[("i", false)], |v: &[ValueRef]| {
                 print!(
                     "{}",
-                    match v[0] {
+                    match *v[0].borrow() {
                         Value::Int(i) => i,
                         _ => unreachable!(),
                     }
@@ -75,8 +77,8 @@ fn get_builtins<'a>() -> [(&'static str, Value<'a>); 2] {
         ),
         (
             "printc",
-            Value::new_builtin_proc(&[("c", false)], |v: &[Value]| {
-                let c = match v[0] {
+            Value::new_builtin_proc(&[("c", false)], |v: &[ValueRef]| {
+                let c = match *v[0].borrow() {
                     Value::Int(i) => u8::try_from(i).unwrap_or_else(|_| {
                         panic!("Argument to printc() should be a valid ASCII value: {i}")
                     }) as char,
