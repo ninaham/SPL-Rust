@@ -10,7 +10,9 @@ use crate::absyn::{
     procedure_definition::ProcedureDefinition,
 };
 
-use super::{environment::Environment, statement_evaluator::eval_var_mut};
+use super::{
+    environment::Environment, expression_evaluator::eval_var, statement_evaluator::eval_var_mut,
+};
 
 #[derive(Clone)]
 pub enum Value<'a> {
@@ -169,10 +171,21 @@ impl Value<'_> {
             _ => *self = new_val,
         }
     }
+
+    pub fn read(self) -> Self {
+        match self {
+            Self::Ref(val_ref) => val_ref.read(),
+            _ => self,
+        }
+    }
 }
 
 impl<'a> ValueRef<'a> {
     fn assign(&self, new_val: &Value<'a>) {
         eval_var_mut(self.var, &self.env, &|var| var.assign(new_val.clone()));
+    }
+
+    fn read(&self) -> Value<'a> {
+        eval_var(self.var, self.env.clone())
     }
 }

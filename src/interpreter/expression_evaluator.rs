@@ -25,7 +25,7 @@ pub fn eval_var<'a>(variable: &Variable, env: Rc<Environment<'a>>) -> Value<'a> 
             let Value::Int(index) = eval_expression(&array_access.index, env.clone()) else {
                 unreachable!()
             };
-            let Value::Array(array) = eval_var(&array_access.array, env) else {
+            let Value::Array(array) = eval_var(&array_access.array, env).read() else {
                 unreachable!()
             };
 
