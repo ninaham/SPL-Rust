@@ -9,7 +9,7 @@ mod dot_graph;
 mod phaser;
 mod utils;
 
-type BlockId = usize;
+pub type BlockId = usize;
 
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -102,5 +102,9 @@ impl BlockGraph {
             edges: vec![],
             label_to_id: HashMap::new(),
         }
+    }
+
+    pub fn label_to_id(&self, label: &str) -> BlockId {
+        *self.label_to_id.get(label).unwrap()
     }
 }

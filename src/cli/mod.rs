@@ -7,9 +7,9 @@ use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{ArgGroup, Command, Id, arg};
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -216,6 +216,8 @@ impl BlockGraph {
                     println!("{}", ">>> Dead Code Elimination".green());
                     let lv = LiveVariables::run(self, &proc_def.local_table);
                     self.dead_code_elimination(&lv);
+                    self.dead_block_elimination();
+                    // TODO: Repeat if more code is now dead?
                 }
                 "gcp" => {
                     println!("{}", ">>> Constant Propagation:".green());

@@ -69,6 +69,7 @@ mod test {
 
             let live_variables = LiveVariables::run(&mut bg, local_table);
             bg.dead_code_elimination(&live_variables);
+            bg.dead_block_elimination();
             ConstantPropagation::run(&mut bg, local_table);
 
             bg.to_string();

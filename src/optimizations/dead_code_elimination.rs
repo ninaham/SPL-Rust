@@ -1,6 +1,8 @@
 use crate::{
     base_blocks::{BlockContent, BlockGraph},
-    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar},
+    code_gen::quadrupel::{
+        quad, quad_match, Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar,
+    },
     optimizations::live_variables::LiveVariables,
 };
 
@@ -32,6 +34,30 @@ impl BlockGraph {
                 }
 
                 code.retain(|quad| quad != &Quadrupel::EMPTY);
+            }
+        }
+    }
+
+    pub fn dead_block_elimination(&mut self) {
+        for (block_id, block) in self.blocks.iter().enumerate() {
+            if let BlockContent::Code(quads) = &block.content {
+                let quad_end = quads.last();
+                let mut next_blocks = Vec::new();
+
+                if let Some(quad_match!(=> QuadrupelResult::Label(label))) = quad_end {
+                    next_blocks.push(self.label_to_id(label));
+                } else {
+                    next_blocks.push(block_id + 1);
+
+                    if let Some(quad_match!(_, _, _ => QuadrupelResult::Label(label))) = quad_end {
+                        next_blocks.push(self.label_to_id(label));
+                    }
+                }
+
+                self.edges
+                    .get_mut(block_id)
+                    .unwrap()
+                    .retain(|id| next_blocks.contains(id));
             }
         }
     }

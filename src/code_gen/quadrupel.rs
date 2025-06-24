@@ -195,8 +195,9 @@ macro_rules! quad {
 pub(crate) use quad;
 
 macro_rules! quad_match {
-    (($($op:tt)+) $(($($ops:tt)+))*, $arg1:tt, $arg2:tt => $result:pat ) => {
+    (=> $label:pat) => {quad_match!((=>), _, _ => $label)};
 
+    (($($op:tt)+) $(($($ops:tt)+))*, $arg1:tt, $arg2:tt => $result:pat ) => {
         $crate::code_gen::quadrupel::Quadrupel {
             op: quad!(@op $($op)+) $(| quad!(@op $($ops)+))*,
             arg1: quad_match!(@arg $arg1),
