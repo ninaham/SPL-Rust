@@ -11,12 +11,12 @@ use crate::{
         variable_definition::VariableDefinition,
     },
     interpreter::{
-        environment::Environment, statement_evaluator::eval_call_statement, value::Value,
+        environment::Environment,
+        statement_evaluator::eval_call_statement,
+        value::{Value, ValueFunction},
     },
     table::{entry::Entry, symbol_table::SymbolTable},
 };
-
-use super::value::ValueFunction;
 
 pub fn eval_program(program: &Program) -> Environment {
     let env = Environment {
@@ -26,7 +26,7 @@ pub fn eval_program(program: &Program) -> Environment {
 
     get_builtins()
         .iter()
-        .for_each(|b| env.insert(b.0.as_str(), b.1.clone()));
+        .for_each(|b| env.insert(b.0, b.1.clone()));
 
     for def in &program.definitions {
         match def.as_ref() {
@@ -59,11 +59,11 @@ pub fn eval_local_var(var: &VariableDefinition, table: &SymbolTable, env: &Envir
     env.insert(&var.name, var_ent.typ.default_value());
 }
 
-fn get_builtins<'a>() -> Vec<(String, Value<'a>)> {
-    vec![
+fn get_builtins<'a>() -> [(&'static str, Value<'a>); 2] {
+    [
         (
-            "printi".to_string(),
-            Value::Function(ValueFunction::BuiltIn(Rc::new(|v: &[Value]| {
+            "printi",
+            Value::new_builtin_proc(&[("i", false)], |v: &[Value]| {
                 print!(
                     "{}",
                     match v[0] {
@@ -71,21 +71,19 @@ fn get_builtins<'a>() -> Vec<(String, Value<'a>)> {
                         _ => unreachable!(),
                     }
                 );
-            }))),
+            }),
         ),
         (
-            "printc".to_string(),
-            Value::Function(ValueFunction::BuiltIn(Rc::new(|v: &[Value]| {
-                print!(
-                    "{}",
-                    match v[0] {
-                        Value::Int(i) => u8::try_from(i).unwrap_or_else(|_| panic!(
-                            "Argument to printc() should be a valid ASCII value: {i}"
-                        )) as char,
-                        _ => unreachable!(),
-                    }
-                );
-            }))),
+            "printc",
+            Value::new_builtin_proc(&[("c", false)], |v: &[Value]| {
+                let c = match v[0] {
+                    Value::Int(i) => u8::try_from(i).unwrap_or_else(|_| {
+                        panic!("Argument to printc() should be a valid ASCII value: {i}")
+                    }) as char,
+                    _ => unreachable!(),
+                };
+                print!("{c}");
+            }),
         ),
     ]
 }

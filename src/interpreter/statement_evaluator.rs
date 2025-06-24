@@ -2,22 +2,25 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     absyn::{
-        absyn::{Statement, Variable},
+        absyn::{Expression, Statement, Variable},
         assign_statement::AssignStatement,
         call_statement::CallStatement,
         if_statement::IfStatement,
         while_statement::WhileStatement,
     },
     interpreter::{
-        definition_evaluator::eval_local_var, environment::Environment,
-        expression_evaluator::eval_array_index, expression_evaluator::eval_expression,
-        value::Value, value::ValueFunction,
+        definition_evaluator::eval_local_var,
+        environment::Environment,
+        expression_evaluator::{eval_array_index, eval_expression},
+        value::{Value, ValueFunction},
     },
     table::{entry::Entry, symbol_table::SymbolTable},
 };
 
+use super::value::ValueRef;
+
 pub fn eval_statement<'a, 'b: 'a>(
-    statement: &Statement,
+    statement: &'b Statement,
     table: &SymbolTable,
     env: Rc<Environment<'b>>,
 ) {
@@ -42,7 +45,7 @@ pub fn eval_statement<'a, 'b: 'a>(
 }
 
 pub fn eval_if_statement<'a, 'b: 'a>(
-    statement: &IfStatement,
+    statement: &'b IfStatement,
     table: &SymbolTable,
     env: Rc<Environment<'b>>,
 ) {
@@ -52,8 +55,8 @@ pub fn eval_if_statement<'a, 'b: 'a>(
         Value::Bool(b) => {
             if b {
                 eval_statement(&statement.then_branch, table, env);
-            } else if let Some(s) = statement.else_branch.clone() {
-                eval_statement(&s, table, env);
+            } else if let Some(ref s) = statement.else_branch {
+                eval_statement(s, table, env);
             }
         }
         _ => unreachable!(),
@@ -63,7 +66,7 @@ pub fn eval_if_statement<'a, 'b: 'a>(
 pub fn eval_assign_statement<'a, 'b: 'a>(statement: &AssignStatement, env: &Rc<Environment<'b>>) {
     let val = eval_expression(&statement.value, env.clone());
     eval_var_mut(&statement.target, env, &|var| {
-        *var = val.clone();
+        var.assign(val.clone());
     });
 }
 
@@ -92,7 +95,7 @@ pub fn eval_var_mut<'a>(
 }
 
 pub fn eval_while_statement<'a, 'b: 'a>(
-    statement: &WhileStatement,
+    statement: &'b WhileStatement,
     table: &SymbolTable,
     env: &Rc<Environment<'b>>,
 ) {
@@ -102,24 +105,37 @@ pub fn eval_while_statement<'a, 'b: 'a>(
 }
 
 pub fn eval_call_statement<'a, 'b: 'a>(
-    statement: &CallStatement,
+    statement: &'b CallStatement,
     table: &SymbolTable,
-    env: &Rc<Environment>,
+    env: &Rc<Environment<'a>>,
 ) {
+    let Value::Function(proc) = env.get(&statement.name).unwrap() else {
+        unreachable!()
+    };
+
     let args = statement
         .arguments
         .iter()
-        .map(|e| eval_expression(e, env.clone()))
+        .zip(proc.parameters())
+        .map(|(e, p)| {
+            if p.is_reference {
+                let Expression::VariableExpression(var) = e else {
+                    unreachable!()
+                };
+                Value::Ref(ValueRef {
+                    var: var.as_ref(),
+                    env: env.clone(),
+                })
+            } else {
+                eval_expression(e, env.clone())
+            }
+        })
         .collect::<Vec<_>>();
 
     let new_env = Rc::new(Environment {
         parent: Some(env.clone()),
         vars: RefCell::new(HashMap::new()),
     });
-
-    let Value::Function(proc) = env.get(&statement.name).unwrap() else {
-        unreachable!()
-    };
 
     match proc {
         ValueFunction::Spl(proc) => {
@@ -140,6 +156,6 @@ pub fn eval_call_statement<'a, 'b: 'a>(
                 eval_statement(s, &local_table, new_env.clone());
             }
         }
-        ValueFunction::BuiltIn(f) => f(&args),
+        ValueFunction::BuiltIn(f) => f.call(&args),
     }
 }

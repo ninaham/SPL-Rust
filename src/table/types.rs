@@ -19,7 +19,7 @@ pub enum PrimitiveType {
 }
 
 impl Type {
-    pub fn default_value(&self) -> Value<'static> {
+    pub fn default_value<'a>(&self) -> Value<'a> {
         match self {
             Self::ArrayType(array_type) => {
                 Value::Array(vec![array_type.base_type.default_value(); array_type.size])

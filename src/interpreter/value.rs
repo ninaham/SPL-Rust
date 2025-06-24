@@ -4,7 +4,13 @@ use std::{
     rc::Rc,
 };
 
-use crate::absyn::procedure_definition::ProcedureDefinition;
+use crate::absyn::{
+    absyn::{TypeExpression, Variable},
+    parameter_definition::ParameterDefinition,
+    procedure_definition::ProcedureDefinition,
+};
+
+use super::{environment::Environment, statement_evaluator::eval_var_mut};
 
 #[derive(Clone)]
 pub enum Value<'a> {
@@ -12,15 +18,59 @@ pub enum Value<'a> {
     Bool(bool),
     Array(Vec<Value<'a>>),
     Function(ValueFunction<'a>),
+    Ref(ValueRef<'a>),
 }
 
 #[derive(Clone)]
 pub enum ValueFunction<'a> {
     Spl(&'a ProcedureDefinition),
-    BuiltIn(BuiltInFn),
+    BuiltIn(BuiltInProc),
+}
+impl ValueFunction<'_> {
+    pub fn parameters(&self) -> Box<dyn Iterator<Item = &ParameterDefinition> + '_> {
+        match self {
+            ValueFunction::Spl(proc) => Box::new(proc.parameters.iter()),
+            ValueFunction::BuiltIn(proc) => Box::new(proc.parameters.iter()),
+        }
+    }
 }
 
-pub type BuiltInFn = Rc<dyn Fn(&[Value])>;
+#[derive(Clone)]
+pub struct BuiltInProc {
+    implementation: Rc<BuiltInProcFn>,
+    parameters: Vec<ParameterDefinition>,
+}
+type BuiltInProcFn = dyn Fn(&[Value]);
+impl BuiltInProc {
+    pub fn call(&self, args: &[Value]) {
+        (self.implementation)(args);
+    }
+}
+
+impl Value<'_> {
+    pub fn new_builtin_proc<const N: usize>(
+        params: &[(&str, bool); N],
+        f: impl Fn(&[Value]) + 'static,
+    ) -> Self {
+        Value::Function(ValueFunction::BuiltIn(BuiltInProc {
+            implementation: Rc::new(f),
+            parameters: params
+                .iter()
+                .map(|&(name, is_reference)| ParameterDefinition {
+                    name: name.to_owned(),
+                    type_expression: TypeExpression::NamedTypeExpression("int".to_owned()),
+                    is_reference,
+                })
+                .collect(),
+        }))
+    }
+}
+
+#[derive(Clone)]
+pub struct ValueRef<'a> {
+    pub var: &'a Variable,
+    pub env: Rc<Environment<'a>>,
+}
 
 impl Add for Value<'_> {
     type Output = Self;
@@ -109,5 +159,20 @@ impl Neg for Value<'_> {
         let Self::Int(i) = self else { unreachable!() };
 
         Self::Int(-i)
+    }
+}
+
+impl Value<'_> {
+    pub fn assign(&mut self, new_val: Self) {
+        match self {
+            Self::Ref(val_ref) => val_ref.assign(&new_val),
+            _ => *self = new_val,
+        }
+    }
+}
+
+impl<'a> ValueRef<'a> {
+    fn assign(&self, new_val: &Value<'a>) {
+        eval_var_mut(self.var, &self.env, &|var| var.assign(new_val.clone()));
     }
 }
