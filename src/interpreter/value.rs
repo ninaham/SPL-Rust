@@ -1,5 +1,6 @@
 use std::{
     cmp::Ordering,
+    fmt::Debug,
     ops::{Add, Div, Mul, Neg, Sub},
     rc::Rc,
 };
@@ -14,7 +15,7 @@ use super::{
     environment::Environment, expression_evaluator::eval_var, statement_evaluator::eval_var_mut,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Value<'a> {
     Int(i32),
     Bool(bool),
@@ -23,7 +24,7 @@ pub enum Value<'a> {
     Ref(ValueRef<'a>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ValueFunction<'a> {
     Spl(&'a ProcedureDefinition),
     BuiltIn(BuiltInProc),
@@ -48,6 +49,20 @@ impl BuiltInProc {
         (self.implementation)(args);
     }
 }
+impl Debug for BuiltInProc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuiltInProc")
+            .field("parameters", &self.parameters)
+            .field(
+                "implementation",
+                &format_args!(
+                    "Rc<BuiltInProcFn({:?})>",
+                    std::ptr::from_ref(self.implementation.as_ref())
+                ),
+            )
+            .finish()
+    }
+}
 
 impl Value<'_> {
     pub fn new_builtin_proc<const N: usize>(
@@ -68,7 +83,7 @@ impl Value<'_> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ValueRef<'a> {
     pub var: &'a Variable,
     pub env: Rc<Environment<'a>>,
@@ -78,8 +93,12 @@ impl Add for Value<'_> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let Self::Int(i) = self else { unreachable!() };
-        let Self::Int(j) = rhs else { unreachable!() };
+        let Self::Int(i) = self else {
+            unreachable!("{self:?} is not Int");
+        };
+        let Self::Int(j) = rhs else {
+            unreachable!("{rhs:?} is not Int");
+        };
 
         Self::Int(i + j)
     }
@@ -89,8 +108,12 @@ impl Sub for Value<'_> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let Self::Int(i) = self else { unreachable!() };
-        let Self::Int(j) = rhs else { unreachable!() };
+        let Self::Int(i) = self else {
+            unreachable!("{self:?} is not Int");
+        };
+        let Self::Int(j) = rhs else {
+            unreachable!("{rhs:?} is not Int");
+        };
 
         Self::Int(i - j)
     }
@@ -100,8 +123,12 @@ impl Mul for Value<'_> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let Self::Int(i) = self else { unreachable!() };
-        let Self::Int(j) = rhs else { unreachable!() };
+        let Self::Int(i) = self else {
+            unreachable!("{self:?} is not Int");
+        };
+        let Self::Int(j) = rhs else {
+            unreachable!("{rhs:?} is not Int")
+        };
 
         Self::Int(i * j)
     }
@@ -111,8 +138,12 @@ impl Div for Value<'_> {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        let Self::Int(i) = self else { unreachable!() };
-        let Self::Int(j) = rhs else { unreachable!() };
+        let Self::Int(i) = self else {
+            unreachable!("{self:?} is not Int");
+        };
+        let Self::Int(j) = rhs else {
+            unreachable!("{rhs:?} is not Int");
+        };
 
         Self::Int(i / j)
     }

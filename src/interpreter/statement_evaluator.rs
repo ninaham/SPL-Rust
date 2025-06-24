@@ -86,7 +86,9 @@ pub fn eval_var_mut<'a>(
                 unreachable!()
             };
             eval_var_mut(&array_access.array, env, &move |a| {
-                let Value::Array(a) = a else { unreachable!() };
+                let Value::Array(a) = a else {
+                    unreachable!("not an Array {a:?}");
+                };
                 let index = eval_array_index(index, a.len());
                 f(&mut a[index]);
             });
@@ -109,8 +111,8 @@ pub fn eval_call_statement<'a, 'b: 'a>(
     table: &SymbolTable,
     env: &Rc<Environment<'a>>,
 ) {
-    let Value::Function(proc) = env.get(&statement.name).unwrap() else {
-        unreachable!()
+    let Some(Value::Function(proc)) = env.get(&statement.name) else {
+        unimplemented!("Function `{}()` not found!", statement.name);
     };
 
     let args = statement

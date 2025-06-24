@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::interpreter::value::Value;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Environment<'a> {
     pub parent: Option<Rc<Environment<'a>>>,
     pub vars: RefCell<HashMap<String, Value<'a>>>,
