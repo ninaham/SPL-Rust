@@ -55,7 +55,6 @@ pub trait Worklist {
     {
         graph.run_worklist(local_table)
     }
-
     fn init_in_out(graph: &mut BlockGraph, info_all: &[Self::D]) -> Vec<Self::Lattice> {
         vec![Self::Lattice::init(info_all.len()); graph.blocks.len()]
     }
