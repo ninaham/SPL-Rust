@@ -62,6 +62,10 @@ impl Debug for BuiltInProc {
 }
 
 impl Value<'_> {
+    pub fn new_refcell(value: Value) -> ValueRef {
+        Rc::new(RefCell::new(value))
+    }
+
     pub fn new_builtin_proc<const N: usize>(
         params: &[(&str, bool); N],
         f: impl Fn(&[ValueRef]) + 'static,

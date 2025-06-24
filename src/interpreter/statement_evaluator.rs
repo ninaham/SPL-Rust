@@ -12,7 +12,7 @@ use crate::{
         definition_evaluator::eval_local_var,
         environment::Environment,
         expression_evaluator::{eval_expression, eval_var},
-        value::{Value, ValueFunction, ValueRef},
+        value::{Value, ValueFunction},
     },
     table::{entry::Entry, symbol_table::SymbolTable},
 };
@@ -96,7 +96,7 @@ pub fn eval_call_statement<'a, 'b: 'a>(
                 };
                 eval_var(var, env)
             } else {
-                ValueRef::new(RefCell::new(eval_expression(e, env.clone())))
+                Value::new_refcell(eval_expression(e, env.clone()))
             }
         })
         .collect::<Vec<_>>();

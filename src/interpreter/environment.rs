@@ -23,6 +23,6 @@ impl<'a> Environment<'a> {
     }
 
     pub fn insert_val(&self, key: &str, value: Value<'a>) {
-        self.insert_ref(key, ValueRef::new(RefCell::new(value)));
+        self.insert_ref(key, Value::new_refcell(value));
     }
 }
