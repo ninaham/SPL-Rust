@@ -24,6 +24,8 @@ mod test {
     fn test_all_files(
         #[files("spl-testfiles/runtime_tests/*.spl")]
         #[exclude("reftest.spl")]
+        #[exclude("test8.spl")]
+        #[exclude("test9.spl")]
         path: PathBuf,
     ) -> anyhow::Result<()> {
         test_file(&path)
@@ -45,5 +47,17 @@ mod test {
         start_main(&absyn, &t);
 
         Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds for array length 3: -1")]
+    fn test_runtime_err_8() {
+        test_file(Path::new("spl-testfiles/runtime_tests/test8.spl")).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds for array length 3: 3")]
+    fn test_runtime_err_9() {
+        test_file(Path::new("spl-testfiles/runtime_tests/test9.spl")).unwrap();
     }
 }
