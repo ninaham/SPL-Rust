@@ -5,7 +5,7 @@ use bitvec::vec::BitVec;
 
 use crate::base_blocks::{Block, BlockContent, BlockGraph};
 use crate::cli::FmtTable;
-use crate::code_gen::quadrupel::{quad, quad_match, Quadrupel, QuadrupelResult, QuadrupelVar};
+use crate::code_gen::quadrupel::{Quadrupel, QuadrupelResult, QuadrupelVar, quad, quad_match};
 use crate::table::entry::Entry;
 use crate::table::symbol_table::SymbolTable;
 
@@ -47,7 +47,7 @@ pub trait Worklist {
     fn meet_override(lhs: &Self::Lattice, rhs: &Self::Lattice) -> Self::Lattice {
         lhs.meet(rhs)
     }
-    fn state(&mut self) -> State<Self>;
+    fn state(&mut self) -> State<'_, Self>;
 
     fn run(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self
     where
@@ -55,7 +55,6 @@ pub trait Worklist {
     {
         graph.run_worklist(local_table)
     }
-
     fn init_in_out(graph: &mut BlockGraph, info_all: &[Self::D]) -> Vec<Self::Lattice> {
         vec![Self::Lattice::init(info_all.len()); graph.blocks.len()]
     }
