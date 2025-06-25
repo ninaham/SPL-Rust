@@ -63,7 +63,8 @@ pub fn eval_if_statement<'a, 'b: 'a>(
 
 pub fn eval_assign_statement<'a, 'b: 'a>(statement: &AssignStatement, env: &Rc<Environment<'b>>) {
     let val = eval_expression(&statement.value, env.clone());
-    *eval_var(&statement.target, env).borrow_mut() = val;
+    let x = eval_var(&statement.target, env);
+    *x.borrow_mut() = val;
 }
 
 pub fn eval_while_statement<'a, 'b: 'a>(
