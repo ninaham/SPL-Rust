@@ -92,6 +92,7 @@ impl BlockGraph {
         self.edges[start].insert(end);
     }
 
+    #[expect(clippy::missing_const_for_fn)]
     pub fn edges(&self) -> &[HashSet<usize>] {
         &self.edges
     }

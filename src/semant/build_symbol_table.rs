@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{table_initializer, SemanticError};
+use super::{SemanticError, table_initializer};
 
 pub fn build_symbol_table(program: &Program) -> Result<Rc<RefCell<SymbolTable>>, SemanticError> {
     let global_table = SymbolTable {
@@ -142,7 +142,6 @@ pub fn enter_var_def(
 ) -> Result<(), SemanticError> {
     let entry = VariableEntry {
         typ: type_expression_to_type(&def.type_expression, table)?,
-        is_reference: false,
     };
 
     table.enter(def.name.clone(), Entry::VariableEntry(entry))?;
@@ -156,7 +155,6 @@ pub fn enter_param_def(
 ) -> Result<(), SemanticError> {
     let entry = VariableEntry {
         typ: type_expression_to_type(&def.type_expression, table)?,
-        is_reference: def.is_reference,
     };
 
     table.enter(def.name.clone(), Entry::VariableEntry(entry))?;
