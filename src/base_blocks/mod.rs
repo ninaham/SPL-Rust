@@ -103,4 +103,8 @@ impl BlockGraph {
     fn new() -> Self {
         Self::default()
     }
+
+    pub fn label_to_id(&self, label: &str) -> BlockId {
+        *self.label_to_id.get(label).unwrap()
+    }
 }
