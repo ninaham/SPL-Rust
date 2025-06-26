@@ -6,23 +6,49 @@ use crate::{
         quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
     },
     interpreter::{environment::Environment, value::Value},
+    table::entry::Entry,
 };
 
 pub fn eval_tac(tac: &Tac) {
-    eval_function(tac, &"main".to_string(), &mut Vec::new());
+    eval_function(tac, &"main".to_string(), &mut Vec::new(), None);
 }
 
-pub fn eval_function(tac: &Tac, fun: &String, args: &mut Vec<Value>) {
+pub fn eval_function<'a>(
+    tac: &Tac,
+    fun: &String,
+    args: &mut Vec<Value<'a>>,
+    parent_env: Option<Rc<Environment<'a>>>,
+) {
     let instructions = find_function(tac, fun);
     let labels = label_indices(&instructions);
     let mut next_instruction = 0;
-    let env = Environment {
-        parent: None,
+    let env = Rc::new(Environment {
+        parent: parent_env,
         vars: RefCell::new(HashMap::new()),
+    });
+
+    let params = match tac
+        .symboltable
+        .borrow()
+        .lookup(fun)
+        .expect("function not found")
+    {
+        Entry::ProcedureEntry(proc_entry) => proc_entry.parameters,
+        _ => unreachable!(),
     };
 
+    for (i, arg) in args.iter().enumerate() {
+        env.insert_val(&params[i].name, arg.clone());
+    }
+
     while next_instruction < instructions.len() {
-        match eval_quad(tac, args, &instructions[next_instruction], &env, &labels) {
+        match eval_quad(
+            tac,
+            args,
+            &instructions[next_instruction],
+            env.clone(),
+            &labels,
+        ) {
             Some(i) => next_instruction = i,
             None => next_instruction += 1,
         }
@@ -56,47 +82,47 @@ pub fn eval_quad<'a>(
     tac: &Tac,
     args: &mut Vec<Value<'a>>,
     quad: &Quadrupel,
-    env: &Environment<'a>,
+    env: Rc<Environment<'a>>,
     labels: &HashMap<String, usize>,
 ) -> Option<usize> {
     match quad.op {
         QuadrupelOp::Add => {
-            let i = parse_arg(&quad.arg1, env);
-            let j = parse_arg(&quad.arg2, env);
+            let i = parse_arg(&quad.arg1, env.clone());
+            let j = parse_arg(&quad.arg2, env.clone());
             let res = parse_result(&quad.result);
             env.insert_val(&res, i + j);
             None
         }
         QuadrupelOp::Sub => {
-            let i = parse_arg(&quad.arg1, env);
-            let j = parse_arg(&quad.arg2, env);
+            let i = parse_arg(&quad.arg1, env.clone());
+            let j = parse_arg(&quad.arg2, env.clone());
             let res = parse_result(&quad.result);
             env.insert_val(&res, i - j);
             None
         }
         QuadrupelOp::Mul => {
-            let i = parse_arg(&quad.arg1, env);
-            let j = parse_arg(&quad.arg2, env);
+            let i = parse_arg(&quad.arg1, env.clone());
+            let j = parse_arg(&quad.arg2, env.clone());
             let res = parse_result(&quad.result);
             env.insert_val(&res, i * j);
             None
         }
         QuadrupelOp::Div => {
-            let i = parse_arg(&quad.arg1, env);
-            let j = parse_arg(&quad.arg2, env);
+            let i = parse_arg(&quad.arg1, env.clone());
+            let j = parse_arg(&quad.arg2, env.clone());
             let res = parse_result(&quad.result);
             env.insert_val(&res, i / j);
             None
         }
         QuadrupelOp::Neg => {
-            let i = parse_arg(&quad.arg1, env);
+            let i = parse_arg(&quad.arg1, env.clone());
             let res = parse_result(&quad.result);
             env.insert_val(&res, -i);
             None
         }
         QuadrupelOp::Equ => {
-            let i = parse_arg(&quad.arg1, env);
-            let j = parse_arg(&quad.arg2, env);
+            let i = parse_arg(&quad.arg1, env.clone());
+            let j = parse_arg(&quad.arg2, env.clone());
             let label = parse_result(&quad.result);
 
             if i == j {
@@ -106,7 +132,7 @@ pub fn eval_quad<'a>(
             }
         }
         QuadrupelOp::Neq => {
-            let i = parse_arg(&quad.arg1, env);
+            let i = parse_arg(&quad.arg1, env.clone());
             let j = parse_arg(&quad.arg2, env);
             let label = parse_result(&quad.result);
 
@@ -117,7 +143,7 @@ pub fn eval_quad<'a>(
             }
         }
         QuadrupelOp::Lst => {
-            let i = parse_arg(&quad.arg1, env);
+            let i = parse_arg(&quad.arg1, env.clone());
             let j = parse_arg(&quad.arg2, env);
             let label = parse_result(&quad.result);
 
@@ -128,7 +154,7 @@ pub fn eval_quad<'a>(
             }
         }
         QuadrupelOp::Lse => {
-            let i = parse_arg(&quad.arg1, env);
+            let i = parse_arg(&quad.arg1, env.clone());
             let j = parse_arg(&quad.arg2, env);
             let label = parse_result(&quad.result);
 
@@ -139,7 +165,7 @@ pub fn eval_quad<'a>(
             }
         }
         QuadrupelOp::Grt => {
-            let i = parse_arg(&quad.arg1, env);
+            let i = parse_arg(&quad.arg1, env.clone());
             let j = parse_arg(&quad.arg2, env);
             let label = parse_result(&quad.result);
 
@@ -150,7 +176,7 @@ pub fn eval_quad<'a>(
             }
         }
         QuadrupelOp::Gre => {
-            let i = parse_arg(&quad.arg1, env);
+            let i = parse_arg(&quad.arg1, env.clone());
             let j = parse_arg(&quad.arg2, env);
             let label = parse_result(&quad.result);
 
@@ -161,18 +187,19 @@ pub fn eval_quad<'a>(
             }
         }
         QuadrupelOp::Assign => {
-            let val = parse_arg(&quad.arg1, env);
+            let val = parse_arg(&quad.arg1, env.clone());
             let target = parse_result(&quad.result);
 
             env.insert_val(&target, val);
             None
         }
         QuadrupelOp::ArrayLoad => {
-            let arr = parse_arg(&quad.arg1, env);
-            let index = match parse_arg(&quad.arg2, env) / Value::Int(get_array_item_size(&arr)) {
-                Value::Int(i) => i,
-                _ => unreachable!(),
-            };
+            let arr = parse_arg(&quad.arg1, env.clone());
+            let index =
+                match parse_arg(&quad.arg2, env.clone()) / Value::Int(get_array_item_size(&arr)) {
+                    Value::Int(i) => i,
+                    _ => unreachable!(),
+                };
             let res = parse_result(&quad.result);
 
             env.insert_val(
@@ -187,8 +214,8 @@ pub fn eval_quad<'a>(
             None
         }
         QuadrupelOp::ArrayStore => {
-            let value = parse_arg(&quad.arg1, env);
-            let index = match parse_arg(&quad.arg2, env) {
+            let value = parse_arg(&quad.arg1, env.clone());
+            let index = match parse_arg(&quad.arg2, env.clone()) {
                 Value::Int(i) => i,
                 _ => unreachable!(),
             };
@@ -216,14 +243,14 @@ pub fn eval_quad<'a>(
         }
         QuadrupelOp::Call => {
             let fun = parse_fun(&quad.arg1);
-            eval_function(tac, &fun, args);
+            eval_function(tac, &fun, args, Some(env));
             None
         }
         QuadrupelOp::Default => None,
     }
 }
 
-pub fn parse_arg<'a>(arg: &QuadrupelArg, env: &Environment<'a>) -> Value<'a> {
+pub fn parse_arg<'a>(arg: &QuadrupelArg, env: Rc<Environment<'a>>) -> Value<'a> {
     match arg.clone() {
         QuadrupelArg::Var(quadrupel_var) => match quadrupel_var {
             QuadrupelVar::Spl(name) => env.get(&name).expect("arg1 not found").borrow().clone(),

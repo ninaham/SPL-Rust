@@ -14,7 +14,7 @@ mod utils;
 #[derive(Clone)]
 pub struct Tac {
     pub quadrupels: Vec<Quadrupel>,
-    symboltable: Rc<RefCell<SymbolTable>>,
+    pub symboltable: Rc<RefCell<SymbolTable>>,
     label_num: i64,
     pub proc_table: HashMap<String, Vec<Quadrupel>>,
     temp_var_count: usize,

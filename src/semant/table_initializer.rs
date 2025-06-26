@@ -8,114 +8,134 @@ use crate::table::{
 
 const TYPES: [&str; 1] = ["int"];
 
-const PROCEDURES: [(&str, &[Parameter]); 10] = [
-    (
-        "printi",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: false,
-        }],
-    ),
-    (
-        "printc",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: false,
-        }],
-    ),
-    (
-        "readi",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: true,
-        }],
-    ),
-    (
-        "readc",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: true,
-        }],
-    ),
-    ("exit", &[]),
-    (
-        "time",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: true,
-        }],
-    ),
-    (
-        "clearAll",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: false,
-        }],
-    ),
-    (
-        "setPixel",
-        &[
-            Parameter {
+fn preocedures<'a>() -> Vec<(&'a str, Vec<Parameter>)> {
+    vec![
+        (
+            "printi",
+            vec![Parameter {
+                name: "".to_string(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
-            },
-            Parameter {
+            }],
+        ),
+        (
+            "printc",
+            vec![Parameter {
+                name: "".to_string(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
-            },
-            Parameter {
+            }],
+        ),
+        (
+            "readi",
+            vec![Parameter {
+                name: "".to_string(),
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: true,
+            }],
+        ),
+        (
+            "readc",
+            vec![Parameter {
+                name: "".to_string(),
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: true,
+            }],
+        ),
+        ("exit", vec![]),
+        (
+            "time",
+            vec![Parameter {
+                name: "".to_string(),
+                typ: Type::PrimitiveType(PrimitiveType::Int),
+                is_reference: true,
+            }],
+        ),
+        (
+            "clearAll",
+            vec![Parameter {
+                name: "".to_string(),
                 typ: Type::PrimitiveType(PrimitiveType::Int),
                 is_reference: false,
-            },
-        ],
-    ),
-    (
-        "drawLine",
-        &[
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-        ],
-    ),
-    (
-        "drawCircle",
-        &[
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-        ],
-    ),
-];
+            }],
+        ),
+        (
+            "setPixel",
+            vec![
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+            ],
+        ),
+        (
+            "drawLine",
+            vec![
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+            ],
+        ),
+        (
+            "drawCircle",
+            vec![
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+                Parameter {
+                    name: "".to_string(),
+                    typ: Type::PrimitiveType(PrimitiveType::Int),
+                    is_reference: false,
+                },
+            ],
+        ),
+    ]
+}
 
 pub fn init_symbol_table(s_t: &Rc<RefCell<SymbolTable>>) {
     let mut symbol_table = s_t.borrow_mut();
@@ -131,7 +151,7 @@ pub fn init_symbol_table(s_t: &Rc<RefCell<SymbolTable>>) {
             .unwrap();
     }
 
-    for (name, params) in PROCEDURES {
+    for (name, params) in preocedures() {
         symbol_table
             .enter(
                 name.to_string(),
@@ -140,7 +160,7 @@ pub fn init_symbol_table(s_t: &Rc<RefCell<SymbolTable>>) {
                         entries: HashMap::new(),
                         upper_level: Some(Rc::downgrade(s_t)),
                     },
-                    parameters: params.into(),
+                    parameters: params,
                 }),
             )
             .unwrap();
