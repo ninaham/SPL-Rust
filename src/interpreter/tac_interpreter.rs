@@ -1,4 +1,3 @@
-#![expect(dead_code)]
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{

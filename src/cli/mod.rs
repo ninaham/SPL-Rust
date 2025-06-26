@@ -13,6 +13,7 @@ use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::interpreter::definition_evaluator::start_main;
+use crate::interpreter::tac_interpreter::eval_tac;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
@@ -36,6 +37,7 @@ pub fn load_program_data() -> Command {
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(interpret: -i --interpret "SPL Interpreter"),
+            arg!(interprettac: -i3 --interprettac "TAC Interpreter"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
             arg!(optis: -O --optis <optis> "Optimizations to apply: [cse, rch, lv, dead, gcp, scc]")
@@ -47,7 +49,7 @@ pub fn load_program_data() -> Command {
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "interpret", "tac", "dot"]),
+                .args(["parse", "tables", "semant", "interpret", "interprettac", "tac", "dot"]),
         )
 }
 
@@ -93,6 +95,11 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
     if phase == "tac" {
         eprintln!("{address_code}");
+        return Ok(());
+    }
+
+    if phase == "interprettac" {
+        eval_tac(&address_code);
         return Ok(());
     }
 
