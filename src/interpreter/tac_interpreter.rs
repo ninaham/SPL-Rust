@@ -38,7 +38,12 @@ pub fn eval_function<'a>(
     };
 
     for (i, arg) in args.iter().enumerate() {
-        env.insert_val(&params[i].name, arg.clone());
+        if params[i].is_reference {
+            // TODO: Referenzparameter
+            //env.insert_ref(&params[i].name, value);
+        } else {
+            env.insert_val(&params[i].name, arg.clone());
+        }
     }
 
     while next_instruction < instructions.len() {
