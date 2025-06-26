@@ -3,13 +3,15 @@ use std::fmt::{self, Display, Write as _};
 use std::io::{IsTerminal, Write as _};
 use std::path::Path;
 use std::process::Stdio;
+use std::rc::Rc;
+use std::sync::Mutex;
 use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{arg, ArgGroup, Command, Id};
+use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::interpreter::definition_evaluator::start_main;
 use crate::{
@@ -37,7 +39,7 @@ pub fn load_program_data() -> Command {
             arg!(interpret: -i --interpret "SPL Interpreter"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
-            arg!(optis: -O --optis <optis> "Optimizations to apply: [cse,rch,lv,dead,gcp]")
+            arg!(optis: -O --optis <optis> "Optimizations to apply: [cse, rch, lv, dead, gcp, scc]")
                 .num_args(1..)
                 .value_delimiter(','),
             arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
@@ -50,7 +52,6 @@ pub fn load_program_data() -> Command {
         )
 }
 
-#[expect(clippy::too_many_lines)]
 pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     let file = matches.get_one::<String>("file").unwrap();
     let input = std::fs::read_to_string(file)?.leak();
@@ -62,14 +63,14 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
 
     if phase == "parse" {
-        println!("{absyn:#?}");
+        eprintln!("{absyn:#?}");
         return Ok(());
     }
 
     let table = build_symbol_table(&absyn)?;
 
     if phase == "tables" {
-        println!("{table:#?}");
+        eprintln!("{table:#?}");
         return Ok(());
     }
 
@@ -92,7 +93,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     address_code.code_generation(&absyn);
 
     if phase == "tac" {
-        println!("{address_code}");
+        eprintln!("{address_code}");
         return Ok(());
     }
 
@@ -120,11 +121,115 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
 
     if let Some(optis) = matches.get_many::<String>("optis") {
-        graph.run_optimizations(optis, &table, &proc_def)?;
+        graph.run_optimizations(optis, &table, &proc_def, proc_name, matches, &theme)?;
     }
 
     if phase == "dot" {
-        let mut filename = format!("{}.dot", graphs[sel_proc]);
+        graph.show_dot(proc_name, matches, &theme)?;
+    }
+
+    unreachable!()
+}
+
+impl BlockGraph {
+    fn run_optimizations<'a>(
+        &mut self,
+        optis: impl Iterator<Item = &'a String>,
+        symbol_table: &Rc<RefCell<SymbolTable>>,
+        proc_def: &ProcedureEntry,
+        proc_name: &str,
+        matches: &clap::ArgMatches,
+        theme: &impl dialoguer::theme::Theme,
+    ) -> anyhow::Result<()> {
+        for opti in optis {
+            match opti.as_str() {
+                "dot" => {
+                    println!("{}", ">>> Showing Dot Graph...".green());
+                    self.show_dot(proc_name, matches, theme)?;
+                }
+                "cse" => {
+                    eprintln!("{}", ">>> Common Subexpression Elimination".green());
+                    self.common_subexpression_elimination(&symbol_table.borrow());
+                }
+                "rch" => {
+                    eprintln!("{}", ">>> Reaching Definitions:".green());
+                    let rch = ReachingDefinitions::run(self, &proc_def.local_table);
+                    show_worklist_table(
+                        ("Definitions", &rch.defs),
+                        (1, 1),
+                        ("GEN", &rch.gen_bits),
+                        ("PRSV", &rch.prsv),
+                        ("RCHin", &rch.rchin),
+                        ("RCHout", &rch.rchout),
+                        fmt_bitvec,
+                    )?;
+                }
+                "lv" => {
+                    eprintln!("{}", ">>> Live Variables:".green());
+                    let lv = LiveVariables::run(self, &proc_def.local_table);
+                    show_worklist_table(
+                        ("Variables", &lv.vars),
+                        (1, 1),
+                        ("DEF", &lv.def),
+                        ("USE", &lv.use_bits),
+                        ("LIVin", &lv.livin),
+                        ("LIVout", &lv.livout),
+                        fmt_bitvec,
+                    )?;
+                }
+                "dead" => {
+                    eprintln!("{}", ">>> Dead Code Elimination".green());
+                    let lv = LiveVariables::run(self, &proc_def.local_table);
+                    self.dead_code_elimination(&lv);
+                }
+                "gcp" => {
+                    eprintln!("{}", ">>> Constant Propagation:".green());
+                    let gcp = ConstantPropagation::run(self, &proc_def.local_table);
+                    show_worklist_table(
+                        ("Variables", &gcp.vars),
+                        (5, 14),
+                        ("GEN", &gcp.gens),
+                        ("PRSV", &gcp.prsv),
+                        ("IN", &gcp.r#in),
+                        ("OUT", &gcp.out),
+                        |v| format!("{v:?}"),
+                    )?;
+                }
+                "cf" => {
+                    println!("{}", ">>> Constant Folding (×1)".green());
+                    let mut gcp = ConstantPropagation::run(self, &proc_def.local_table);
+                    _ = self.constant_folding(&mut gcp, &symbol_table.borrow());
+                }
+                "cf+" => {
+                    println!("{}", ">>> Constant Folding (until stable)".green());
+                    let mut gcp = ConstantPropagation::run(self, &proc_def.local_table);
+                    let mut iterations = 0;
+                    while { self.constant_folding(&mut gcp, &symbol_table.borrow()) }.is_continue()
+                    {
+                        iterations += 1;
+                    }
+                    println!("    iterations: {iterations}");
+                }
+                "scc" => {
+                    eprintln!("{}", ">>> Strongly Connected Components:".green());
+                    let scc = self.tarjan();
+                    eprintln!("{scc:#?}");
+                }
+                _ => panic!("Unknown optimization: {opti}"),
+            }
+            eprintln!();
+        }
+
+        Ok(())
+    }
+
+    fn show_dot(
+        &self,
+        proc_name: &str,
+        matches: &clap::ArgMatches,
+        theme: &impl dialoguer::theme::Theme,
+    ) -> Result<(), anyhow::Error> {
+        let mut filename = format!("{}.dot", proc_name);
         let outputname = format!("as file: {filename}");
         let outputs = ["print", &outputname, "dot Tx11", "xdot"];
 
@@ -144,7 +249,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
             .map_or_else(
                 || {
                     if std::io::stdout().is_terminal() {
-                        Select::with_theme(&theme)
+                        Select::with_theme(theme)
                             .with_prompt("Which output mode?")
                             .items(&outputs)
                             .default(0)
@@ -158,89 +263,21 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
         match output {
             0 => {
-                println!("{graph}");
+                println!("{self}");
             }
             1 => {
                 let mut file = File::create(filename)?;
-                writeln!(file, "{graph}")?;
+                writeln!(file, "{self}")?;
             }
             2 => {
-                ShowDot::DotTx11.show(&graph)?;
+                ShowDot::DotTx11.show(self)?;
             }
             3 => {
-                ShowDot::XDot.show(&graph)?;
+                ShowDot::XDot.show(self)?;
             }
             _ => {
                 bail!("No valid output given");
             }
-        }
-
-        return Ok(());
-    }
-
-    unreachable!()
-}
-
-impl BlockGraph {
-    fn run_optimizations<'a>(
-        &mut self,
-        optis: impl Iterator<Item = &'a String>,
-        symbol_table: &RefCell<SymbolTable>,
-        proc_def: &ProcedureEntry,
-    ) -> anyhow::Result<()> {
-        for opti in optis {
-            match opti.as_str() {
-                "cse" => {
-                    println!("{}", ">>> Common Subexpression Elimination".green());
-                    self.common_subexpression_elimination(&symbol_table.borrow());
-                }
-                "rch" => {
-                    println!("{}", ">>> Reaching Definitions:".green());
-                    let rch = ReachingDefinitions::run(self, &proc_def.local_table);
-                    show_worklist_table(
-                        ("Definitions", &rch.defs),
-                        (1, 1),
-                        ("GEN", &rch.gen_bits),
-                        ("PRSV", &rch.prsv),
-                        ("RCHin", &rch.rchin),
-                        ("RCHout", &rch.rchout),
-                        fmt_bitvec,
-                    )?;
-                }
-                "lv" => {
-                    println!("{}", ">>> Live Variables:".green());
-                    let lv = LiveVariables::run(self, &proc_def.local_table);
-                    show_worklist_table(
-                        ("Variables", &lv.vars),
-                        (1, 1),
-                        ("DEF", &lv.def),
-                        ("USE", &lv.use_bits),
-                        ("LIVin", &lv.livin),
-                        ("LIVout", &lv.livout),
-                        fmt_bitvec,
-                    )?;
-                }
-                "dead" => {
-                    println!("{}", ">>> Dead Code Elimination".green());
-                    let lv = LiveVariables::run(self, &proc_def.local_table);
-                    self.dead_code_elimination(&lv);
-                }
-                "gcp" => {
-                    println!("{}", ">>> Constant Propagation:".green());
-                    let gcp = ConstantPropagation::run(self, &proc_def.local_table);
-                    show_worklist_table(
-                        ("Variables", &gcp.vars),
-                        (5, 14),
-                        ("GEN", &gcp.gens),
-                        ("PRSV", &gcp.prsv),
-                        ("IN", &gcp.r#in),
-                        ("OUT", &gcp.out),
-                        |v| format!("{v:?}"),
-                    )?;
-                }
-                _ => panic!("Unknown optimization: {opti}"),
-            }
-            println!();
         }
 
         Ok(())
@@ -256,19 +293,19 @@ fn show_worklist_table<L: Lattice, D: FmtTable>(
     (ol, ov): (&str, &[L]),
     f: impl Fn(&L) -> String,
 ) -> fmt::Result {
-    println!("{defs_name}:");
-    println!("{}", D::fmt_table(defs)?);
-    println!();
+    eprintln!("{defs_name}:");
+    eprintln!("{}", D::fmt_table(defs)?);
+    eprintln!();
 
     let label_len = [al, bl, il, ol].iter().map(|s| s.len()).max().unwrap();
     let col_width = (defs.len() * col_width_factor).max(label_len);
-    println!(
+    eprintln!(
         "{:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
         "Block", al, bl, il, ol,
     );
     let col_width = (defs.len() * col_width_factor_colored).max(label_len);
     for (n, (((a, b), i), o)) in av.iter().zip(bv).zip(iv).zip(ov).enumerate() {
-        println!(
+        eprintln!(
             "{n:>5} {:<col_width$} {:<col_width$} {:<col_width$} {:<col_width$}",
             f(a),
             f(b),

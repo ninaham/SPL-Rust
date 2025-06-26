@@ -39,6 +39,12 @@ mod test {
         test_file(&path)
     }
 
+    #[rstest]
+    fn test_syntax_errors(#[files("spl-testfiles/syntax_errors/*.spl")] path: PathBuf) {
+        let code = fs::read_to_string(path).unwrap();
+        parse(&code).expect_err("Parsing should fail");
+    }
+
     fn test_file(path: &Path) -> anyhow::Result<()> {
         let code = fs::read_to_string(path).unwrap();
 
@@ -69,7 +75,9 @@ mod test {
 
             let live_variables = LiveVariables::run(&mut bg, local_table);
             bg.dead_code_elimination(&live_variables);
-            ConstantPropagation::run(&mut bg, local_table);
+
+            let mut const_prop = ConstantPropagation::run(&mut bg, local_table);
+            while { bg.constant_folding(&mut const_prop, &table.borrow()) }.is_continue() {}
 
             bg.to_string();
         }

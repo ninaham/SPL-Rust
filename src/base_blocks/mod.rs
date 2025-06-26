@@ -2,14 +2,17 @@ use std::collections::{HashMap, HashSet};
 
 use phaser::{phase_1, phase_2, phase_3};
 
-use crate::code_gen::quadrupel::{Quadrupel, QuadrupelOp};
+use crate::{
+    code_gen::quadrupel::{Quadrupel, QuadrupelOp},
+    optimizations::tarjan::Scc,
+};
 
 mod block_start_iter;
 mod dot_graph;
 mod phaser;
 mod utils;
 
-type BlockId = usize;
+pub type BlockId = usize;
 
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -68,6 +71,7 @@ pub struct BlockGraph {
     pub blocks: Vec<Block>,
     pub edges: Vec<HashSet<BlockId>>,
     pub label_to_id: HashMap<String, BlockId>,
+    pub sccs: Option<Vec<Scc>>,
 }
 
 impl BlockGraph {
@@ -75,7 +79,7 @@ impl BlockGraph {
         phase_3(phase_2(phase_1(code), code))
     }
 
-    fn add_block(&mut self, block: Block, parent: Option<usize>) -> usize {
+    fn add_block(&mut self, block: Block, parent: Option<BlockId>) -> BlockId {
         if let Some(l) = block.clone().label {
             self.label_to_id.insert(l, self.blocks.len());
         }
@@ -88,7 +92,7 @@ impl BlockGraph {
         self.blocks.len() - 1
     }
 
-    fn add_edge(&mut self, start: usize, end: usize) {
+    fn add_edge(&mut self, start: BlockId, end: BlockId) {
         self.edges[start].insert(end);
     }
 
@@ -98,10 +102,10 @@ impl BlockGraph {
     }
 
     fn new() -> Self {
-        Self {
-            blocks: vec![],
-            edges: vec![],
-            label_to_id: HashMap::new(),
-        }
+        Self::default()
+    }
+
+    pub fn label_to_id(&self, label: &str) -> BlockId {
+        *self.label_to_id.get(label).unwrap()
     }
 }
