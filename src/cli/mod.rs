@@ -48,7 +48,6 @@ pub fn load_program_data() -> Command {
         )
 }
 
-#[expect(clippy::too_many_lines)]
 pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     let file = matches.get_one::<String>("file").unwrap();
     let input = std::fs::read_to_string(file)?.leak();
@@ -112,62 +111,11 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
 
     if let Some(optis) = matches.get_many::<String>("optis") {
-        graph.run_optimizations(optis, &table, &proc_def)?;
+        graph.run_optimizations(optis, &table, &proc_def, proc_name, matches, &theme)?;
     }
 
     if phase == "dot" {
-        let mut filename = format!("{}.dot", graphs[sel_proc]);
-        let outputname = format!("as file: {filename}");
-        let outputs = ["print", &outputname, "dot Tx11", "xdot"];
-
-        let output = matches
-            .get_one::<String>("dot")
-            .and_then(|arg| {
-                if Path::new(arg)
-                    .extension()
-                    .is_some_and(|ext| ext.eq_ignore_ascii_case("dot"))
-                {
-                    filename = arg.to_string();
-                    Some(1)
-                } else {
-                    outputs.iter().position(|o| o == arg)
-                }
-            })
-            .map_or_else(
-                || {
-                    if std::io::stdout().is_terminal() {
-                        Select::with_theme(&theme)
-                            .with_prompt("Which output mode?")
-                            .items(&outputs)
-                            .default(0)
-                            .interact()
-                    } else {
-                        Ok(0) // always write dot code to stdout if not terminal
-                    }
-                },
-                Ok,
-            )?;
-
-        match output {
-            0 => {
-                println!("{graph}");
-            }
-            1 => {
-                let mut file = File::create(filename)?;
-                writeln!(file, "{graph}")?;
-            }
-            2 => {
-                ShowDot::DotTx11.show(&graph)?;
-            }
-            3 => {
-                ShowDot::XDot.show(&graph)?;
-            }
-            _ => {
-                bail!("No valid output given");
-            }
-        }
-
-        return Ok(());
+        graph.show_dot(proc_name, matches, &theme)?;
     }
 
     unreachable!()
@@ -179,9 +127,16 @@ impl BlockGraph {
         optis: impl Iterator<Item = &'a String>,
         symbol_table: &Mutex<SymbolTable>,
         proc_def: &ProcedureEntry,
+        proc_name: &str,
+        matches: &clap::ArgMatches,
+        theme: &impl dialoguer::theme::Theme,
     ) -> anyhow::Result<()> {
         for opti in optis {
             match opti.as_str() {
+                "dot" => {
+                    println!("{}", ">>> Showing Dot Graph...".green());
+                    self.show_dot(proc_name, matches, theme)?;
+                }
                 "cse" => {
                     eprintln!("{}", ">>> Common Subexpression Elimination".green());
                     self.common_subexpression_elimination(&symbol_table.lock().unwrap());
@@ -249,6 +204,66 @@ impl BlockGraph {
                 _ => panic!("Unknown optimization: {opti}"),
             }
             eprintln!();
+        }
+
+        Ok(())
+    }
+
+    fn show_dot(
+        &self,
+        proc_name: &str,
+        matches: &clap::ArgMatches,
+        theme: &impl dialoguer::theme::Theme,
+    ) -> Result<(), anyhow::Error> {
+        let mut filename = format!("{}.dot", proc_name);
+        let outputname = format!("as file: {filename}");
+        let outputs = ["print", &outputname, "dot Tx11", "xdot"];
+
+        let output = matches
+            .get_one::<String>("dot")
+            .and_then(|arg| {
+                if Path::new(arg)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("dot"))
+                {
+                    filename = arg.to_string();
+                    Some(1)
+                } else {
+                    outputs.iter().position(|o| o == arg)
+                }
+            })
+            .map_or_else(
+                || {
+                    if std::io::stdout().is_terminal() {
+                        Select::with_theme(theme)
+                            .with_prompt("Which output mode?")
+                            .items(&outputs)
+                            .default(0)
+                            .interact()
+                    } else {
+                        Ok(0) // always write dot code to stdout if not terminal
+                    }
+                },
+                Ok,
+            )?;
+
+        match output {
+            0 => {
+                println!("{self}");
+            }
+            1 => {
+                let mut file = File::create(filename)?;
+                writeln!(file, "{self}")?;
+            }
+            2 => {
+                ShowDot::DotTx11.show(self)?;
+            }
+            3 => {
+                ShowDot::XDot.show(self)?;
+            }
+            _ => {
+                bail!("No valid output given");
+            }
         }
 
         Ok(())
