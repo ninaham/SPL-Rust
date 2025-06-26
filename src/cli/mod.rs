@@ -7,9 +7,9 @@ use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{arg, ArgGroup, Command, Id};
+use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::{
     base_blocks::BlockGraph,
@@ -230,10 +230,21 @@ impl BlockGraph {
                         |v| format!("{v:?}"),
                     )?;
                 }
-                "scc" => {
-                    eprintln!("{}", ">>> Strongly Connected Components:".green());
-                    let scc = self.tarjan();
-                    eprintln!("{scc:#?}");
+                "cf" => {
+                    println!("{}", ">>> Constant Folding (×1)".green());
+                    let mut gcp = ConstantPropagation::run(self, &proc_def.local_table);
+                    _ = self.constant_folding(&mut gcp, &symbol_table.lock().unwrap());
+                }
+                "cf+" => {
+                    println!("{}", ">>> Constant Folding (until stable)".green());
+                    let mut gcp = ConstantPropagation::run(self, &proc_def.local_table);
+                    let mut iterations = 0;
+                    while { self.constant_folding(&mut gcp, &symbol_table.lock().unwrap()) }
+                        .is_continue()
+                    {
+                        iterations += 1;
+                    }
+                    println!("    iterations: {iterations}");
                 }
                 _ => panic!("Unknown optimization: {opti}"),
             }
