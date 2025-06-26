@@ -2,6 +2,7 @@ pub mod definition_evaluator;
 pub mod environment;
 pub mod expression_evaluator;
 pub mod statement_evaluator;
+pub mod tac_interpreter;
 pub mod value;
 
 #[cfg(test)]
