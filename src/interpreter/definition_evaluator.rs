@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, LinkedList},
-    rc::Rc,
-};
+use std::{collections::LinkedList, rc::Rc};
 
 use crate::{
     absyn::{
@@ -20,29 +16,26 @@ use crate::{
 
 use super::value::ValueRef;
 
-pub fn eval_program(program: &Program) -> Environment {
-    let env = Environment {
-        parent: None,
-        vars: RefCell::new(HashMap::new()),
-    };
+pub fn eval_program(program: &'_ Program) -> Environment<'_> {
+    let procs_builtin = get_builtins()
+        .into_iter()
+        .map(|b| (b.0.to_string(), Value::new_refcell(b.1.clone())));
 
-    get_builtins()
+    let procs_spl = program
+        .definitions
         .iter()
-        .for_each(|b| env.insert_val(b.0, b.1.clone()));
+        .filter_map(|def| match def.as_ref() {
+            Definition::ProcedureDefinition(proc_def) => Some(proc_def),
+            Definition::TypeDefinition(_) => None,
+        })
+        .map(|proc_def| {
+            (
+                proc_def.name.to_string(),
+                Value::new_refcell(Value::Function(ValueFunction::Spl(proc_def))),
+            )
+        });
 
-    for def in &program.definitions {
-        match def.as_ref() {
-            Definition::ProcedureDefinition(procedure_definition) => {
-                env.insert_val(
-                    &procedure_definition.name,
-                    Value::Function(ValueFunction::Spl(procedure_definition)),
-                );
-            }
-            Definition::TypeDefinition(_) => {}
-        }
-    }
-
-    env
+    Environment::new(None, procs_builtin.chain(procs_spl))
 }
 
 pub fn start_main(program: &Program, table: &SymbolTable) {
@@ -54,11 +47,15 @@ pub fn start_main(program: &Program, table: &SymbolTable) {
     eval_call_statement(&call_stmt, table, &env);
 }
 
-pub fn eval_local_var(var: &VariableDefinition, table: &SymbolTable, env: &Environment) {
+pub fn eval_local_var<'a>(var: &VariableDefinition, table: &SymbolTable) -> (String, ValueRef<'a>) {
     let Entry::VariableEntry(var_ent) = table.lookup(&var.name).unwrap() else {
         unreachable!()
     };
-    env.insert_val(&var.name, var_ent.typ.default_value());
+
+    (
+        var.name.to_string(),
+        Value::new_refcell(var_ent.typ.default_value()),
+    )
 }
 
 fn get_builtins<'a>() -> [(&'static str, Value<'a>); 2] {

@@ -31,3 +31,13 @@ pub struct Parameter {
     pub typ: Type,
     pub is_reference: bool,
 }
+
+impl Parameter {
+    pub const fn new(name: String, typ: Type, is_reference: bool) -> Self {
+        Self {
+            name,
+            typ,
+            is_reference,
+        }
+    }
+}

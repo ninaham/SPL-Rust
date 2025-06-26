@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     absyn::{
@@ -35,9 +35,9 @@ pub fn eval_statement<'a, 'b: 'a>(
         }
         Statement::EmptyStatement => (),
         Statement::CompoundStatement(statements) => {
-            statements
-                .iter()
-                .for_each(|s| eval_statement(s, table, env.clone()));
+            for s in statements {
+                eval_statement(s, table, env.clone());
+            }
         }
     }
 }
@@ -102,11 +102,6 @@ pub fn eval_call_statement<'a, 'b: 'a>(
         })
         .collect::<Vec<_>>();
 
-    let new_env = Rc::new(Environment {
-        parent: Some(env.clone()),
-        vars: RefCell::new(HashMap::new()),
-    });
-
     match proc {
         ValueFunction::Spl(proc) => {
             let local_table = match table.lookup(&statement.name).unwrap() {
@@ -114,13 +109,21 @@ pub fn eval_call_statement<'a, 'b: 'a>(
                 _ => unreachable!(),
             };
 
-            for var in &proc.variables {
-                eval_local_var(var, &local_table, &new_env.clone());
-            }
+            let vars_param = proc
+                .parameters
+                .iter()
+                .zip(args)
+                .map(|(var, arg)| (var.name.clone(), arg));
 
-            for (var, arg) in proc.parameters.iter().zip(args.into_iter()) {
-                new_env.insert_ref(&var.name, arg);
-            }
+            let vars_local = proc
+                .variables
+                .iter()
+                .map(|var| eval_local_var(var, &local_table));
+
+            let new_env = Rc::new(Environment::new(
+                Some(env.clone()),
+                vars_param.chain(vars_local),
+            ));
 
             for s in &proc.body {
                 eval_statement(s, &local_table, new_env.clone());

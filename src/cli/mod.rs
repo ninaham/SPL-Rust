@@ -8,9 +8,9 @@ use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{ArgGroup, Command, Id, arg};
+use clap::{arg, ArgGroup, Command, Id};
 use colored::Colorize;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Select};
 
 use crate::interpreter::definition_evaluator::start_main;
 use crate::interpreter::tac_interpreter::eval_tac;
@@ -235,7 +235,7 @@ impl BlockGraph {
         matches: &clap::ArgMatches,
         theme: &impl dialoguer::theme::Theme,
     ) -> Result<(), anyhow::Error> {
-        let mut filename = format!("{}.dot", proc_name);
+        let mut filename = format!("{proc_name}.dot");
         let outputname = format!("as file: {filename}");
         let outputs = ["print", &outputname, "dot Tx11", "xdot"];
 

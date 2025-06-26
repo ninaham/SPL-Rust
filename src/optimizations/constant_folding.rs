@@ -69,10 +69,10 @@ impl BlockGraph {
 
 impl ConstantPropagation {
     fn constant_folding(&self, arg: &mut QuadrupelArg, const_state: &[Constness]) {
-        if let QuadrupelArg::Var(arg_var) = &arg {
-            if let Constness::Constant(c) = self.get_constness(arg_var, const_state) {
-                *arg = QuadrupelArg::Const(c);
-            }
+        if let QuadrupelArg::Var(arg_var) = &arg
+            && let Constness::Constant(c) = self.get_constness(arg_var, const_state)
+        {
+            *arg = QuadrupelArg::Const(c);
         }
     }
 }

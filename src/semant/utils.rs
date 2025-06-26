@@ -4,8 +4,8 @@ use crate::{
 };
 
 impl Type {
-    const INT: Self = Self::PrimitiveType(PrimitiveType::Int);
-    const BOOL: Self = Self::PrimitiveType(PrimitiveType::Bool);
+    pub const INT: Self = Self::PrimitiveType(PrimitiveType::Int);
+    pub const BOOL: Self = Self::PrimitiveType(PrimitiveType::Bool);
 
     pub const fn is_array(&self) -> bool {
         matches!(self, Self::ArrayType(_))

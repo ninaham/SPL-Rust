@@ -1,4 +1,3 @@
-#![expect(dead_code)]
 use colored::Colorize;
 use quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar};
 

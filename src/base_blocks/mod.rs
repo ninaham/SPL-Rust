@@ -96,16 +96,11 @@ impl BlockGraph {
         self.edges[start].insert(end);
     }
 
-    #[expect(clippy::missing_const_for_fn)]
     pub fn edges(&self) -> &[HashSet<usize>] {
         &self.edges
     }
 
     fn new() -> Self {
         Self::default()
-    }
-
-    pub fn label_to_id(&self, label: &str) -> BlockId {
-        *self.label_to_id.get(label).unwrap()
     }
 }
