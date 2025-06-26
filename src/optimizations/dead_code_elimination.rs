@@ -1,9 +1,7 @@
 use crate::{
     base_blocks::{BlockContent, BlockGraph},
-    code_gen::quadrupel::{
-        quad, quad_match, Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar,
-    },
-    optimizations::live_variables::LiveVariables,
+    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelResult, QuadrupelVar},
+    optimizations::{live_variables::LiveVariables, worklist::GetVarIdx},
 };
 
 impl BlockGraph {
@@ -19,45 +17,21 @@ impl BlockGraph {
                     };
 
                     let is_dead = res_var
-                        .and_then(|var| livar.vars.iter().position(|v| v == var))
+                        .and_then(|var| livar.get_var_idx(var))
                         .is_some_and(|idx| !liveout[idx]);
 
                     if is_dead {
                         *quad = Quadrupel::EMPTY;
                     } else {
                         for var in vars_from_quad(quad) {
-                            if let Some(idx) = livar.vars.iter().position(|v| v == &var) {
+                            if let Some(idx) = livar.get_var_idx(&var) {
                                 liveout.set(idx, true);
                             }
                         }
                     }
                 }
 
-                code.retain(|quad| quad != &Quadrupel::EMPTY);
-            }
-        }
-    }
-
-    pub fn dead_block_elimination(&mut self) {
-        for (block_id, block) in self.blocks.iter().enumerate() {
-            if let BlockContent::Code(quads) = &block.content {
-                let quad_end = quads.last();
-                let mut next_blocks = Vec::new();
-
-                if let Some(quad_match!(=> QuadrupelResult::Label(label))) = quad_end {
-                    next_blocks.push(self.label_to_id(label));
-                } else {
-                    next_blocks.push(block_id + 1);
-
-                    if let Some(quad_match!(_, _, _ => QuadrupelResult::Label(label))) = quad_end {
-                        next_blocks.push(self.label_to_id(label));
-                    }
-                }
-
-                self.edges
-                    .get_mut(block_id)
-                    .unwrap()
-                    .retain(|id| next_blocks.contains(id));
+                Quadrupel::filter_empty(code);
             }
         }
     }
@@ -74,4 +48,10 @@ fn vars_from_quad(quad: &Quadrupel) -> Vec<QuadrupelVar> {
         vars.push(v.clone());
     }
     vars
+}
+
+impl Quadrupel {
+    pub fn filter_empty(quads: &mut Vec<Self>) {
+        quads.retain(|quad| quad != &Self::EMPTY);
+    }
 }

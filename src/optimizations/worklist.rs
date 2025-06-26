@@ -5,7 +5,7 @@ use bitvec::vec::BitVec;
 
 use crate::base_blocks::{Block, BlockContent, BlockGraph};
 use crate::cli::FmtTable;
-use crate::code_gen::quadrupel::{quad, quad_match, Quadrupel, QuadrupelResult, QuadrupelVar};
+use crate::code_gen::quadrupel::{Quadrupel, QuadrupelResult, QuadrupelVar, quad, quad_match};
 use crate::table::entry::Entry;
 use crate::table::symbol_table::SymbolTable;
 
@@ -47,7 +47,7 @@ pub trait Worklist {
     fn meet_override(lhs: &Self::Lattice, rhs: &Self::Lattice) -> Self::Lattice {
         lhs.meet(rhs)
     }
-    fn state(&mut self) -> State<Self>;
+    fn state(&mut self) -> State<'_, Self>;
 
     fn run(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self
     where
@@ -248,5 +248,17 @@ impl<L: Lattice> LatticeJoinAssign for Vec<L> {
         for (s, o) in self.iter_mut().zip(other) {
             s.join_assign(o);
         }
+    }
+}
+
+pub trait GetVarIdx<V: PartialEq> {
+    fn vars(&self) -> &[V];
+
+    fn get_var_idx_in(vars: &[V], var: &V) -> Option<usize> {
+        vars.iter().position(|v| v == var)
+    }
+
+    fn get_var_idx(&self, var: &V) -> Option<usize> {
+        Self::get_var_idx_in(self.vars(), var)
     }
 }
