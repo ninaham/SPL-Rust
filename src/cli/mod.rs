@@ -201,6 +201,11 @@ impl BlockGraph {
                     }
                     println!("    iterations: {iterations}");
                 }
+                "scc" => {
+                    eprintln!("{}", ">>> Strongly Connected Components:".green());
+                    let scc = self.tarjan();
+                    eprintln!("{scc:#?}");
+                }
                 _ => panic!("Unknown optimization: {opti}"),
             }
             eprintln!();
