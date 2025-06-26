@@ -1,5 +1,5 @@
 #![expect(dead_code)]
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     code_gen::{
@@ -53,11 +53,11 @@ pub fn label_indices(quads: &[Quadrupel]) -> HashMap<String, usize> {
 }
 
 #[expect(clippy::too_many_lines)]
-pub fn eval_quad(
+pub fn eval_quad<'a>(
     tac: &Tac,
-    args: &mut Vec<Value>,
+    args: &mut Vec<Value<'a>>,
     quad: &Quadrupel,
-    env: &Environment,
+    env: &Environment<'a>,
     labels: &HashMap<String, usize>,
 ) -> Option<usize> {
     match quad.op {
@@ -168,15 +168,51 @@ pub fn eval_quad(
             env.insert_val(&target, val);
             None
         }
-        QuadrupelOp::ArrayLoad => todo!(),
-        QuadrupelOp::ArrayStore => todo!(),
+        QuadrupelOp::ArrayLoad => {
+            let arr = parse_arg(&quad.arg1, env);
+            let index = match parse_arg(&quad.arg2, env) / Value::Int(get_array_item_size(&arr)) {
+                Value::Int(i) => i,
+                _ => unreachable!(),
+            };
+            let res = parse_result(&quad.result);
+
+            env.insert_val(
+                &res,
+                match arr {
+                    Value::Array(arr) => arr,
+                    _ => unreachable!(),
+                }[index as usize]
+                    .borrow()
+                    .clone(),
+            );
+            None
+        }
+        QuadrupelOp::ArrayStore => {
+            let value = parse_arg(&quad.arg1, env);
+            let index = match parse_arg(&quad.arg2, env) {
+                Value::Int(i) => i,
+                _ => unreachable!(),
+            };
+            let arr = parse_result(&quad.result);
+            let array = env.get(&arr).expect("array not found");
+
+            match array.borrow().clone() {
+                Value::Array(ref mut arr) => {
+                    arr[(index / get_array_item_size(&array.borrow())) as usize] =
+                        Rc::new(RefCell::new(value))
+                }
+                _ => unreachable!(),
+            };
+
+            None
+        }
         QuadrupelOp::Goto => {
             let label = parse_result(&quad.result);
             Some(*labels.get(&label).expect("no such label"))
         }
         QuadrupelOp::Param => {
-            //let arg = parse_arg(&quad.arg1, env);
-            //args.push(arg);
+            let arg = parse_arg(&quad.arg1, env);
+            args.push(arg);
             None
         }
         QuadrupelOp::Call => {
@@ -203,11 +239,39 @@ pub fn parse_arg<'a>(arg: &QuadrupelArg, env: &Environment<'a>) -> Value<'a> {
     }
 }
 
+pub fn get_array_item_size(arr: &Value) -> i32 {
+    match arr {
+        Value::Array(arr) => {
+            if arr.is_empty() {
+                panic!("Bitte komm einfach niemals vor")
+            } else {
+                get_size(&arr[0].borrow().clone())
+            }
+        }
+        _ => unimplemented!(),
+    }
+}
+
+pub fn get_size(arr: &Value) -> i32 {
+    match arr {
+        Value::Array(arr) => {
+            if arr.is_empty() {
+                0
+            } else {
+                arr.len() as i32 * get_size(&arr[0].borrow().clone())
+            }
+        }
+        Value::Bool(_) => 4,
+        Value::Int(_) => 4,
+        _ => unreachable!(),
+    }
+}
+
 pub fn parse_fun(arg: &QuadrupelArg) -> String {
     match arg.clone() {
         QuadrupelArg::Var(quadrupel_var) => match quadrupel_var {
             QuadrupelVar::Spl(name) => name,
-            QuadrupelVar::Tmp(t) => format!("T{t}"),
+            QuadrupelVar::Tmp(_) => unreachable!(),
         },
         _ => unreachable!(),
     }

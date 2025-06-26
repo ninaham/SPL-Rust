@@ -4,7 +4,6 @@ use std::io::{IsTerminal, Write as _};
 use std::path::Path;
 use std::process::Stdio;
 use std::rc::Rc;
-use std::sync::Mutex;
 use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
