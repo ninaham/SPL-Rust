@@ -11,7 +11,7 @@ use crate::{
         statement_evaluator::eval_call_statement,
         value::{Value, ValueFunction},
     },
-    spl_builtins::PROCEDURES,
+    spl_builtins::{self, PROCEDURES},
     table::{entry::Entry, symbol_table::SymbolTable},
 };
 
@@ -43,6 +43,9 @@ pub fn start_main(program: &Program, table: &SymbolTable) {
         name: "main".to_string(),
         arguments: LinkedList::new(),
     };
+
+    spl_builtins::init_start_time();
+
     eval_call_statement(&call_stmt, table, &env);
 }
 

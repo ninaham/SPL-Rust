@@ -5,11 +5,17 @@ use crate::{
         quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
         Tac,
     },
-    interpreter::{environment::Environment, expression_evaluator, value::Value, value::ValueRef},
+    interpreter::{
+        environment::Environment,
+        expression_evaluator,
+        value::{Value, ValueRef},
+    },
+    spl_builtins,
     table::entry::Entry,
 };
 
 pub fn eval_tac(tac: &Tac) {
+    spl_builtins::init_start_time();
     eval_function(tac, &"main".to_string(), &mut Vec::new(), None);
 }
 

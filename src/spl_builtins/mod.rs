@@ -1,9 +1,18 @@
+use std::{cell::Cell, cell::RefMut, time::Instant};
+
 use crate::{
     interpreter::value::{Value, ValueRef},
     table::{entry::Parameter, types::Type},
 };
 
 pub const NAMED_TYPES: [&str; 1] = ["int"];
+
+thread_local! {
+    static START_TIME: Cell<Instant> = unreachable!("START_TIME not initialized!");
+}
+pub fn init_start_time() {
+    START_TIME.set(Instant::now());
+}
 
 builtin_procedures! {
     proc printi(i: int) {
@@ -16,7 +25,9 @@ builtin_procedures! {
     proc readi(ref i: int)
     proc readc(ref c: int)
     proc exit()
-    proc time(ref t: int)
+    proc time(ref t: int) {
+        *t = START_TIME.get().elapsed().as_secs().try_into().unwrap();
+    }
     proc clearAll(c: int)
     proc setPixel(a: int, b: int, c: int)
     proc drawLine(a: int, b: int, c: int, d: int, e: int)
@@ -55,14 +66,24 @@ macro_rules! builtin_procedures {
         Some(&|args| {
             let mut args = args.iter();
             $(
-                let builtin_procedures!(@arg_type $type($ref $($name)?)) = *args.next().unwrap().borrow() else { unreachable!() };
+                builtin_procedures!(@arg args $type($ref $($name)?));
             )+
             $body
         })
     };
 
-    (@arg_type int ($arg:tt)) => { Value::Int (builtin_procedures!(@param_name $arg)) };
-    (@arg_type bool($arg:tt)) => { Value::Bool(builtin_procedures!(@param_name $arg)) };
+    (@arg $args:ident $type:ident(    $name:ident)) => {
+        let builtin_procedures!(@arg_type $type($name)) = *$args.next().unwrap().borrow() else { unreachable!() };
+    };
+    (@arg $args:ident $type:ident(ref $name:ident)) => {
+        let mut $name = RefMut::map($args.next().unwrap().borrow_mut(), |v| {
+            let builtin_procedures!(@arg_type $type(v)) = v else { unreachable!() };
+            v
+        });
+    };
+
+    (@arg_type int ($name:ident)) => { Value::Int ($name) };
+    (@arg_type bool($name:ident)) => { Value::Bool($name) };
 
     (@param_name ref $name:ident) => { $name };
     (@param_name     $name:ident) => { $name };
