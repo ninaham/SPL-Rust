@@ -40,7 +40,7 @@ pub struct BuiltInProc {
     implementation: Rc<BuiltInProcFn>,
     parameters: Vec<ParameterDefinition>,
 }
-type BuiltInProcFn = dyn Fn(&[ValueRef]);
+type BuiltInProcFn = dyn Fn(&[ValueRef<'_>]);
 impl BuiltInProc {
     pub fn call(&self, args: &[ValueRef]) {
         (self.implementation)(args);
@@ -66,16 +66,15 @@ impl Value<'_> {
         Rc::new(RefCell::new(value))
     }
 
-    pub fn new_builtin_proc<const N: usize>(
-        params: &[(&str, bool); N],
-        f: impl Fn(&[ValueRef]) + 'static,
+    pub fn new_builtin_proc(
+        params: impl Iterator<Item = (String, bool)>,
+        f: impl Fn(&[ValueRef<'_>]) + 'static,
     ) -> Self {
         Value::Function(ValueFunction::BuiltIn(BuiltInProc {
             implementation: Rc::new(f),
             parameters: params
-                .iter()
-                .map(|&(name, is_reference)| ParameterDefinition {
-                    name: name.to_owned(),
+                .map(|(name, is_reference)| ParameterDefinition {
+                    name,
                     type_expression: TypeExpression::NamedTypeExpression("int".to_owned()),
                     is_reference,
                 })

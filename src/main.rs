@@ -8,6 +8,7 @@ mod interpreter;
 mod optimizations;
 mod parser;
 mod semant;
+mod spl_builtins;
 mod table;
 
 fn main() -> anyhow::Result<()> {

@@ -11,15 +11,14 @@ use crate::{
         statement_evaluator::eval_call_statement,
         value::{Value, ValueFunction},
     },
+    spl_builtins::PROCEDURES,
     table::{entry::Entry, symbol_table::SymbolTable},
 };
 
 use super::value::ValueRef;
 
 pub fn eval_program(program: &'_ Program) -> Environment<'_> {
-    let procs_builtin = get_builtins()
-        .into_iter()
-        .map(|b| (b.0.to_string(), Value::new_refcell(b.1.clone())));
+    let procs_builtin = get_builtins();
 
     let procs_spl = program
         .definitions
@@ -58,31 +57,14 @@ pub fn eval_local_var<'a>(var: &VariableDefinition, table: &SymbolTable) -> (Str
     )
 }
 
-fn get_builtins<'a>() -> [(&'static str, Value<'a>); 2] {
-    [
-        (
-            "printi",
-            Value::new_builtin_proc(&[("i", false)], |v: &[ValueRef]| {
-                print!(
-                    "{}",
-                    match *v[0].borrow() {
-                        Value::Int(i) => i,
-                        _ => unreachable!(),
-                    }
-                );
-            }),
-        ),
-        (
-            "printc",
-            Value::new_builtin_proc(&[("c", false)], |v: &[ValueRef]| {
-                let c = match *v[0].borrow() {
-                    Value::Int(i) => u8::try_from(i).unwrap_or_else(|_| {
-                        panic!("Argument to printc() should be a valid ASCII value: {i}")
-                    }) as char,
-                    _ => unreachable!(),
-                };
-                print!("{c}");
-            }),
-        ),
-    ]
+fn get_builtins<'a>() -> impl Iterator<Item = (String, ValueRef<'a>)> {
+    PROCEDURES.iter().filter_map(|&(name, params, body)| {
+        body.map(|body| {
+            let params = params.iter().map(|p| (p.name.to_string(), p.is_reference));
+            (
+                name.to_string(),
+                Value::new_refcell(Value::new_builtin_proc(params, body)),
+            )
+        })
+    })
 }
