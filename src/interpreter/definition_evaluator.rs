@@ -60,7 +60,7 @@ pub fn eval_local_var<'a>(var: &VariableDefinition, table: &SymbolTable) -> (Str
     )
 }
 
-fn get_builtins<'a>() -> impl Iterator<Item = (String, ValueRef<'a>)> {
+pub fn get_builtins<'a>() -> impl Iterator<Item = (String, ValueRef<'a>)> {
     PROCEDURES.iter().filter_map(|&(name, params, body)| {
         body.map(|body| {
             let params = params.iter().map(|p| (p.name.to_string(), p.is_reference));

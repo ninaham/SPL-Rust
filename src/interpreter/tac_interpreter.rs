@@ -2,10 +2,11 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     code_gen::{
-        quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
         Tac,
+        quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
     },
     interpreter::{
+        definition_evaluator::get_builtins,
         environment::Environment,
         expression_evaluator,
         value::{Value, ValueRef},
@@ -63,7 +64,10 @@ pub fn eval_function<'a>(
             ))
         });
 
-    let env = Rc::new(Environment::new(parent_env, vars_param.chain(vars_local)));
+    let env = Rc::new(Environment::new(
+        parent_env,
+        vars_param.chain(vars_local).chain(get_builtins()),
+    ));
 
     while next_instruction < instructions.len() {
         match eval_quad(
@@ -80,7 +84,10 @@ pub fn eval_function<'a>(
 }
 
 pub fn find_function(tac: &Tac, fun: &String) -> Vec<Quadrupel> {
-    tac.proc_table.get(fun).expect("function not found").clone()
+    tac.proc_table
+        .get(fun)
+        .unwrap_or_else(|| panic!("function {fun} not found"))
+        .clone()
 }
 
 pub fn label_indices(quads: &[Quadrupel]) -> HashMap<String, usize> {
@@ -227,7 +234,7 @@ pub fn eval_quad<'a>(
             };
             let res = parse_result(&quad.result);
 
-            let index = eval_array_index(index, arr.len(), get_array_item_size(&arr));
+            let index = eval_array_index(index, arr.len());
             *env.get(&res).unwrap().borrow_mut() = arr[index].borrow().clone();
             None
         }
@@ -242,7 +249,7 @@ pub fn eval_quad<'a>(
             let &mut Value::Array(ref mut array) = &mut *array.borrow_mut() else {
                 unreachable!();
             };
-            let index = eval_array_index(index, arr.len(), get_array_item_size(array));
+            let index = eval_array_index(index, arr.len());
             array[index] = Rc::new(RefCell::new(value));
 
             None
@@ -265,8 +272,8 @@ pub fn eval_quad<'a>(
     }
 }
 
-fn eval_array_index(index: i32, arr_len: usize, index_factor: i32) -> usize {
-    expression_evaluator::eval_array_index(index / index_factor, arr_len)
+fn eval_array_index(index: i32, arr_len: usize) -> usize {
+    expression_evaluator::eval_array_index(index / 4, arr_len)
 }
 
 pub fn parse_arg<'a>(arg: &QuadrupelArg, env: &Rc<Environment<'a>>) -> Value<'a> {
@@ -282,29 +289,6 @@ pub fn parse_arg_ref<'a>(arg: &QuadrupelArg, env: &Rc<Environment<'a>>) -> Value
         },
         QuadrupelArg::Const(i) => Value::new_refcell(Value::Int(i)),
         QuadrupelArg::Empty => unreachable!(),
-    }
-}
-
-pub fn get_array_item_size(arr: &[Rc<RefCell<Value<'_>>>]) -> i32 {
-    // TODO: Shouldn't this always be size_of(int)? (arrays are always flattened)
-    if arr.is_empty() {
-        panic!("Bitte komm einfach niemals vor")
-    } else {
-        get_size(&arr[0].borrow().clone())
-    }
-}
-
-pub fn get_size(arr: &Value) -> i32 {
-    match arr {
-        Value::Array(arr) => {
-            if arr.is_empty() {
-                0
-            } else {
-                i32::try_from(arr.len()).unwrap() * get_size(&arr[0].borrow().clone())
-            }
-        }
-        Value::Bool(_) | Value::Int(_) => 4,
-        Value::Function(_) => unreachable!(),
     }
 }
 

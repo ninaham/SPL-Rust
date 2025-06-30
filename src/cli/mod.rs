@@ -8,9 +8,9 @@ use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
 use bitvec::vec::BitVec;
-use clap::{arg, ArgGroup, Command, Id};
+use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::interpreter::definition_evaluator::start_main;
 use crate::interpreter::tac_interpreter::eval_tac;
@@ -37,7 +37,7 @@ pub fn load_program_data() -> Command {
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(interpret: -i --interpret "SPL Interpreter"),
-            arg!(interprettac: -i3 --interprettac "TAC Interpreter"),
+            arg!(interprettac: -I --interprettac "TAC Interpreter"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
             arg!(optis: -O --optis <optis> "Optimizations to apply: [cse, rch, lv, dead, gcp, scc]")
