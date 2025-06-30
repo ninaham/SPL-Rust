@@ -116,6 +116,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
 
     if phase == "dot" {
         graph.show_dot(proc_name, matches, &theme)?;
+        return Ok(());
     }
 
     unreachable!()
