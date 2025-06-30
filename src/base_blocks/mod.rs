@@ -104,6 +104,7 @@ impl BlockGraph {
         Self::default()
     }
 
+    #[expect(dead_code)]
     pub fn label_to_id(&self, label: &str) -> BlockId {
         *self.label_to_id.get(label).unwrap()
     }
