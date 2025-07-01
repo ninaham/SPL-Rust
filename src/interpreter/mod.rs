@@ -99,7 +99,7 @@ mod test {
             .iter_mut()
             .try_for_each(|def| check_def_global(def, &table))?;
 
-        let mut tac = Tac::new(table.clone());
+        let mut tac = Tac::new();
         tac.code_generation(&absyn);
 
         let proc_graphs = tac
@@ -108,7 +108,8 @@ mod test {
             .map(|(proc_name, quads)| (proc_name, BlockGraph::from_tac(&quads)))
             .collect::<HashMap<_, _>>();
 
-        eval_tac(&proc_graphs, &table);
+        let t = table.borrow();
+        eval_tac(&proc_graphs, &t);
 
         Ok(())
     }

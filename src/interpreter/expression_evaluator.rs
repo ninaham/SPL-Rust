@@ -11,7 +11,7 @@ use crate::{
 
 use super::value::ValueRef;
 
-pub fn eval_expression<'a>(expression: &Expression, env: Rc<Environment<'a>>) -> Value<'a> {
+pub fn eval_expression<'a>(expression: &Expression, env: Rc<Environment<'a, '_>>) -> Value<'a> {
     match expression {
         Expression::BinaryExpression(binary_expression) => eval_binary(binary_expression, env),
         Expression::UnaryExpression(unary_expression) => eval_unary(unary_expression, env),
@@ -20,7 +20,7 @@ pub fn eval_expression<'a>(expression: &Expression, env: Rc<Environment<'a>>) ->
     }
 }
 
-pub fn eval_var<'a>(variable: &Variable, env: &Rc<Environment<'a>>) -> ValueRef<'a> {
+pub fn eval_var<'a>(variable: &Variable, env: &Rc<Environment<'a, '_>>) -> ValueRef<'a> {
     match variable {
         Variable::NamedVariable(v) => env.get(v).unwrap(),
         Variable::ArrayAccess(array_access) => {
@@ -48,7 +48,7 @@ pub fn eval_array_index(index: i32, arr_len: usize) -> usize {
 
 pub fn eval_binary<'a>(
     binary_expression: &BinaryExpression,
-    env: Rc<Environment<'a>>,
+    env: Rc<Environment<'a, '_>>,
 ) -> Value<'a> {
     let op1 = eval_expression(&binary_expression.left, env.clone());
     let op2 = eval_expression(&binary_expression.right, env);
@@ -67,7 +67,7 @@ pub fn eval_binary<'a>(
     }
 }
 
-pub fn eval_unary<'a>(unary: &UnaryExpression, env: Rc<Environment<'a>>) -> Value<'a> {
+pub fn eval_unary<'a>(unary: &UnaryExpression, env: Rc<Environment<'a, '_>>) -> Value<'a> {
     let op = eval_expression(&unary.operand, env);
 
     match unary.operator {

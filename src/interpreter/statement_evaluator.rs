@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     absyn::{
@@ -20,7 +20,7 @@ use crate::{
 pub fn eval_statement<'a, 'b: 'a>(
     statement: &'b Statement,
     table: &SymbolTable,
-    env: Rc<Environment<'b>>,
+    env: Rc<Environment<'b, '_>>,
 ) {
     match statement {
         Statement::AssignStatement(assign_statement) => {
@@ -45,7 +45,7 @@ pub fn eval_statement<'a, 'b: 'a>(
 pub fn eval_if_statement<'a, 'b: 'a>(
     statement: &'b IfStatement,
     table: &SymbolTable,
-    env: Rc<Environment<'b>>,
+    env: Rc<Environment<'b, '_>>,
 ) {
     let cond = eval_expression(&statement.condition, env.clone());
 
@@ -61,7 +61,10 @@ pub fn eval_if_statement<'a, 'b: 'a>(
     }
 }
 
-pub fn eval_assign_statement<'a, 'b: 'a>(statement: &AssignStatement, env: &Rc<Environment<'b>>) {
+pub fn eval_assign_statement<'a, 'b: 'a>(
+    statement: &AssignStatement,
+    env: &Rc<Environment<'b, '_>>,
+) {
     let val = eval_expression(&statement.value, env.clone());
     let x = eval_var(&statement.target, env);
     *x.borrow_mut() = val;
@@ -70,7 +73,7 @@ pub fn eval_assign_statement<'a, 'b: 'a>(statement: &AssignStatement, env: &Rc<E
 pub fn eval_while_statement<'a, 'b: 'a>(
     statement: &'b WhileStatement,
     table: &SymbolTable,
-    env: &Rc<Environment<'b>>,
+    env: &Rc<Environment<'b, '_>>,
 ) {
     while eval_expression(&statement.condition, env.clone()) == Value::Bool(true) {
         eval_statement(&statement.body, table, env.clone());
@@ -80,7 +83,7 @@ pub fn eval_while_statement<'a, 'b: 'a>(
 pub fn eval_call_statement<'a, 'b: 'a>(
     statement: &'b CallStatement,
     table: &SymbolTable,
-    env: &Rc<Environment<'a>>,
+    env: &Rc<Environment<'a, '_>>,
 ) {
     let Some(Value::Function(proc)) = env.get(&statement.name).map(|v| v.borrow().clone()) else {
         unimplemented!("SPL-builtin `{}()`", statement.name);
@@ -89,7 +92,7 @@ pub fn eval_call_statement<'a, 'b: 'a>(
     let args = statement
         .arguments
         .iter()
-        .zip(proc.parameters())
+        .zip(&proc.entry().parameters)
         .map(|(e, p)| {
             if p.is_reference {
                 let Expression::VariableExpression(var) = e else {
@@ -123,7 +126,11 @@ pub fn eval_call_statement<'a, 'b: 'a>(
                 .filter(|&n| !vars_param_names.contains(n))
                 .map(|var_name| eval_local_var(var_name, &local_table));
 
-            let new_env = Rc::new(Environment::new(env.clone(), vars_param.chain(vars_local)));
+            let new_env = Rc::new(Environment::new(
+                env.clone(),
+                vars_param.chain(vars_local),
+                &local_table,
+            ));
 
             for s in proc_body {
                 eval_statement(s, &local_table, new_env.clone());

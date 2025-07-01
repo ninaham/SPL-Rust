@@ -1,35 +1,74 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{interpreter::value::Value, spl_builtins::PROCEDURES};
+use crate::{
+    interpreter::value::Value,
+    spl_builtins::PROCEDURES,
+    table::{entry::Entry, symbol_table::SymbolTable, types::Type},
+};
 
 use super::value::ValueRef;
 
 #[derive(Clone, Debug)]
-pub struct Environment<'a> {
-    pub parent: Option<Rc<Environment<'a>>>,
-    pub vars: HashMap<String, ValueRef<'a>>,
+pub struct Environment<'a, 'b> {
+    pub parent: Option<Rc<Environment<'a, 'b>>>,
+    pub vars: RefCell<HashMap<String, ValueRef<'a>>>,
+    symbol_table: &'b SymbolTable,
 }
 
-impl<'a> Environment<'a> {
-    pub fn new(parent: Rc<Self>, vars_iter: impl Iterator<Item = (String, ValueRef<'a>)>) -> Self {
+impl<'a, 'b> Environment<'a, 'b> {
+    pub fn new(
+        parent: Rc<Self>,
+        vars_iter: impl Iterator<Item = (String, ValueRef<'a>)>,
+        symbol_table: &'b SymbolTable,
+    ) -> Self {
         Self {
             parent: Some(parent),
-            vars: vars_iter.collect(),
+            vars: RefCell::new(vars_iter.collect()),
+            symbol_table,
         }
     }
 
-    pub fn new_global(procedures: impl Iterator<Item = (String, ValueRef<'a>)>) -> Self {
+    pub fn new_global(
+        procedures: impl Iterator<Item = (String, ValueRef<'a>)>,
+        symbol_table: &'b SymbolTable,
+    ) -> Self {
         Self {
             parent: None,
-            vars: get_builtins().chain(procedures).collect(),
+            vars: RefCell::new(get_builtins().chain(procedures).collect()),
+            symbol_table,
         }
     }
 
     pub fn get(&self, key: &str) -> Option<ValueRef<'a>> {
-        self.vars.get(key).map_or_else(
-            || self.parent.as_ref().and_then(|p| p.get(key)),
-            |v| Some(v.clone()),
-        )
+        if let Some(v) = self.vars.borrow().get(key) {
+            return Some(v.clone());
+        }
+
+        if let Some(p) = &self.parent {
+            if let Some(v) = p.vars.borrow().get(key) {
+                return Some(v.clone());
+            }
+        }
+
+        if let Some(typ) = self.symbol_table.lookup(key).map_or_else(
+            || Some(Type::INT), // not in symbol_table => should be temp var
+            |e| match e {
+                Entry::VariableEntry(v) => Some(v.typ),
+                _ => None, // somthing other than a var => no initialization
+            },
+        ) {
+            let v = self
+                .vars
+                .borrow_mut()
+                .entry(key.to_string())
+                .insert_entry(Value::new_refcell(typ.default_value()))
+                .get()
+                .clone();
+
+            return Some(v);
+        }
+
+        None
     }
 }
 

@@ -1,11 +1,8 @@
 use colored::Colorize;
 use quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar};
 
-use crate::{
-    absyn::absyn::{Definition, Program},
-    table::symbol_table::SymbolTable,
-};
-use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
+use crate::absyn::absyn::{Definition, Program};
+use std::{collections::HashMap, fmt};
 mod procedure_def;
 pub mod quadrupel;
 mod utils;
@@ -13,7 +10,6 @@ mod utils;
 #[derive(Clone)]
 pub struct Tac {
     quadrupels: Vec<Quadrupel>,
-    pub symboltable: Rc<RefCell<SymbolTable>>,
     label_num: i64,
     pub proc_table: HashMap<String, Vec<Quadrupel>>,
     temp_var_count: usize,
@@ -33,10 +29,9 @@ impl fmt::Display for Tac {
 }
 
 impl Tac {
-    pub fn new(symboltable: Rc<RefCell<SymbolTable>>) -> Self {
+    pub fn new() -> Self {
         Self {
             quadrupels: vec![],
-            symboltable,
             label_num: 0,
             proc_table: HashMap::new(),
             temp_var_count: 0,

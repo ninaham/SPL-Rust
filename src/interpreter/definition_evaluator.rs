@@ -16,7 +16,10 @@ use crate::{
 
 use super::value::ValueRef;
 
-pub fn eval_program<'a>(program: &'a Program, symbol_table: &SymbolTable) -> Environment<'a> {
+pub fn eval_program<'a>(
+    program: &'a Program,
+    symbol_table: &'a SymbolTable,
+) -> Environment<'a, 'a> {
     let procs = program
         .definitions
         .iter()
@@ -38,7 +41,7 @@ pub fn eval_program<'a>(program: &'a Program, symbol_table: &SymbolTable) -> Env
             )
         });
 
-    Environment::new_global(procs)
+    Environment::new_global(procs, symbol_table)
 }
 
 pub fn start_main(program: &Program, table: &SymbolTable) {

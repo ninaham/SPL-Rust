@@ -35,19 +35,11 @@ pub enum ValueFunction<'a> {
     BuiltIn(ProcedureEntry, BuiltInProc),
 }
 impl ValueFunction<'_> {
-    pub fn parameters(&self) -> Box<dyn Iterator<Item = &Parameter> + '_> {
+    pub const fn entry(&self) -> &ProcedureEntry {
         match self {
             ValueFunction::Tac(proc, _)
             | ValueFunction::Spl(proc, _)
-            | ValueFunction::BuiltIn(proc, _) => Box::new(proc.parameters.iter()),
-        }
-    }
-
-    pub const fn local_table(&self) -> &SymbolTable {
-        match self {
-            ValueFunction::Tac(proc, _)
-            | ValueFunction::Spl(proc, _)
-            | ValueFunction::BuiltIn(proc, _) => &proc.local_table,
+            | ValueFunction::BuiltIn(proc, _) => proc,
         }
     }
 }

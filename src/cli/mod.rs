@@ -89,7 +89,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let mut address_code = Tac::new(table.clone());
+    let mut address_code = Tac::new();
     address_code.code_generation(&absyn);
 
     if phase == "tac" {

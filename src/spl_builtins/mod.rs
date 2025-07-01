@@ -84,9 +84,6 @@ macro_rules! builtin_procedures {
 
     (@arg_type int ($name:ident)) => { Value::Int ($name) };
     (@arg_type bool($name:ident)) => { Value::Bool($name) };
-
-    (@param_name ref $name:ident) => { $name };
-    (@param_name     $name:ident) => { $name };
 }
 use builtin_procedures;
 
