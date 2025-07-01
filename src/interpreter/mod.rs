@@ -15,6 +15,8 @@ mod test {
     use rstest::rstest;
 
     use crate::{
+        code_gen::Tac,
+        interpreter::tac_interpreter::eval_tac,
         parser::parse_everything_else::parse,
         semant::{build_symbol_table::build_symbol_table, check_def_global},
     };
@@ -22,17 +24,17 @@ mod test {
     use super::definition_evaluator::start_main;
 
     #[rstest]
-    fn test_all_files(
+    fn test_all_files_ast(
         #[files("spl-testfiles/runtime_tests/*.spl")]
         #[exclude("reftest.spl")]
         #[exclude("test8.spl")]
         #[exclude("test9.spl")]
         path: PathBuf,
     ) -> anyhow::Result<()> {
-        test_file(&path)
+        test_file_ast(&path)
     }
 
-    fn test_file(path: &Path) -> anyhow::Result<()> {
+    fn test_file_ast(path: &Path) -> anyhow::Result<()> {
         let code = fs::read_to_string(path).unwrap();
 
         let mut absyn = parse(code.leak())?;
@@ -52,13 +54,56 @@ mod test {
 
     #[test]
     #[should_panic(expected = "index out of bounds for array length 3: -1")]
-    fn test_runtime_err_8() {
-        test_file(Path::new("spl-testfiles/runtime_tests/test8.spl")).unwrap();
+    fn test_runtime_err_ast_8() {
+        test_file_ast(Path::new("spl-testfiles/runtime_tests/test8.spl")).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "index out of bounds for array length 3: 3")]
-    fn test_runtime_err_9() {
-        test_file(Path::new("spl-testfiles/runtime_tests/test9.spl")).unwrap();
+    fn test_runtime_err_ast_9() {
+        test_file_ast(Path::new("spl-testfiles/runtime_tests/test9.spl")).unwrap();
+    }
+
+    #[rstest]
+    fn test_all_files_tac(
+        #[files("spl-testfiles/runtime_tests/*.spl")]
+        #[exclude("reftest.spl")]
+        #[exclude("test8.spl")]
+        #[exclude("test9.spl")]
+        path: PathBuf,
+    ) -> anyhow::Result<()> {
+        test_file_tac(&path)
+    }
+
+    fn test_file_tac(path: &Path) -> anyhow::Result<()> {
+        let code = fs::read_to_string(path).unwrap();
+
+        let mut absyn = parse(code.leak())?;
+
+        let table = build_symbol_table(&absyn)?;
+
+        absyn
+            .definitions
+            .iter_mut()
+            .try_for_each(|def| check_def_global(def, &table))?;
+
+        let mut tac = Tac::new(table);
+        tac.code_generation(&absyn);
+
+        eval_tac(&tac);
+
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds for array length 3: -1")]
+    fn test_runtime_err_tac_8() {
+        test_file_tac(Path::new("spl-testfiles/runtime_tests/test8.spl")).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds for array length 3: 3")]
+    fn test_runtime_err_tac_9() {
+        test_file_tac(Path::new("spl-testfiles/runtime_tests/test9.spl")).unwrap();
     }
 }

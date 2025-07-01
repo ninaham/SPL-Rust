@@ -13,6 +13,13 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
+    pub fn new() -> Self {
+        Self {
+            entries: HashMap::new(),
+            upper_level: None,
+        }
+    }
+
     pub fn enter(&mut self, name: String, entry: Entry) -> Result<(), SemanticError> {
         if self.entries.contains_key(&name) {
             return Err(SemanticError {

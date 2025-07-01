@@ -18,12 +18,7 @@ use crate::{
 use super::{SemanticError, table_initializer};
 
 pub fn build_symbol_table(program: &Program) -> Result<Rc<RefCell<SymbolTable>>, SemanticError> {
-    let global_table = SymbolTable {
-        entries: HashMap::new(),
-        upper_level: None,
-    };
-
-    let global_table = Rc::new(RefCell::new(global_table));
+    let global_table = Rc::new(RefCell::new(SymbolTable::new()));
 
     table_initializer::init_symbol_table(&global_table);
 

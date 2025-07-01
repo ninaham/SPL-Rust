@@ -6,52 +6,58 @@ use crate::{
         quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
     },
     interpreter::{
-        definition_evaluator::get_builtins,
         environment::Environment,
         expression_evaluator,
-        value::{Value, ValueRef},
+        value::{Value, ValueFunction, ValueRef},
     },
     spl_builtins,
     table::entry::Entry,
 };
 
+// TODO: Use BlockGraph
 pub fn eval_tac(tac: &Tac) {
+    let procs = tac.proc_table.iter().map(|(name, quads)| {
+        let Some(Entry::ProcedureEntry(proc_entry)) = tac.symboltable.borrow().lookup(name) else {
+            unreachable!("function not found: {name}");
+        };
+        (
+            name.to_string(),
+            Value::new_refcell(Value::Function(ValueFunction::Tac(proc_entry, quads))),
+        )
+    });
+    let global_env = Rc::new(Environment::new_global(procs));
+
     spl_builtins::init_start_time();
-    eval_function(tac, &"main".to_string(), &mut Vec::new(), None);
+
+    eval_function(tac, &"main".to_string(), &mut Vec::new(), global_env);
 }
 
 pub fn eval_function<'a>(
     tac: &Tac,
     fun: &String,
     args: &mut Vec<ValueRef<'a>>,
-    parent_env: Option<Rc<Environment<'a>>>,
+    parent_env: Rc<Environment<'a>>,
 ) {
     let instructions = find_function(tac, fun);
     let labels = label_indices(&instructions);
     let mut next_instruction = 0;
 
-    let Entry::ProcedureEntry(procedure_entry) = tac
-        .symboltable
-        .borrow()
-        .lookup(fun)
-        .expect("function not found")
-    else {
-        unreachable!();
+    let proc = parent_env.get(fun).unwrap();
+    let Value::Function(proc) = &*proc.borrow() else {
+        unreachable!("function not found: {fun}");
     };
 
-    let vars_param = args
-        .drain(..)
-        .zip(procedure_entry.parameters)
-        .map(|(arg, param)| {
-            if param.is_reference {
-                (param.name, arg.clone())
-            } else {
-                (param.name, Value::new_refcell(arg.borrow().clone()))
-            }
-        });
+    let vars_param = args.drain(..).zip(proc.parameters()).map(|(arg, param)| {
+        let param_name = param.name.to_string();
+        if param.is_reference {
+            (param_name, arg.clone())
+        } else {
+            (param_name, Value::new_refcell(arg.borrow().clone()))
+        }
+    });
 
-    let vars_local = procedure_entry
-        .local_table
+    let vars_local = proc
+        .local_table()
         .entries
         .iter()
         .filter_map(|(name, entry)| {
@@ -64,10 +70,7 @@ pub fn eval_function<'a>(
             ))
         });
 
-    let env = Rc::new(Environment::new(
-        parent_env,
-        vars_param.chain(vars_local).chain(get_builtins()),
-    ));
+    let env = Rc::new(Environment::new(parent_env, vars_param.chain(vars_local)));
 
     while next_instruction < instructions.len() {
         match eval_quad(
@@ -265,7 +268,7 @@ pub fn eval_quad<'a>(
         }
         QuadrupelOp::Call => {
             let fun = parse_fun(&quad.arg1);
-            eval_function(tac, &fun, args, Some(env));
+            eval_function(tac, &fun, args, env);
             None
         }
         QuadrupelOp::Default => None,

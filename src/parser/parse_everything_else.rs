@@ -3,13 +3,13 @@
 use std::collections::LinkedList;
 
 use nom::{
+    IResult, Parser,
     branch::alt,
     character::complete::{char, space0},
     combinator::eof,
     error::Error,
     multi::fold_many0,
     sequence::{delimited, preceded},
-    IResult, Parser,
 };
 
 use crate::{

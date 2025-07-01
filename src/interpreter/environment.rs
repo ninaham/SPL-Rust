@@ -1,5 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
+use crate::{interpreter::value::Value, spl_builtins::PROCEDURES};
+
 use super::value::ValueRef;
 
 #[derive(Clone, Debug)]
@@ -9,13 +11,17 @@ pub struct Environment<'a> {
 }
 
 impl<'a> Environment<'a> {
-    pub fn new(
-        parent: Option<Rc<Self>>,
-        vars_iter: impl Iterator<Item = (String, ValueRef<'a>)>,
-    ) -> Self {
+    pub fn new(parent: Rc<Self>, vars_iter: impl Iterator<Item = (String, ValueRef<'a>)>) -> Self {
         Self {
-            parent,
+            parent: Some(parent),
             vars: vars_iter.collect(),
+        }
+    }
+
+    pub fn new_global(procedures: impl Iterator<Item = (String, ValueRef<'a>)>) -> Self {
+        Self {
+            parent: None,
+            vars: get_builtins().chain(procedures).collect(),
         }
     }
 
@@ -25,4 +31,16 @@ impl<'a> Environment<'a> {
             |v| Some(v.clone()),
         )
     }
+}
+
+pub fn get_builtins<'a>() -> impl Iterator<Item = (String, ValueRef<'a>)> {
+    PROCEDURES.iter().filter_map(|&(name, params, body)| {
+        body.map(|body| {
+            let params = params.iter().map(|p| (p.name.to_string(), p.is_reference));
+            (
+                name.to_string(),
+                Value::new_refcell(Value::new_builtin_proc(params, body)),
+            )
+        })
+    })
 }

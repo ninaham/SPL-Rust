@@ -103,32 +103,31 @@ pub fn eval_call_statement<'a, 'b: 'a>(
         .collect::<Vec<_>>();
 
     match proc {
-        ValueFunction::Spl(proc) => {
+        ValueFunction::Spl(proc_entry, proc_body) => {
             let local_table = match table.lookup(&statement.name).unwrap() {
                 Entry::ProcedureEntry(procedure_entry) => procedure_entry.local_table,
                 _ => unreachable!(),
             };
 
-            let vars_param = proc
+            let vars_param = proc_entry
                 .parameters
                 .iter()
                 .zip(args)
                 .map(|(var, arg)| (var.name.clone(), arg));
 
-            let vars_local = proc
-                .variables
-                .iter()
-                .map(|var| eval_local_var(var, &local_table));
+            let vars_local = proc_entry
+                .local_table
+                .entries
+                .keys()
+                .map(|var_name| eval_local_var(var_name, &local_table));
 
-            let new_env = Rc::new(Environment::new(
-                Some(env.clone()),
-                vars_param.chain(vars_local),
-            ));
+            let new_env = Rc::new(Environment::new(env.clone(), vars_param.chain(vars_local)));
 
-            for s in &proc.body {
+            for s in proc_body {
                 eval_statement(s, &local_table, new_env.clone());
             }
         }
-        ValueFunction::BuiltIn(f) => f.call(&args),
+        ValueFunction::BuiltIn(_, f) => f.call(&args),
+        ValueFunction::Tac(_, _) => unreachable!(),
     }
 }

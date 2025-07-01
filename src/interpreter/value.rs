@@ -1,14 +1,20 @@
 use std::{
     cell::RefCell,
     cmp::Ordering,
+    collections::LinkedList,
     fmt::Debug,
     ops::{Add, Div, Mul, Neg, Sub},
     rc::Rc,
 };
 
-use crate::absyn::{
-    absyn::TypeExpression, parameter_definition::ParameterDefinition,
-    procedure_definition::ProcedureDefinition,
+use crate::{
+    absyn::absyn::Statement,
+    code_gen::quadrupel::Quadrupel,
+    table::{
+        entry::{Parameter, ProcedureEntry},
+        symbol_table::SymbolTable,
+        types::Type,
+    },
 };
 
 pub type ValueRef<'a> = Rc<RefCell<Value<'a>>>;
@@ -23,14 +29,25 @@ pub enum Value<'a> {
 
 #[derive(Clone, Debug)]
 pub enum ValueFunction<'a> {
-    Spl(&'a ProcedureDefinition),
-    BuiltIn(BuiltInProc),
+    #[expect(clippy::linkedlist)]
+    Spl(ProcedureEntry, &'a LinkedList<Statement>),
+    Tac(ProcedureEntry, &'a Vec<Quadrupel>),
+    BuiltIn(ProcedureEntry, BuiltInProc),
 }
 impl ValueFunction<'_> {
-    pub fn parameters(&self) -> Box<dyn Iterator<Item = &ParameterDefinition> + '_> {
+    pub fn parameters(&self) -> Box<dyn Iterator<Item = &Parameter> + '_> {
         match self {
-            ValueFunction::Spl(proc) => Box::new(proc.parameters.iter()),
-            ValueFunction::BuiltIn(proc) => Box::new(proc.parameters.iter()),
+            ValueFunction::Tac(proc, _)
+            | ValueFunction::Spl(proc, _)
+            | ValueFunction::BuiltIn(proc, _) => Box::new(proc.parameters.iter()),
+        }
+    }
+
+    pub const fn local_table(&self) -> &SymbolTable {
+        match self {
+            ValueFunction::Tac(proc, _)
+            | ValueFunction::Spl(proc, _)
+            | ValueFunction::BuiltIn(proc, _) => &proc.local_table,
         }
     }
 }
@@ -38,7 +55,6 @@ impl ValueFunction<'_> {
 #[derive(Clone)]
 pub struct BuiltInProc {
     implementation: Rc<BuiltInProcFn>,
-    parameters: Vec<ParameterDefinition>,
 }
 type BuiltInProcFn = dyn Fn(&[ValueRef<'_>]);
 impl BuiltInProc {
@@ -49,7 +65,6 @@ impl BuiltInProc {
 impl Debug for BuiltInProc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BuiltInProc")
-            .field("parameters", &self.parameters)
             .field(
                 "implementation",
                 &format_args!(
@@ -70,16 +85,21 @@ impl Value<'_> {
         params: impl Iterator<Item = (String, bool)>,
         f: impl Fn(&[ValueRef<'_>]) + 'static,
     ) -> Self {
-        Value::Function(ValueFunction::BuiltIn(BuiltInProc {
-            implementation: Rc::new(f),
-            parameters: params
-                .map(|(name, is_reference)| ParameterDefinition {
-                    name,
-                    type_expression: TypeExpression::NamedTypeExpression("int".to_owned()),
-                    is_reference,
-                })
-                .collect(),
-        }))
+        Value::Function(ValueFunction::BuiltIn(
+            ProcedureEntry {
+                local_table: SymbolTable::new(),
+                parameters: params
+                    .map(|(name, is_reference)| Parameter {
+                        name,
+                        typ: Type::INT,
+                        is_reference,
+                    })
+                    .collect(),
+            },
+            BuiltInProc {
+                implementation: Rc::new(f),
+            },
+        ))
     }
 }
 

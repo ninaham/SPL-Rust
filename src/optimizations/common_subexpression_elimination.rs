@@ -3,7 +3,7 @@ use super::aeb::AEBEntry;
 use crate::{
     base_blocks::{Block, BlockContent, BlockGraph},
     code_gen::quadrupel::{
-        quad, Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar,
+        Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar, quad,
     },
     table::symbol_table::SymbolTable,
 };
