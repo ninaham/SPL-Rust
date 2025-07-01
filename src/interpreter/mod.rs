@@ -8,6 +8,7 @@ pub mod value;
 #[cfg(test)]
 mod test {
     use std::{
+        collections::HashMap,
         fs,
         path::{Path, PathBuf},
     };
@@ -15,6 +16,7 @@ mod test {
     use rstest::rstest;
 
     use crate::{
+        base_blocks::BlockGraph,
         code_gen::Tac,
         interpreter::tac_interpreter::eval_tac,
         parser::parse_everything_else::parse,
@@ -53,6 +55,16 @@ mod test {
     }
 
     #[test]
+    fn test_queens_ast() {
+        test_file_ast(Path::new("spl-testfiles/runtime_tests/queens.spl")).unwrap();
+    }
+
+    #[test]
+    fn test_queens_tac() {
+        test_file_tac(Path::new("spl-testfiles/runtime_tests/queens.spl")).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "index out of bounds for array length 3: -1")]
     fn test_runtime_err_ast_8() {
         test_file_ast(Path::new("spl-testfiles/runtime_tests/test8.spl")).unwrap();
@@ -87,10 +99,16 @@ mod test {
             .iter_mut()
             .try_for_each(|def| check_def_global(def, &table))?;
 
-        let mut tac = Tac::new(table);
+        let mut tac = Tac::new(table.clone());
         tac.code_generation(&absyn);
 
-        eval_tac(&tac);
+        let proc_graphs = tac
+            .proc_table
+            .into_iter()
+            .map(|(proc_name, quads)| (proc_name, BlockGraph::from_tac(&quads)))
+            .collect::<HashMap<_, _>>();
+
+        eval_tac(&proc_graphs, &table);
 
         Ok(())
     }

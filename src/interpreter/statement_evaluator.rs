@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     absyn::{
@@ -114,11 +114,13 @@ pub fn eval_call_statement<'a, 'b: 'a>(
                 .iter()
                 .zip(args)
                 .map(|(var, arg)| (var.name.clone(), arg));
+            let vars_param_names = vars_param.clone().map(|(n, _)| n).collect::<Vec<_>>();
 
             let vars_local = proc_entry
                 .local_table
                 .entries
                 .keys()
+                .filter(|&n| !vars_param_names.contains(n))
                 .map(|var_name| eval_local_var(var_name, &local_table));
 
             let new_env = Rc::new(Environment::new(env.clone(), vars_param.chain(vars_local)));

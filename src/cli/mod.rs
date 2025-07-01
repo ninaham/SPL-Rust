@@ -13,7 +13,6 @@ use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::interpreter::definition_evaluator::start_main;
-use crate::interpreter::tac_interpreter::eval_tac;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
@@ -98,11 +97,6 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    if phase == "interprettac" {
-        eval_tac(&address_code);
-        return Ok(());
-    }
-
     let graphs = address_code.proc_table.keys().collect::<Vec<_>>();
     let theme = ColorfulTheme::default();
 
@@ -119,12 +113,18 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
             .default(0)
             .interact()?
     };
-    let mut graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_proc]).unwrap());
     let proc_name = graphs[sel_proc];
+    let mut graph = BlockGraph::from_tac(address_code.proc_table.get(proc_name).unwrap());
     let proc_def = table.borrow().lookup(proc_name);
     let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
         unreachable!()
     };
+
+    if phase == "interprettac" {
+        todo!();
+        //eval_tac(&address_code);
+        //return Ok(());
+    }
 
     if let Some(optis) = matches.get_many::<String>("optis") {
         graph.run_optimizations(optis, &table, &proc_def, proc_name, matches, &theme)?;

@@ -1,47 +1,38 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    code_gen::{
-        Tac,
-        quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
-    },
+    base_blocks::{BlockContent, BlockGraph},
+    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
     interpreter::{
         environment::Environment,
         expression_evaluator,
         value::{Value, ValueFunction, ValueRef},
     },
     spl_builtins,
-    table::entry::Entry,
+    table::{entry::Entry, symbol_table::SymbolTable},
 };
 
-// TODO: Use BlockGraph
-pub fn eval_tac(tac: &Tac) {
-    let procs = tac.proc_table.iter().map(|(name, quads)| {
-        let Some(Entry::ProcedureEntry(proc_entry)) = tac.symboltable.borrow().lookup(name) else {
+pub fn eval_tac(
+    proc_graphs: &HashMap<String, BlockGraph>,
+    symbol_table: &Rc<RefCell<SymbolTable>>,
+) {
+    let procs = proc_graphs.iter().map(|(name, graph)| {
+        let Some(Entry::ProcedureEntry(proc_entry)) = symbol_table.borrow().lookup(name) else {
             unreachable!("function not found: {name}");
         };
         (
             name.to_string(),
-            Value::new_refcell(Value::Function(ValueFunction::Tac(proc_entry, quads))),
+            Value::new_refcell(Value::Function(ValueFunction::Tac(proc_entry, graph))),
         )
     });
     let global_env = Rc::new(Environment::new_global(procs));
 
     spl_builtins::init_start_time();
 
-    eval_function(tac, &"main".to_string(), &mut Vec::new(), global_env);
+    eval_function("main", &mut Vec::new(), global_env);
 }
 
-pub fn eval_function<'a>(
-    tac: &Tac,
-    fun: &String,
-    args: &mut Vec<ValueRef<'a>>,
-    parent_env: Rc<Environment<'a>>,
-) {
-    let instructions = find_function(tac, fun);
-    let labels = label_indices(&instructions);
-    let mut next_instruction = 0;
-
+pub fn eval_function<'a>(fun: &str, args: &mut Vec<ValueRef<'a>>, parent_env: Rc<Environment<'a>>) {
     let proc = parent_env.get(fun).unwrap();
     let Value::Function(proc) = &*proc.borrow() else {
         unreachable!("function not found: {fun}");
@@ -71,54 +62,40 @@ pub fn eval_function<'a>(
         });
 
     let env = Rc::new(Environment::new(parent_env, vars_param.chain(vars_local)));
+    let ValueFunction::Tac(_, proc_graph) = proc else {
+        unreachable!();
+    };
 
-    while next_instruction < instructions.len() {
-        match eval_quad(
-            tac,
-            args,
-            &instructions[next_instruction],
-            env.clone(),
-            &labels,
-        ) {
-            Some(i) => next_instruction = i,
-            None => next_instruction += 1,
-        }
-    }
-}
+    let blocks = &proc_graph.blocks;
+    let mut next_block = 0;
 
-pub fn find_function(tac: &Tac, fun: &String) -> Vec<Quadrupel> {
-    tac.proc_table
-        .get(fun)
-        .unwrap_or_else(|| panic!("function {fun} not found"))
-        .clone()
-}
-
-pub fn label_indices(quads: &[Quadrupel]) -> HashMap<String, usize> {
-    let mut labels = HashMap::new();
-
-    for (i, quad) in quads.iter().enumerate() {
-        if quad.op == QuadrupelOp::Default {
-            match quad.result.clone() {
-                QuadrupelResult::Var(_) => {}
-                QuadrupelResult::Label(l) => {
-                    labels.insert(l, i);
+    while next_block < blocks.len() {
+        match &blocks[next_block].content {
+            BlockContent::Start => {
+                next_block += 1;
+            }
+            BlockContent::Code(quads) => {
+                for quad in quads {
+                    if let Some(l) = &eval_quad(args, quad, env.clone()) {
+                        next_block = *proc_graph.label_to_id.get(l).unwrap();
+                        break;
+                    }
                 }
-                QuadrupelResult::Empty => unreachable!(),
+                next_block += 1;
+            }
+            BlockContent::Stop => {
+                break;
             }
         }
     }
-
-    labels
 }
 
 #[expect(clippy::too_many_lines)]
 pub fn eval_quad<'a>(
-    tac: &Tac,
     args: &mut Vec<ValueRef<'a>>,
     quad: &Quadrupel,
     env: Rc<Environment<'a>>,
-    labels: &HashMap<String, usize>,
-) -> Option<usize> {
+) -> Option<String> {
     match quad.op {
         QuadrupelOp::Add => {
             let i = parse_arg(&quad.arg1, &env);
@@ -159,66 +136,42 @@ pub fn eval_quad<'a>(
             let j = parse_arg(&quad.arg2, &env);
             let label = parse_result(&quad.result);
 
-            if i == j {
-                Some(*labels.get(&label).expect("no such label"))
-            } else {
-                None
-            }
+            if i == j { Some(label) } else { None }
         }
         QuadrupelOp::Neq => {
             let i = parse_arg(&quad.arg1, &env);
             let j = parse_arg(&quad.arg2, &env);
             let label = parse_result(&quad.result);
 
-            if i == j {
-                None
-            } else {
-                Some(*labels.get(&label).expect("no such label"))
-            }
+            if i == j { None } else { Some(label) }
         }
         QuadrupelOp::Lst => {
             let i = parse_arg(&quad.arg1, &env);
             let j = parse_arg(&quad.arg2, &env);
             let label = parse_result(&quad.result);
 
-            if i < j {
-                Some(*labels.get(&label).expect("no such label"))
-            } else {
-                None
-            }
+            if i < j { Some(label) } else { None }
         }
         QuadrupelOp::Lse => {
             let i = parse_arg(&quad.arg1, &env);
             let j = parse_arg(&quad.arg2, &env);
             let label = parse_result(&quad.result);
 
-            if i <= j {
-                Some(*labels.get(&label).expect("no such label"))
-            } else {
-                None
-            }
+            if i <= j { Some(label) } else { None }
         }
         QuadrupelOp::Grt => {
             let i = parse_arg(&quad.arg1, &env);
             let j = parse_arg(&quad.arg2, &env);
             let label = parse_result(&quad.result);
 
-            if i > j {
-                Some(*labels.get(&label).expect("no such label"))
-            } else {
-                None
-            }
+            if i > j { Some(label) } else { None }
         }
         QuadrupelOp::Gre => {
             let i = parse_arg(&quad.arg1, &env);
             let j = parse_arg(&quad.arg2, &env);
             let label = parse_result(&quad.result);
 
-            if i >= j {
-                Some(*labels.get(&label).expect("no such label"))
-            } else {
-                None
-            }
+            if i >= j { Some(label) } else { None }
         }
         QuadrupelOp::Assign => {
             let val = parse_arg(&quad.arg1, &env);
@@ -259,7 +212,7 @@ pub fn eval_quad<'a>(
         }
         QuadrupelOp::Goto => {
             let label = parse_result(&quad.result);
-            Some(*labels.get(&label).expect("no such label"))
+            Some(label)
         }
         QuadrupelOp::Param => {
             let arg = parse_arg_ref(&quad.arg1, &env);
@@ -268,7 +221,7 @@ pub fn eval_quad<'a>(
         }
         QuadrupelOp::Call => {
             let fun = parse_fun(&quad.arg1);
-            eval_function(tac, &fun, args, env);
+            eval_function(&fun, args, env);
             None
         }
         QuadrupelOp::Default => None,
@@ -306,12 +259,12 @@ pub fn parse_fun(arg: &QuadrupelArg) -> String {
 }
 
 pub fn parse_result(res: &QuadrupelResult) -> String {
-    match res.clone() {
+    match &res {
         QuadrupelResult::Var(quadrupel_var) => match quadrupel_var {
-            QuadrupelVar::Spl(name) => name,
+            QuadrupelVar::Spl(name) => name.to_string(),
             QuadrupelVar::Tmp(t) => format!("T{t}"),
         },
-        QuadrupelResult::Label(l) => l,
+        QuadrupelResult::Label(l) => l.to_string(),
         QuadrupelResult::Empty => unreachable!(),
     }
 }

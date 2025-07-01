@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     absyn::absyn::Statement,
-    code_gen::quadrupel::Quadrupel,
+    base_blocks::BlockGraph,
     table::{
         entry::{Parameter, ProcedureEntry},
         symbol_table::SymbolTable,
@@ -31,7 +31,7 @@ pub enum Value<'a> {
 pub enum ValueFunction<'a> {
     #[expect(clippy::linkedlist)]
     Spl(ProcedureEntry, &'a LinkedList<Statement>),
-    Tac(ProcedureEntry, &'a Vec<Quadrupel>),
+    Tac(ProcedureEntry, &'a BlockGraph),
     BuiltIn(ProcedureEntry, BuiltInProc),
 }
 impl ValueFunction<'_> {
