@@ -70,10 +70,9 @@ pub fn eval_function<'a>(
                     let Entry::VariableEntry(var_entry) = entry else {
                         return None;
                     };
-                    Some((
-                        name.to_string(),
-                        Value::new_refcell(var_entry.typ.default_value()),
-                    ))
+                    let default =
+                        Rc::new(RefCell::new(var_entry.typ.default_value().flatten_value()));
+                    Some((name.to_string(), default))
                 });
 
             let env = Rc::new(Environment::new(
@@ -226,7 +225,7 @@ pub fn eval_quad<'a>(
             let &mut Value::Array(ref mut array) = &mut *array.borrow_mut() else {
                 unreachable!();
             };
-            let index = eval_array_index(index, arr.len());
+            let index = eval_array_index(index, array.len());
             array[index] = Rc::new(RefCell::new(value));
 
             None

@@ -56,7 +56,6 @@ impl<'a, 'b> Environment<'a, 'b> {
             return Some(v.clone());
         }
 
-        println!("{key} not found in parent env");
         if let Some(typ) = self.symbol_table.lookup(key).map_or_else(
             || Some(Type::INT), // not in symbol_table => should be temp var
             |e| match e {

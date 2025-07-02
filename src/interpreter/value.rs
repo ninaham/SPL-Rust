@@ -69,6 +69,23 @@ impl Debug for BuiltInProc {
 }
 
 impl Value<'_> {
+    pub fn flatten_value(&self) -> Self {
+        if let Value::Array(ref_cells) = self {
+            let mut arr = vec![];
+            for v in ref_cells {
+                if let Value::Array(a) = v.borrow().flatten_value() {
+                    for x in a {
+                        arr.push(x);
+                    }
+                } else {
+                    arr.push(v.clone());
+                }
+            }
+            Value::Array(arr)
+        } else {
+            self.clone()
+        }
+    }
     pub fn new_refcell(value: Value) -> ValueRef {
         Rc::new(RefCell::new(value))
     }

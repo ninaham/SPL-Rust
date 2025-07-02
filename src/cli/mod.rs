@@ -15,7 +15,6 @@ use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::interpreter::definition_evaluator::start_main;
 use crate::interpreter::tac_interpreter::eval_tac;
-use crate::table::symbol_table;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
