@@ -53,11 +53,19 @@ pub fn eval_function<'a>(
                     }
                 });
 
+            let vars_param_names = proc
+                .entry()
+                .parameters
+                .iter()
+                .map(|p| p.name.clone())
+                .collect::<Vec<_>>();
+
             let vars_local = proc
                 .entry()
                 .local_table
                 .entries
                 .iter()
+                .filter(|(n, _)| !vars_param_names.contains(n))
                 .filter_map(|(name, entry)| {
                     let Entry::VariableEntry(var_entry) = entry else {
                         return None;
@@ -85,8 +93,7 @@ pub fn eval_function<'a>(
                     BlockContent::Code(quads) => {
                         for quad in quads {
                             if let Some(l) = &eval_quad(args, quad, env.clone()) {
-                                next_block = *proc_graph.label_to_id.get(l).unwrap();
-                                break;
+                                next_block = *proc_graph.label_to_id.get(l).unwrap() - 1;
                             }
                         }
                         next_block += 1;
@@ -236,6 +243,7 @@ pub fn eval_quad<'a>(
         QuadrupelOp::Call => {
             let fun = parse_fun(&quad.arg1);
             eval_function(&fun, args, env);
+            args.clear();
             None
         }
         QuadrupelOp::Default => None,

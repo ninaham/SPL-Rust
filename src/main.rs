@@ -58,7 +58,7 @@ mod test {
             .iter_mut()
             .try_for_each(|def| check_def_global(def, &table))?;
 
-        let mut address_code = Tac::new(table.clone());
+        let mut address_code = Tac::new();
         address_code.code_generation(&absyn);
 
         assert!(address_code.proc_table.contains_key("main"));

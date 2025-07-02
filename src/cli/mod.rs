@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::{self, Display, Write as _};
 use std::io::{IsTerminal, Write as _};
 use std::path::Path;
@@ -13,6 +14,8 @@ use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
 use crate::interpreter::definition_evaluator::start_main;
+use crate::interpreter::tac_interpreter::eval_tac;
+use crate::table::symbol_table;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
@@ -121,9 +124,14 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
 
     if phase == "interprettac" {
-        todo!();
-        //eval_tac(&address_code);
-        //return Ok(());
+        let proc_graphs = address_code
+            .proc_table
+            .into_iter()
+            .map(|(proc_name, quads)| (proc_name, BlockGraph::from_tac(&quads)))
+            .collect::<HashMap<_, _>>();
+        let t = table.borrow();
+        eval_tac(&proc_graphs, &t);
+        return Ok(());
     }
 
     if let Some(optis) = matches.get_many::<String>("optis") {

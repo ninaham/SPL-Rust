@@ -1,3 +1,4 @@
+use core::str;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
@@ -39,17 +40,23 @@ impl<'a, 'b> Environment<'a, 'b> {
         }
     }
 
+    pub fn recursive_get(&self, key: &str) -> Option<ValueRef<'a>> {
+        self.vars.borrow().get(key).map_or_else(
+            || {
+                self.parent
+                    .clone()
+                    .map_or_else(|| None, |p| p.recursive_get(key))
+            },
+            |v| Some(v.clone()),
+        )
+    }
+
     pub fn get(&self, key: &str) -> Option<ValueRef<'a>> {
-        if let Some(v) = self.vars.borrow().get(key) {
+        if let Some(v) = self.recursive_get(key) {
             return Some(v.clone());
         }
 
-        if let Some(p) = &self.parent {
-            if let Some(v) = p.vars.borrow().get(key) {
-                return Some(v.clone());
-            }
-        }
-
+        println!("{key} not found in parent env");
         if let Some(typ) = self.symbol_table.lookup(key).map_or_else(
             || Some(Type::INT), // not in symbol_table => should be temp var
             |e| match e {
