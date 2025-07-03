@@ -67,7 +67,7 @@ impl Worklist for ConstantPropagation {
 
     const EDGE_DIRECTION: worklist::EdgeDirection = worklist::EdgeDirection::Forward;
 
-    fn init(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self {
+    fn init(graph: &BlockGraph, local_table: &SymbolTable) -> Self {
         let vars = graph.all_vars(local_table);
         let gens = graph
             .blocks

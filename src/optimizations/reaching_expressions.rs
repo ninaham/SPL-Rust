@@ -20,7 +20,7 @@ impl Worklist for ReachingDefinitions {
 
     const EDGE_DIRECTION: worklist::EdgeDirection = worklist::EdgeDirection::Forward;
 
-    fn init(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self {
+    fn init(graph: &BlockGraph, local_table: &SymbolTable) -> Self {
         let defs_all = graph.definitions(local_table);
         let defs_per_block = graph.defs_per_block(&defs_all);
         let r#gen = defs_per_block;

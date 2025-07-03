@@ -209,8 +209,11 @@ impl BlockGraph {
                 }
                 "licm" => {
                     eprintln!("{}", ">>> Loop Invariant Code Motion:".green());
-                    self.tarjan();
                     self.loop_optimization(&proc_def.local_table);
+                }
+                "licm+" => {
+                    eprintln!("{}", ">>> Loop Invariant Code Motion:".green());
+                    while self.loop_optimization(&proc_def.local_table) {}
                 }
                 _ => panic!("Unknown optimization: {opti}"),
             }
