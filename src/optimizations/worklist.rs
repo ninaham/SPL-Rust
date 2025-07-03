@@ -112,7 +112,7 @@ impl BlockGraph {
             .collect()
     }
 
-    fn edges_prev(&self) -> Vec<HashSet<usize>> {
+    pub fn edges_prev(&self) -> Vec<HashSet<usize>> {
         let mut edges_prev = vec![HashSet::new(); self.blocks.len()];
 
         self.edges()
