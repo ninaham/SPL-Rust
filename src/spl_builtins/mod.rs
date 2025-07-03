@@ -1,4 +1,9 @@
-use std::{cell::Cell, cell::RefMut, time::Instant};
+use std::{
+    cell::{Cell, RefMut},
+    io::{self, Write as _},
+    process,
+    time::Instant,
+};
 
 use crate::{
     interpreter::value::{Value, ValueRef},
@@ -17,23 +22,36 @@ pub fn init_start_time() {
 builtin_procedures! {
     proc printi(i: int) {
         print!("{i}");
+        io::stdout().flush().unwrap();
     }
     proc printc(c: int) {
         let c = u8::try_from(c).unwrap_or_else(|_| panic!("Argument to printc() should be a valid ASCII value: {c}")) as char;
         print!("{c}");
+        io::stdout().flush().unwrap();
     }
     proc readi(ref i: int) {
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input).unwrap();
         *i = input.trim().parse::<i32>().unwrap_or_else(|_| panic!("{input} is not a number"));
     }
     proc readc(ref c: int) {
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
-        *c = input.chars().next().expect("no character found") as i32;
+        #[cfg(not(feature = "console-crate"))]
+        {
+            use std::{slice, io::Read as _};
+
+            let mut input = 0u8;
+            io::stdin().read_exact(slice::from_mut(&mut input)).unwrap();
+            *c = i32::from(input);
+        }
+        #[cfg(feature = "console-crate")]
+        {
+            use console::Term;
+
+            *c = Term::stdout().read_char().unwrap() as i32;
+        }
     }
     proc exit() {
-        std::process::exit(0)
+        process::exit(0)
     }
     proc time(ref t: int) {
         *t = START_TIME.get().elapsed().as_secs().try_into().unwrap();
