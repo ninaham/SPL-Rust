@@ -22,9 +22,19 @@ builtin_procedures! {
         let c = u8::try_from(c).unwrap_or_else(|_| panic!("Argument to printc() should be a valid ASCII value: {c}")) as char;
         print!("{c}");
     }
-    proc readi(ref i: int)
-    proc readc(ref c: int)
-    proc exit()
+    proc readi(ref i: int) {
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+        *i = input.trim().parse::<i32>().unwrap_or_else(|_| panic!("{input} is not a number"));
+    }
+    proc readc(ref c: int) {
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+        *c = input.chars().next().expect("no character found") as i32;
+    }
+    proc exit() {
+        std::process::exit(0)
+    }
     proc time(ref t: int) {
         *t = START_TIME.get().elapsed().as_secs().try_into().unwrap();
     }
