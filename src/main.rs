@@ -32,21 +32,28 @@ mod test {
     use crate::table::entry::Entry;
 
     #[rstest]
-    fn test_all_files(
+    fn optimizations(
+        #[files("spl-testfiles/optimizations/*.spl")] path: PathBuf,
+    ) -> anyhow::Result<()> {
+        file(&path)
+    }
+
+    #[rstest]
+    fn runtime_tests(
         #[files("spl-testfiles/runtime_tests/*.spl")]
         #[exclude("reftest.spl")]
         path: PathBuf,
     ) -> anyhow::Result<()> {
-        test_file(&path)
+        file(&path)
     }
 
     #[rstest]
-    fn test_syntax_errors(#[files("spl-testfiles/syntax_errors/*.spl")] path: PathBuf) {
+    fn syntax_errors(#[files("spl-testfiles/syntax_errors/*.spl")] path: PathBuf) {
         let code = fs::read_to_string(path).unwrap();
         parse(&code).expect_err("Parsing should fail");
     }
 
-    fn test_file(path: &Path) -> anyhow::Result<()> {
+    fn file(path: &Path) -> anyhow::Result<()> {
         let code = fs::read_to_string(path).unwrap();
 
         let mut absyn = parse(code.leak())?;

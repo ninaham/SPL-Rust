@@ -26,7 +26,7 @@ mod test {
     use super::definition_evaluator::start_main;
 
     #[rstest]
-    fn test_all_files_ast(
+    fn ast(
         #[files("spl-testfiles/runtime_tests/*.spl")]
         #[exclude("reftest.spl")]
         #[exclude("test8.spl")]
@@ -55,29 +55,29 @@ mod test {
     }
 
     #[test]
-    fn test_queens_ast() {
+    fn queens_ast() {
         test_file_ast(Path::new("spl-testfiles/runtime_tests/queens.spl")).unwrap();
     }
 
     #[test]
-    fn test_queens_tac() {
+    fn queens_tac() {
         test_file_tac(Path::new("spl-testfiles/runtime_tests/queens.spl")).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "index out of bounds for array length 3: -1")]
-    fn test_runtime_err_ast_8() {
+    fn runtime_err_ast_8() {
         test_file_ast(Path::new("spl-testfiles/runtime_tests/test8.spl")).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "index out of bounds for array length 3: 3")]
-    fn test_runtime_err_ast_9() {
+    fn runtime_err_ast_9() {
         test_file_ast(Path::new("spl-testfiles/runtime_tests/test9.spl")).unwrap();
     }
 
     #[rstest]
-    fn test_all_files_tac(
+    fn tac(
         #[files("spl-testfiles/runtime_tests/*.spl")]
         #[exclude("reftest.spl")]
         #[exclude("test8.spl")]
