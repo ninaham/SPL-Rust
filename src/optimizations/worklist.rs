@@ -16,15 +16,19 @@ pub struct State<'a, W: Worklist + ?Sized> {
     pub output: &'a mut [W::Lattice],
 }
 
+/// Defines the properties that any data-flow lattice must fulfill.
 pub trait Lattice: LatticeJoinAssign + Clone + Eq {
     fn init(len: usize) -> Self;
     fn meet(&self, other: &Self) -> Self;
     fn join(&self, other: &Self) -> Self;
 }
 
+/// Defines a trait for mutating a lattice via join.
 pub trait LatticeJoinAssign {
     fn join_assign(&mut self, other: &Self);
 }
+
+/// Marker trait to allow types that are Copy and fulfill `Lattice` to use a default `join_assign`.
 pub trait LatticeJoinAssignCopy: Copy {}
 impl<L: Lattice + LatticeJoinAssignCopy> LatticeJoinAssign for L {
     fn join_assign(&mut self, other: &Self) {
@@ -37,6 +41,7 @@ pub enum EdgeDirection {
     Backward,
 }
 
+/// Trait for defining a data-flow analysis
 pub trait Worklist {
     type Lattice: self::Lattice;
     type D;
@@ -61,6 +66,7 @@ pub trait Worklist {
 }
 
 impl BlockGraph {
+    /// Executes a generic worklist algorithm based on the selected edge direction.
     fn run_worklist<W: Worklist>(&self, local_table: &SymbolTable) -> W {
         let mut state_res = W::init(self, local_table);
         let mut state = state_res.state();
@@ -96,10 +102,10 @@ impl BlockGraph {
                 changed.extend(&edges_forward[node]);
             }
         }
-
         state_res
     }
 
+    /// Collects all variable definitions for the entire graph.
     pub(super) fn definitions(&self, local_table: &SymbolTable) -> Vec<Definition> {
         (0..self.blocks.len())
             .flat_map(|i| -> Vec<_> {
@@ -112,6 +118,7 @@ impl BlockGraph {
             .collect()
     }
 
+    /// Constructs the predecessor edge list (reversed CFG edges).
     pub fn edges_prev(&self) -> Vec<HashSet<usize>> {
         let mut edges_prev = vec![HashSet::new(); self.blocks.len()];
 
@@ -127,6 +134,7 @@ impl BlockGraph {
         edges_prev
     }
 
+    /// Computes a bitmap of which definitions occur in each block.
     pub(super) fn defs_per_block(&self, defs_in_proc: &[Definition]) -> Vec<BitVec> {
         self.blocks
             .iter()
@@ -137,6 +145,7 @@ impl BlockGraph {
 }
 
 impl Block {
+    /// Returns a BitVec indicating which definitions occur in this block.
     fn defs_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
         defs_in_proc
             .iter()
@@ -144,6 +153,7 @@ impl Block {
             .collect::<BitVec>()
     }
 
+    /// Collects all definitions (assignment to variable) from a block's instructions.
     fn definitions(
         block_id: usize,
         quads: &[Quadrupel],
@@ -173,6 +183,7 @@ impl Block {
     }
 }
 
+/// Represents a definition of a variable (from a specific block and instruction).
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Definition {
     pub block_id: usize,
@@ -180,6 +191,7 @@ pub struct Definition {
     pub var: QuadrupelVar,
 }
 
+/// Pretty-prints a table of definitions.
 impl FmtTable for Definition {
     fn fmt_table(defs: &[Self]) -> Result<String, std::fmt::Error> {
         let mut out = String::new();
@@ -197,6 +209,7 @@ impl FmtTable for Definition {
     }
 }
 
+/// Converts a symbol table entry into a definition (used for `Start` block).
 impl From<(&String, &Entry)> for Definition {
     fn from((name, entry): (&String, &Entry)) -> Self {
         assert!(matches!(entry, Entry::VariableEntry(_)));
@@ -208,6 +221,7 @@ impl From<(&String, &Entry)> for Definition {
     }
 }
 
+/// BitVec is a valid lattice for bit-level data-flow facts.
 impl Lattice for BitVec {
     fn init(len: usize) -> Self {
         Self::repeat(false, len)

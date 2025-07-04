@@ -13,13 +13,18 @@ use crate::{
 
 use self::Constness::{Constant, Undefined, Variable};
 
+/// Enum representing the constantness of a variable:
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Constness {
+    /// - Undefined: not yet determined
     Undefined,
+    /// - Constant(i32): known constant value
     Constant(i32),
+    /// - Variable: not a constant
     Variable,
 }
 
+// Custom debug formatting with colored output
 impl Debug for Constness {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -30,11 +35,13 @@ impl Debug for Constness {
     }
 }
 
+// Implementing the lattice operations needed for dataflow analysis
 impl Lattice for Constness {
     fn init(_: usize) -> Self {
         Undefined
     }
 
+    // Meet function used for merging information from predecessors
     fn meet(&self, other: &Self) -> Self {
         match (self, other) {
             (Undefined, c) | (c, Undefined) => *c,
@@ -43,6 +50,7 @@ impl Lattice for Constness {
         }
     }
 
+    // Join function used for merging information from successors
     fn join(&self, other: &Self) -> Self {
         match (self, other) {
             (Variable, c) | (c, Variable) => *c,
@@ -51,22 +59,27 @@ impl Lattice for Constness {
         }
     }
 }
+
+// Enables use of default join+assign operations for this lattice
 impl LatticeJoinAssignCopy for Constness {}
 
+/// Struct representing the full state for the constant propagation analysis
 pub struct ConstantPropagation {
-    pub vars: Vec<QuadrupelVar>,
-    pub gens: Vec<Vec<Constness>>,
-    pub prsv: Vec<Vec<Constness>>,
-    pub r#in: Vec<Vec<Constness>>,
-    pub out: Vec<Vec<Constness>>,
+    pub vars: Vec<QuadrupelVar>,   // All variables in the program
+    pub gens: Vec<Vec<Constness>>, // GEN sets for each block
+    pub prsv: Vec<Vec<Constness>>, // PRSV sets (what is preserved)
+    pub r#in: Vec<Vec<Constness>>, // IN set per block
+    pub out: Vec<Vec<Constness>>,  // OUT set per block
 }
 
+// Implement the worklist-based fixed-point algorithm
 impl Worklist for ConstantPropagation {
     type Lattice = Vec<Constness>;
     type D = QuadrupelVar;
 
     const EDGE_DIRECTION: worklist::EdgeDirection = worklist::EdgeDirection::Forward;
 
+    // Initialization of the lattice values and sets
     fn init(graph: &BlockGraph, local_table: &SymbolTable) -> Self {
         let vars = graph.all_vars(local_table);
         let gens = graph
@@ -85,6 +98,7 @@ impl Worklist for ConstantPropagation {
         }
     }
 
+    // Return mutable references to all state vectors
     fn state(&mut self) -> worklist::State<'_, Self> {
         worklist::State::<Self> {
             block_info_a: &mut self.gens,
@@ -95,17 +109,21 @@ impl Worklist for ConstantPropagation {
     }
 }
 
+// Allows retrieving the index of a variable in the lattice vector
 impl GetVarIdx<QuadrupelVar> for ConstantPropagation {
     fn vars(&self) -> &[QuadrupelVar] {
         &self.vars
     }
 }
+
 impl ConstantPropagation {
+    /// Helper to get the constantness of a variable at a given program point
     pub fn get_constness(&self, var: &QuadrupelVar, const_state: &[Constness]) -> Constness {
         const_state[self.get_var_idx(var).unwrap()]
     }
 }
 
+// Extension method on the block graph to extract all defined variables
 impl BlockGraph {
     fn all_vars(&self, local_table: &SymbolTable) -> Vec<QuadrupelVar> {
         self.definitions(local_table)
@@ -117,7 +135,9 @@ impl BlockGraph {
     }
 }
 
+// Implement GEN and PRSV set computation for each block
 impl Block {
+    /// Compute the GEN set for constant propagation
     fn gcp_gen(&self, vars: &[QuadrupelVar], local_table: &SymbolTable) -> Vec<Constness> {
         let symbol_table = local_table.upper_level();
         let symbol_table = symbol_table.borrow();
@@ -125,11 +145,13 @@ impl Block {
         let var_idx = |var| ConstantPropagation::get_var_idx_in(vars, var).unwrap();
 
         match &self.content {
+            // Start and Stop blocks produce nothing
             BlockContent::Start | BlockContent::Stop => vec![Undefined; vars.len()],
             BlockContent::Code(quads) => {
                 let mut gens = vec![Undefined; vars.len()];
 
                 for (i, quad) in quads.iter().enumerate() {
+                    // Check if we're referencing a parameter
                     let is_reference =
                         || Quadrupel::find_param_declaration(quads, i, &symbol_table).is_reference;
                     Constness::from_quad(quad, &mut gens, var_idx, is_reference);
@@ -140,6 +162,7 @@ impl Block {
         }
     }
 
+    /// Compute the PRSV set based on the GEN set
     fn gcp_prsv(gens: &[Constness]) -> Vec<Constness> {
         gens.iter()
             .map(|g| match g {
@@ -151,6 +174,7 @@ impl Block {
 }
 
 impl Constness {
+    /// Determine constness of a single argument (variable or constant)
     fn from_quad_arg<'a: 'b, 'b>(
         value: &'a QuadrupelArg,
         gens: &[Self],
@@ -166,6 +190,7 @@ impl Constness {
         }
     }
 
+    /// Update the GEN set based on the effect of a single Quadruple
     pub fn from_quad<'a: 'b, 'b>(
         quad: &'a Quadrupel,
         gens: &mut [Self],
@@ -173,26 +198,32 @@ impl Constness {
         is_reference: impl FnOnce() -> bool,
     ) {
         match quad {
+            // Handle assignment to a variable
             quad_match!(op, arg1, arg2 => res @ QuadrupelResult::Var(var)) => {
                 let var = var_idx(var);
                 let arg1 = Self::from_quad_arg(arg1, gens, &var_idx);
                 let arg2 = Self::from_quad_arg(arg2, gens, &var_idx);
 
                 gens[var] = match (op, (arg1, arg2)) {
+                    // Simple constant assignment
                     (quad!(@op :=), (Constant(c), _)) => Constant(c),
+                    // Unary minus
                     (quad!(@op ~ ), (Constant(c), _)) => Constant(-c),
 
+                    // Binary operations with constant values
                     (op @ quad!(@op (+)(-)(*)(/)), (Constant(c1), Constant(c2))) => Constant(
                         quad!(*op, (=c1), (=c2) => res.clone())
                             .calc_const()
                             .unwrap(),
                     ),
+                    // Otherwise, result is not constant
                     _ => Variable,
                 };
             }
+            // Special case: calling procedure by reference
             quad_match!((p), (~var), _ => _) if is_reference() => {
                 let var = var_idx(var);
-                // we dont know if procedure is const
+                // Cannot determine constness of references
                 gens[var] = Variable;
             }
             _ => {}
