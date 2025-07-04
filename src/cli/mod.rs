@@ -38,6 +38,7 @@ pub fn load_program_data() -> Command {
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
             arg!(interpret: -i --interpret "SPL Interpreter"),
+            arg!(interpretoptimized: -j --interpret_optimized "TAC Interpreter with optimizations"),
             arg!(interprettac: -I --interprettac "TAC Interpreter"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
@@ -51,7 +52,7 @@ pub fn load_program_data() -> Command {
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "interpret", "interprettac", "tac", "dot"]),
+                .args(["parse", "tables", "semant", "interpret", "interprettac", "interpretoptimized", "tac", "dot"]),
         )
 }
 
@@ -107,36 +108,60 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         .get_one::<String>("proc")
         .and_then(|proc_arg| graphs.iter().position(|p| p == &proc_arg));
 
-    let sel_proc = if let Some(sel_proc) = sel_proc {
-        sel_proc
+    if let Some(sel_proc) = sel_proc {
+        let proc_name = graphs[sel_proc];
+        let mut graph = BlockGraph::from_tac(address_code.proc_table.get(proc_name).unwrap());
+
+        if phase == "interprettac" {
+            bail!("cannot interpret a single procedure");
+        }
+
+        if let Some(optis) = matches.get_many::<String>("optis") {
+            graph.run_optimizations(optis, &table, proc_name, matches, &theme)?;
+        }
+
+        if phase == "dot" {
+            graph.show_dot(proc_name, matches, &theme)?;
+            return Ok(());
+        }
     } else {
-        Select::with_theme(&theme)
-            .with_prompt("Which procedure?")
-            .items(&graphs)
-            .default(0)
-            .interact()?
-    };
-    let proc_name = graphs[sel_proc];
-    let mut graph = BlockGraph::from_tac(address_code.proc_table.get(proc_name).unwrap());
+        let mut unoptimized_graphs = HashMap::new();
+        let mut optimized_graphs = HashMap::new();
+        for proc_name in &graphs {
+            let mut graph = BlockGraph::from_tac(address_code.proc_table.get(*proc_name).unwrap());
 
-    if phase == "interprettac" {
-        let proc_graphs = address_code
-            .proc_table
-            .into_iter()
-            .map(|(proc_name, quads)| (proc_name, BlockGraph::from_tac(&quads)))
-            .collect::<HashMap<_, _>>();
-        let t = table.borrow();
-        eval_tac(&proc_graphs, &t);
-        return Ok(());
-    }
+            unoptimized_graphs.insert((*proc_name).clone(), graph.clone());
 
-    if let Some(optis) = matches.get_many::<String>("optis") {
-        graph.run_optimizations(optis, &table, proc_name, matches, &theme)?;
-    }
+            if let Some(optis) = matches.get_many::<String>("optis") {
+                graph.run_optimizations(optis, &table, proc_name, matches, &theme)?;
+            }
+            optimized_graphs.insert((*proc_name).clone(), graph.clone());
 
-    if phase == "dot" {
-        graph.show_dot(proc_name, matches, &theme)?;
-        return Ok(());
+            if phase == "dot" {
+                let proc = Select::with_theme(&theme)
+                    .with_prompt("Which procedure?")
+                    .items(&graphs)
+                    .default(0)
+                    .interact()?;
+                if *proc_name != graphs[proc] {
+                    continue;
+                }
+
+                graph.show_dot(proc_name, matches, &theme)?;
+                return Ok(());
+            }
+        }
+        if phase == "interprettac" {
+            let t = table.borrow();
+            eval_tac(&unoptimized_graphs, &t);
+            return Ok(());
+        }
+
+        if phase == "interpretoptimized" {
+            let t = table.borrow();
+            eval_tac(&optimized_graphs, &t);
+            return Ok(());
+        }
     }
 
     unreachable!()
