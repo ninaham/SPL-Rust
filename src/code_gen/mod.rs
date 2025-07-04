@@ -70,7 +70,7 @@ impl Tac {
         }
     }
 
-    fn local_table(&self) -> RefMut<SymbolTable> {
+    fn local_table(&self) -> RefMut<'_, SymbolTable> {
         RefMut::map(self.global_table.borrow_mut(), |b| {
             match b
                 .entries
