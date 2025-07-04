@@ -145,7 +145,7 @@ impl BlockGraph {
 }
 
 impl Block {
-    /// Returns a BitVec indicating which definitions occur in this block.
+    /// Returns a `BitVec` indicating which definitions occur in this block.
     fn defs_in_block(block_id: usize, defs_in_proc: &[Definition]) -> BitVec {
         defs_in_proc
             .iter()
@@ -221,7 +221,7 @@ impl From<(&String, &Entry)> for Definition {
     }
 }
 
-/// BitVec is a valid lattice for bit-level data-flow facts.
+/// `BitVec` is a valid lattice for bit-level data-flow facts.
 impl Lattice for BitVec {
     fn init(len: usize) -> Self {
         Self::repeat(false, len)

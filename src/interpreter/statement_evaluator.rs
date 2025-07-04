@@ -17,6 +17,7 @@ use crate::{
     table::{entry::Entry, symbol_table::SymbolTable},
 };
 
+// Evaluates any statement and executes it in the given environment.
 pub fn eval_statement<'a, 'b: 'a>(
     statement: &'b Statement,
     table: &SymbolTable,
@@ -42,13 +43,16 @@ pub fn eval_statement<'a, 'b: 'a>(
     }
 }
 
+// Executes an if statement.
 pub fn eval_if_statement<'a, 'b: 'a>(
     statement: &'b IfStatement,
     table: &SymbolTable,
     env: Rc<Environment<'b, '_>>,
 ) {
+    // Evaluate the condition of the if statement.
     let cond = eval_expression(&statement.condition, env.clone());
 
+    // Match the condition value to determine which branch to execute.
     match cond {
         Value::Bool(b) => {
             if b {
@@ -61,34 +65,43 @@ pub fn eval_if_statement<'a, 'b: 'a>(
     }
 }
 
+// Executes an assignment statement, evaluating the value and assigning it to the variable.
 pub fn eval_assign_statement<'a, 'b: 'a>(
     statement: &AssignStatement,
     env: &Rc<Environment<'b, '_>>,
 ) {
+    // Evaluate the value of the assignment statement.
     let val = eval_expression(&statement.value, env.clone());
+    // Get the variable reference to assign the value to.
     let x = eval_var(&statement.target, env);
     *x.borrow_mut() = val;
 }
 
+// Executes a while statement.
 pub fn eval_while_statement<'a, 'b: 'a>(
     statement: &'b WhileStatement,
     table: &SymbolTable,
     env: &Rc<Environment<'b, '_>>,
 ) {
+    // Evaluate the condition of the while statement. Execute the body as long as the condition is true.
     while eval_expression(&statement.condition, env.clone()) == Value::Bool(true) {
+        // Execute the body of the while statement.
         eval_statement(&statement.body, table, env.clone());
     }
 }
 
+// Calls a procedure defined in the symbol table, passing the evaluated arguments.
 pub fn eval_call_statement<'a, 'b: 'a>(
     statement: &'b CallStatement,
     table: &SymbolTable,
     env: &Rc<Environment<'a, '_>>,
 ) {
+    // Look up the procedure in the symbol table.
     let Some(Value::Function(proc)) = env.get(&statement.name).map(|v| v.borrow().clone()) else {
         unimplemented!("SPL-builtin `{}()`", statement.name);
     };
 
+    // Get arguments for the procedure call, evaluating each argument based on the procedure's parameters.
     let args = statement
         .arguments
         .iter()
@@ -105,13 +118,16 @@ pub fn eval_call_statement<'a, 'b: 'a>(
         })
         .collect::<Vec<_>>();
 
+    // Match the procedure type and execute it accordingly.
     match proc {
         ValueFunction::Spl(proc_entry, proc_body) => {
+            // Get the local symbol table for the procedure.
             let local_table = match table.lookup(&statement.name).unwrap() {
                 Entry::ProcedureEntry(procedure_entry) => procedure_entry.local_table,
                 _ => unreachable!(),
             };
 
+            // get the parameters for the procedure call and create a new environment with the parameters and local variables.
             let vars_param = proc_entry
                 .parameters
                 .iter()
@@ -132,11 +148,15 @@ pub fn eval_call_statement<'a, 'b: 'a>(
                 &local_table,
             ));
 
+            // Execute the procedure body in the new environment.
             for s in proc_body {
                 eval_statement(s, &local_table, new_env.clone());
             }
         }
-        ValueFunction::BuiltIn(_, f) => f.call(&args),
+        ValueFunction::BuiltIn(_, f) => {
+            // Call the built-in function with the evaluated arguments.
+            f.call(&args);
+        }
         ValueFunction::Tac(_, _) => unreachable!(),
     }
 }

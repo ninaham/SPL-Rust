@@ -21,7 +21,7 @@ impl<'a> BlockStartIterator<'a> {
 }
 
 impl Iterator for BlockStartIterator<'_> {
-    /// Each item is a tuple of (start_index, end_index) representing a basic block
+    /// Each item is a tuple of (`start_index``end_index`ex) representing a basic block
     type Item = (usize, usize);
 
     fn next(&mut self) -> Option<Self::Item> {

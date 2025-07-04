@@ -14,13 +14,13 @@ use super::worklist::{self, GetVarIdx, Worklist};
 pub struct LiveVariables {
     /// List of all variables in the procedure.
     pub vars: Vec<QuadrupelVar>,
-    /// BitVec for each block indicating which variables are defined.
+    /// `BitVec` for each block indicating which variables are defined.
     pub def: Vec<BitVec>,
-    /// BitVec for each block indicating which variables are used.
+    /// `BitVec` for each block indicating which variables are used.
     pub use_bits: Vec<BitVec>,
-    /// BitVec representing variables live at the entry of each block.
+    /// `BitVec` representing variables live at the entry of each block.
     pub livin: Vec<BitVec>,
-    /// BitVec representing variables live at the exit of each block.
+    /// `BitVec` representing variables live at the exit of each block.
     pub livout: Vec<BitVec>,
 }
 
@@ -89,7 +89,7 @@ impl GetVarIdx<QuadrupelVar> for LiveVariables {
 }
 
 impl Block {
-    /// Computes a BitVec that indicates which variables from `unique_defs`
+    /// Computes a `BitVec` that indicates which variables from `unique_defs`
     /// are defined in the given block.
     pub fn defs_in_block_2(
         block_id: usize,

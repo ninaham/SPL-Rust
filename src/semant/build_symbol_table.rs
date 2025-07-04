@@ -22,7 +22,7 @@ use super::{SemanticError, table_initializer};
 /// Initializes a new global symbol table, inserts built-in types and procedures,
 /// then iterates over all top-level definitions in the program and adds them
 /// to the symbol table.
-/// Returns a reference-counted pointer to the global symbol table or a SemanticError.
+/// Returns a reference-counted pointer to the global symbol table or a `SemanticError`.
 pub fn build_symbol_table(program: &Program) -> Result<Rc<RefCell<SymbolTable>>, SemanticError> {
     // Create a new empty global symbol table wrapped in Rc<RefCell> for shared mutability
     let global_table = Rc::new(RefCell::new(SymbolTable::new()));
@@ -43,7 +43,7 @@ pub fn build_symbol_table(program: &Program) -> Result<Rc<RefCell<SymbolTable>>,
 /// Enters a global definition (procedure or type) into the symbol table.
 ///
 /// Matches on the definition type and delegates to the appropriate handler.
-/// Updates the symbol table accordingly or returns a SemanticError.
+/// Updates the symbol table accordingly or returns a `SemanticError`.
 pub fn enter_global_def(
     def: &Definition,
     table: &Rc<RefCell<SymbolTable>>,
@@ -68,7 +68,7 @@ pub fn enter_global_def(
 
 /// Processes a type definition and returns the corresponding symbol table entry.
 ///
-/// Converts the type expression to a concrete Type and wraps it in a TypeEntry.
+/// Converts the type expression to a concrete Type and wraps it in a `TypeEntry`.
 /// Returns the name and entry for insertion into the symbol table.
 pub fn enter_type_def(
     def: &TypeDefinition,
@@ -85,7 +85,7 @@ pub fn enter_type_def(
 /// Processes a procedure definition and returns the corresponding symbol table entry.
 ///
 /// Creates a new local symbol table for the procedure, enters parameters and variables,
-/// and collects parameter metadata. Returns the name and ProcedureEntry.
+/// and collects parameter metadata. Returns the name and `ProcedureEntry`.
 pub fn enter_procedure_def(
     def: &ProcedureDefinition,
     table: &Rc<RefCell<SymbolTable>>,
@@ -171,7 +171,7 @@ pub fn type_expression_to_type(
 
 /// Enters a variable definition into the symbol table.
 ///
-/// Converts the variable's type expression to a Type and inserts a VariableEntry.
+/// Converts the variable's type expression to a Type and inserts a `VariableEntry`.
 /// Variables are not references by default.
 pub fn enter_var_def(
     def: &VariableDefinition,
@@ -189,7 +189,7 @@ pub fn enter_var_def(
 
 /// Enters a parameter definition into the symbol table.
 ///
-/// Converts the parameter's type expression to a Type and inserts a VariableEntry.
+/// Converts the parameter's type expression to a Type and inserts a `VariableEntry`.
 /// The parameter's reference flag is preserved.
 pub fn enter_param_def(
     def: &ParameterDefinition,

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use phaser::{phase_1, phase_2, phase_3};
+use create_graph::{phase_1, phase_2, phase_3};
 
 use crate::{
     code_gen::quadrupel::{Quadrupel, QuadrupelOp},
@@ -8,8 +8,8 @@ use crate::{
 };
 
 mod block_start_iter;
+mod create_graph;
 mod dot_graph;
-mod phaser;
 mod utils;
 
 pub type BlockId = usize;

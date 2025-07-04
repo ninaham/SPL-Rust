@@ -9,6 +9,7 @@ use crate::{
 
 use super::value::ValueRef;
 
+// Represents an environment for variable storage
 #[derive(Clone, Debug)]
 pub struct Environment<'a, 'b> {
     pub parent: Option<Rc<Environment<'a, 'b>>>,
@@ -17,6 +18,7 @@ pub struct Environment<'a, 'b> {
 }
 
 impl<'a, 'b> Environment<'a, 'b> {
+    // Creates a new environment with a parent and variables
     pub fn new(
         parent: Rc<Self>,
         vars_iter: impl Iterator<Item = (String, ValueRef<'a>)>,
@@ -29,6 +31,7 @@ impl<'a, 'b> Environment<'a, 'b> {
         }
     }
 
+    // Creates a new global environment with procedures
     pub fn new_global(
         procedures: impl Iterator<Item = (String, ValueRef<'a>)>,
         symbol_table: &'b SymbolTable,
@@ -40,6 +43,7 @@ impl<'a, 'b> Environment<'a, 'b> {
         }
     }
 
+    // Tries to recursively get a variable by key, searching through parent environments if necessary
     fn recursive_get(&self, key: &str) -> Option<ValueRef<'a>> {
         self.vars.borrow().get(key).map_or_else(
             || {
@@ -51,6 +55,7 @@ impl<'a, 'b> Environment<'a, 'b> {
         )
     }
 
+    // Calls recursive_get to find a variable, returning its value if found
     pub fn get(&self, key: &str) -> Option<ValueRef<'a>> {
         if let Some(v) = self.recursive_get(key) {
             return Some(v.clone());
@@ -72,7 +77,8 @@ impl<'a, 'b> Environment<'a, 'b> {
         None
     }
 
-    pub fn get1(&self, key: &str) -> Option<(ValueRef<'a>, bool)> {
+    // Gets a mutable reference to a variable, returning its value and whether it is a reference
+    pub fn get_mut(&self, key: &str) -> Option<(ValueRef<'a>, bool)> {
         if let Some(v) = self.get(key) {
             let is_ref = if let Some(Entry::VariableEntry(ve)) = self.symbol_table.lookup(key) {
                 ve.is_reference
@@ -86,6 +92,7 @@ impl<'a, 'b> Environment<'a, 'b> {
     }
 }
 
+// Returns an iterator over built-in procedures
 pub fn get_builtins<'a>() -> impl Iterator<Item = (String, ValueRef<'a>)> {
     PROCEDURES.iter().filter_map(|&(name, params, body)| {
         body.map(|body| {

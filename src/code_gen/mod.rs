@@ -89,7 +89,7 @@ impl Tac {
     }
 
     /// Accesses the local symbol table of the currently processed procedure.
-    /// Uses RefMut to allow mutable borrowing with proper lifetime.
+    /// Uses `RefMut` to allow mutable borrowing with proper lifetime.
     fn local_table(&self) -> RefMut<'_, SymbolTable> {
         RefMut::map(self.global_table.borrow_mut(), |b| {
             match b

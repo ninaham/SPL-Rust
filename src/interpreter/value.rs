@@ -17,8 +17,10 @@ use crate::{
     },
 };
 
+// A reference to a value in the interpreter, allowing for shared ownership and mutable access.
 pub type ValueRef<'a> = Rc<RefCell<Value<'a>>>;
 
+// Represents a value in the interpreter, which can be an integer, boolean, array, or function.
 #[derive(Clone, Debug)]
 pub enum Value<'a> {
     Int(i32),
@@ -27,6 +29,7 @@ pub enum Value<'a> {
     Function(ValueFunction<'a>),
 }
 
+// Represents a function in the interpreter, which can be a procedure with a body (Spl), a procedure with a block graph (Tac), or a built-in procedure.
 #[derive(Clone, Debug)]
 pub enum ValueFunction<'a> {
     #[expect(clippy::linkedlist)]
@@ -35,6 +38,7 @@ pub enum ValueFunction<'a> {
     BuiltIn(ProcedureEntry, BuiltInProc),
 }
 impl ValueFunction<'_> {
+    // Returns the procedure entry associated with the function, regardless of its type.
     pub const fn entry(&self) -> &ProcedureEntry {
         match self {
             ValueFunction::Tac(proc, _)
@@ -44,16 +48,22 @@ impl ValueFunction<'_> {
     }
 }
 
+// Represents a built-in procedure.
 #[derive(Clone)]
 pub struct BuiltInProc {
     implementation: Rc<BuiltInProcFn>,
 }
+
+// A Built-in procedure is a rust function that takes ValueRef arguments.
 type BuiltInProcFn = dyn Fn(&[ValueRef<'_>]);
 impl BuiltInProc {
+    // calls the built-in procedure with the provided arguments.
     pub fn call(&self, args: &[ValueRef]) {
         (self.implementation)(args);
     }
 }
+
+// Implements the Debug trait for BuiltInProc to print it for debug purposes.
 impl Debug for BuiltInProc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BuiltInProc")
@@ -69,6 +79,7 @@ impl Debug for BuiltInProc {
 }
 
 impl Value<'_> {
+    // Flattens an array value by recursively flattening any nested arrays within it. We need this to ensure that arrays can be treated as flat arrays of values in the TAC interpreter.
     pub fn flatten_value(&self) -> Self {
         if let Value::Array(ref_cells) = self {
             let mut arr = vec![];
@@ -86,10 +97,12 @@ impl Value<'_> {
             self.clone()
         }
     }
+    // Creates a new ValueRef containing a RefCell with the given value.
     pub fn new_refcell(value: Value) -> ValueRef {
         Rc::new(RefCell::new(value))
     }
 
+    // Creates a new built-in procedure with the given parameters and a rust function, that implements it.
     pub fn new_builtin_proc(
         params: impl Iterator<Item = (String, bool)>,
         f: impl Fn(&[ValueRef<'_>]) + 'static,
@@ -112,6 +125,7 @@ impl Value<'_> {
     }
 }
 
+// Implements arithmetic operations for Value, allowing addition, subtraction, multiplication, and division of integer values.
 impl Add for Value<'_> {
     type Output = Self;
 
@@ -172,6 +186,7 @@ impl Div for Value<'_> {
     }
 }
 
+// Implements the PartialEq and PartialOrd traits for Value, allowing comparison of integer and boolean values.
 impl PartialEq for Value<'_> {
     fn eq(&self, other: &Self) -> bool {
         let i = match self {
@@ -208,6 +223,7 @@ impl PartialOrd for Value<'_> {
     }
 }
 
+// Implements the Neg trait for Value, allowing negation of integer values.
 impl Neg for Value<'_> {
     type Output = Self;
 
