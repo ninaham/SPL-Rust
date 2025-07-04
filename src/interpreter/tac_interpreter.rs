@@ -248,7 +248,7 @@ pub fn eval_quad<'a>(
                 unreachable!();
             };
             let index = eval_array_index(index, array.len());
-            array[index] = Rc::new(RefCell::new(value));
+            *array[index].borrow_mut() = value;
 
             None
         }

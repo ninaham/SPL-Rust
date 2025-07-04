@@ -77,6 +77,8 @@ mod test {
             };
             let mut bg = BlockGraph::from_tac(code);
 
+            println!("HALLOOOOO");
+
             bg.common_subexpression_elimination(&mut proc_entry.local_table);
 
             match table.borrow_mut().entries.get_mut(proc_name) {
