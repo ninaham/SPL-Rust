@@ -133,7 +133,7 @@ Options:
 Im Ordner `spl-testfiles/` befinden sich
 SPL-Beispielprogramme zur Demonstration und zum Testen.
 
-Unit- oder Integrationstests können sie mit folgendem Befehl ausgeführt werden:
+Unit- oder Integrationstests können mit folgendem Befehl ausgeführt werden:
 
 ```bash
 cargo test
