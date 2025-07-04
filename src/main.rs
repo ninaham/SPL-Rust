@@ -1,15 +1,16 @@
 use cli::process_matches;
 
-mod absyn;
-mod base_blocks;
-mod cli;
-mod code_gen;
-mod optimizations;
-mod parser;
-mod semant;
-mod table;
+mod absyn; // Abstract Syntax Tree structures
+mod base_blocks; // Control flow graph and basic block handling
+mod cli; // CLI parsing and argument handling
+mod code_gen; // Code generation (e.g. TAC)
+mod optimizations; // Compiler optimizations
+mod parser; // SPL parser implementation
+mod semant; // Semantic checks and symbol table generation
+mod table; // Symbol table and entry types
 
 fn main() -> anyhow::Result<()> {
+    // Entry point: parse CLI arguments and start processing
     process_matches(&cli::load_program_data().get_matches())
 }
 
@@ -19,6 +20,7 @@ mod test {
     use std::fs;
     use std::path::{Path, PathBuf};
 
+    // Import necessary modules for testing the full compilation pipeline
     use crate::base_blocks::BlockGraph;
     use crate::code_gen::Tac;
     use crate::optimizations::constant_propagation::ConstantPropagation;
@@ -31,8 +33,8 @@ mod test {
 
     #[rstest]
     fn test_all_files(
-        #[files("spl-testfiles/runtime_tests/*.spl")]
-        #[exclude("reftest.spl")]
+        #[files("spl-testfiles/runtime_tests/*.spl")] // Run test for each SPL file
+        #[exclude("reftest.spl")] // ...except this one
         path: PathBuf,
     ) -> anyhow::Result<()> {
         test_file(&path)
@@ -40,45 +42,65 @@ mod test {
 
     #[rstest]
     fn test_syntax_errors(#[files("spl-testfiles/syntax_errors/*.spl")] path: PathBuf) {
+        // Read the SPL source file
         let code = fs::read_to_string(path).unwrap();
+        // Parsing should fail (on purpose)
         parse(&code).expect_err("Parsing should fail");
     }
 
+    // Complete end-to-end test for one SPL file
     fn test_file(path: &Path) -> anyhow::Result<()> {
+        // Load the SPL source code
         let code = fs::read_to_string(path).unwrap();
 
+        // Parse into abstract syntax tree
         let mut absyn = parse(code.leak())?;
 
+        // Build the global symbol table
         let table = build_symbol_table(&absyn)?;
 
+        // Perform semantic checks on all definitions
         absyn
             .definitions
             .iter_mut()
             .try_for_each(|def| check_def_global(def, &table))?;
 
+        // Generate intermediate code (Three Address Code)
         let mut address_code = Tac::new(table.clone());
         address_code.code_generation(&absyn);
 
+        // Ensure that a "main" function exists
         assert!(address_code.proc_table.contains_key("main"));
 
+        // Process each procedure independently
         for (proc_name, code) in &address_code.proc_table {
             let Some(Entry::ProcedureEntry(proc_entry)) = table.lock().unwrap().lookup(proc_name)
             else {
-                unreachable!()
+                unreachable!() // Procedure must exist in symbol table
             };
-            let local_table = &proc_entry.local_table;
-            let mut bg = BlockGraph::from_tac(code);
 
+            let local_table = &proc_entry.local_table;
+            let mut bg = BlockGraph::from_tac(code); // Build CFG from TAC
+
+            // Perform Common Subexpression Elimination
             bg.common_subexpression_elimination(&table.lock().unwrap());
 
+            // Compute Reaching Definitions (used for many other analyses)
             ReachingDefinitions::run(&mut bg, local_table);
 
+            // Run liveness analysis to find unused variables
             let live_variables = LiveVariables::run(&mut bg, local_table);
+
+            // Eliminate dead code based on liveness information
             bg.dead_code_elimination(&live_variables);
 
+            // Run constant propagation analysis
             let mut const_prop = ConstantPropagation::run(&mut bg, local_table);
+
+            // Perform constant folding repeatedly until fixpoint is reached
             while { bg.constant_folding(&mut const_prop, &table.lock().unwrap()) }.is_continue() {}
 
+            // (Optional) Debug print or to trigger formatting
             bg.to_string();
         }
 
