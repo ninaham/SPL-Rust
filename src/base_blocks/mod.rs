@@ -79,7 +79,7 @@ impl BlockGraph {
         phase_3(phase_2(phase_1(code), code))
     }
 
-    fn add_block(&mut self, block: Block, parent: Option<BlockId>) -> BlockId {
+    pub fn add_block(&mut self, block: Block, parent: Option<BlockId>) -> BlockId {
         if let Some(l) = block.clone().label {
             self.label_to_id.insert(l, self.blocks.len());
         }
@@ -92,7 +92,7 @@ impl BlockGraph {
         self.blocks.len() - 1
     }
 
-    fn add_edge(&mut self, start: BlockId, end: BlockId) {
+    pub fn add_edge(&mut self, start: BlockId, end: BlockId) {
         self.edges[start].insert(end);
     }
 
@@ -100,10 +100,15 @@ impl BlockGraph {
         &self.edges
     }
 
+    pub fn remove_edge(&mut self, start: BlockId, end: BlockId) {
+        self.edges[start].remove(&end);
+    }
+
     fn new() -> Self {
         Self::default()
     }
 
+    #[expect(dead_code)]
     pub fn label_to_id(&self, label: &str) -> BlockId {
         *self.label_to_id.get(label).unwrap()
     }
