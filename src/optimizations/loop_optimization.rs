@@ -1,6 +1,6 @@
 use crate::{
-    base_blocks::{Block, BlockContent, BlockGraph},
-    code_gen::quadrupel::{QuadrupelArg, QuadrupelResult, QuadrupelVar},
+    base_blocks::{Block, BlockContent, BlockGraph, BlockId},
+    code_gen::quadrupel::{QuadrupelArg, QuadrupelResult, QuadrupelVar, quad, quad_match},
     optimizations::{reaching_expressions::ReachingDefinitions, tarjan::Scc, worklist::Worklist},
     table::symbol_table::SymbolTable,
 };
@@ -25,23 +25,28 @@ impl BlockGraph {
             let mut block_content = vec![];
 
             // Iterate over all basic blocks in the current SCC
-            for &id in &sccs[sccid].nodes {
+            for &block_id in &sccs[sccid].nodes {
                 let block = self
                     .blocks
-                    .get_mut(id)
+                    .get_mut(block_id)
                     .unwrap_or_else(|| panic!("the world is mean to me"));
 
                 // Only process blocks containing code (i.e., not entry/exit/other metadata blocks)
                 if let BlockContent::Code(quads) = &mut block.content {
-                    for quad in quads.iter() {
+                    for (line_number, quad) in quads.iter().enumerate() {
                         // Check if both operands are loop-invariant
                         if is_var_invariant(extract_var(&quad.arg1), &sccs[sccid], &reachdef)
                             && is_var_invariant(extract_var(&quad.arg2), &sccs[sccid], &reachdef)
+                            && is_movable(
+                                &quad.result,
+                                &sccs[sccid],
+                                &reachdef,
+                                block_id,
+                                line_number,
+                            )
                         {
                             // If the result is a variable, collect it for hoisting
-                            if let QuadrupelResult::Var(_) = quad.result {
-                                block_content.push(quad.clone());
-                            }
+                            block_content.push(quad.clone());
                         }
                     }
 
@@ -64,12 +69,33 @@ impl BlockGraph {
                 };
                 block_counter += 1;
                 let new_id = self.add_block(new_block, None);
+                let new_label = QuadrupelResult::Label(format!("L{}", new_id));
+                self.label_to_id.insert(format!("L{new_id}"), new_id);
+                let loop_label = self.blocks[sccs[sccid].nodes[0]].label.clone().unwrap();
+                match &mut self.blocks[new_id].content {
+                    BlockContent::Code(code) => {
+                        code.insert(0, quad!((d),_,_=> new_label.clone()));
+                        code.push(quad!(=> QuadrupelResult::Label(loop_label)));
+                    }
+                    _ => unreachable!(),
+                }
 
                 // Redirect edges from parents outside the loop to the new block
                 for &parent in parent_edges {
                     if !sccs[sccid].nodes.contains(&parent) {
                         self.remove_edge(parent, sccs[sccid].nodes[0]);
                         self.add_edge(parent, new_id);
+                        match &mut self.blocks[parent].content {
+                            BlockContent::Code(code) => {
+                                code.pop_if(|q| matches!(q, quad_match!(=> _)));
+                                code.push(quad!(=> new_label.clone()));
+                            }
+
+                            content @ BlockContent::Start => {
+                                *content = BlockContent::Code(vec![quad!(=> new_label.clone())]);
+                            }
+                            _ => unreachable!(),
+                        }
                     }
                 }
 
@@ -117,4 +143,29 @@ const fn extract_var(arg: &QuadrupelArg) -> Option<&QuadrupelVar> {
     } else {
         None
     }
+}
+
+fn is_movable(
+    var: &QuadrupelResult,
+    blocks: &Scc,
+    reaching: &ReachingDefinitions,
+    current_block_id: BlockId,
+    quad_id: usize,
+) -> bool {
+    if let QuadrupelResult::Var(var) = var {
+        let rchin = &reaching.rchin[current_block_id];
+        for (i, bit) in rchin.iter().enumerate() {
+            if *bit {
+                let def = &reaching.defs[i];
+                if &def.var == var
+                    && blocks.nodes.contains(&def.block_id)
+                    && !(def.block_id == current_block_id && def.quad_id == quad_id)
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    false
 }
