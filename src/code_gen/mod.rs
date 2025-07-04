@@ -1,18 +1,27 @@
 use colored::Colorize;
 use quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar};
 
-use crate::absyn::absyn::{Definition, Program};
-use std::{collections::HashMap, fmt};
+use crate::{
+    absyn::absyn::{Definition, Program},
+    table::{entry::Entry, symbol_table::SymbolTable},
+};
+use std::{
+    cell::{RefCell, RefMut},
+    collections::HashMap,
+    fmt,
+    rc::Rc,
+};
 mod procedure_def;
 pub mod quadrupel;
 mod utils;
 
-#[derive(Clone)]
 pub struct Tac {
     quadrupels: Vec<Quadrupel>,
     label_num: i64,
     pub proc_table: HashMap<String, Vec<Quadrupel>>,
     temp_var_count: usize,
+    global_table: Rc<RefCell<SymbolTable>>,
+    current_proc: Option<String>,
 }
 
 impl fmt::Display for Tac {
@@ -29,12 +38,14 @@ impl fmt::Display for Tac {
 }
 
 impl Tac {
-    pub fn new() -> Self {
+    pub fn new(global_table: Rc<RefCell<SymbolTable>>) -> Self {
         Self {
             quadrupels: vec![],
             label_num: 0,
             proc_table: HashMap::new(),
             temp_var_count: 0,
+            global_table,
+            current_proc: None,
         }
     }
 
@@ -45,6 +56,7 @@ impl Tac {
             match definition.as_ref() {
                 Definition::ProcedureDefinition(proc_def) => {
                     name = proc_def.name.clone();
+                    self.current_proc = Some(name.clone());
                     self.eval_proc_def(proc_def);
 
                     let quad: Vec<_> = self.quadrupels.clone();
@@ -56,5 +68,18 @@ impl Tac {
                 Definition::TypeDefinition(_) => {}
             }
         }
+    }
+
+    fn local_table(&self) -> RefMut<SymbolTable> {
+        RefMut::map(self.global_table.borrow_mut(), |b| {
+            match b
+                .entries
+                .get_mut(self.current_proc.as_ref().unwrap())
+                .unwrap()
+            {
+                Entry::ProcedureEntry(proc_entry) => &mut proc_entry.local_table,
+                _ => unreachable!(),
+            }
+        })
     }
 }

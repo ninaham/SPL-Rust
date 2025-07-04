@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, mem, rc::Rc};
 
 use crate::{
     base_blocks::{BlockContent, BlockGraph},
@@ -34,9 +34,8 @@ pub fn eval_function<'a>(
     args: &mut Vec<ValueRef<'a>>,
     parent_env: Rc<Environment<'a, '_>>,
 ) {
-    let proc = parent_env.get(fun).unwrap();
-    let Value::Function(proc) = &*proc.borrow() else {
-        unreachable!("function not found: {fun}");
+    let Some(Value::Function(proc)) = parent_env.get(fun).map(|v| v.borrow().clone()) else {
+        unimplemented!("SPL-builtin `{fun}()`");
     };
 
     match proc {
@@ -208,10 +207,33 @@ pub fn eval_quad<'a>(
             let Value::Int(index) = parse_arg(&quad.arg2, &env) else {
                 unreachable!();
             };
-            let res = parse_result(&quad.result);
+            let res_id = parse_result(&quad.result);
 
             let index = eval_array_index(index, arr.len());
-            *env.get(&res).unwrap().borrow_mut() = arr[index].borrow().clone();
+
+            let (res, is_ref) = env.get1(&res_id).unwrap();
+
+            if matches!(&*res.borrow(), Value::Int(_)) {
+                let ref_val = arr[index].clone();
+                if is_ref {
+                    mem::drop(res);
+                    env.vars.borrow_mut().insert(res_id, ref_val);
+                } else {
+                    *res.borrow_mut() = ref_val.borrow().clone();
+                }
+            } else if matches!(&*res.borrow(), Value::Array(_)) {
+                let mut arr_slice = arr[index..].to_vec();
+                if !is_ref {
+                    for ele in &mut arr_slice {
+                        let v = ele.borrow().clone();
+                        *ele = Value::new_refcell(v);
+                    }
+                }
+                *res.borrow_mut() = Value::Array(arr_slice);
+            } else {
+                unreachable!();
+            }
+
             None
         }
         QuadrupelOp::ArrayStore => {
@@ -257,14 +279,11 @@ pub fn parse_arg<'a>(arg: &QuadrupelArg, env: &Rc<Environment<'a, '_>>) -> Value
     parse_arg_ref(arg, env).borrow().clone()
 }
 pub fn parse_arg_ref<'a>(arg: &QuadrupelArg, env: &Rc<Environment<'a, '_>>) -> ValueRef<'a> {
-    match arg.clone() {
-        QuadrupelArg::Var(quadrupel_var) => match quadrupel_var {
-            QuadrupelVar::Spl(name) => env.get(&name).expect("arg1 not found"),
-            QuadrupelVar::Tmp(t) => env
-                .get(format!("T{t}").as_str())
-                .expect("arg1 not found (temp)"),
-        },
-        QuadrupelArg::Const(i) => Value::new_refcell(Value::Int(i)),
+    match &arg {
+        QuadrupelArg::Var(quadrupel_var) => env
+            .get(&quadrupel_var.to_identifier())
+            .unwrap_or_else(|| panic!("{arg:?} not found")),
+        QuadrupelArg::Const(i) => Value::new_refcell(Value::Int(*i)),
         QuadrupelArg::Empty => unreachable!(),
     }
 }
@@ -281,10 +300,7 @@ pub fn parse_fun(arg: &QuadrupelArg) -> String {
 
 pub fn parse_result(res: &QuadrupelResult) -> String {
     match &res {
-        QuadrupelResult::Var(quadrupel_var) => match quadrupel_var {
-            QuadrupelVar::Spl(name) => name.to_string(),
-            QuadrupelVar::Tmp(t) => format!("T{t}"),
-        },
+        QuadrupelResult::Var(quadrupel_var) => quadrupel_var.to_identifier(),
         QuadrupelResult::Label(l) => l.to_string(),
         QuadrupelResult::Empty => unreachable!(),
     }

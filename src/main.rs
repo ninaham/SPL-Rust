@@ -65,19 +65,28 @@ mod test {
             .iter_mut()
             .try_for_each(|def| check_def_global(def, &table))?;
 
-        let mut address_code = Tac::new();
+        let mut address_code = Tac::new(table.clone());
         address_code.code_generation(&absyn);
 
         assert!(address_code.proc_table.contains_key("main"));
 
         for (proc_name, code) in &address_code.proc_table {
+            let Some(Entry::ProcedureEntry(mut proc_entry)) = table.borrow().lookup(proc_name)
+            else {
+                unreachable!()
+            };
+            let mut bg = BlockGraph::from_tac(code);
+
+            bg.common_subexpression_elimination(&mut proc_entry.local_table);
+
+            match table.borrow_mut().entries.get_mut(proc_name) {
+                Some(Entry::ProcedureEntry(pe)) => pe.local_table = proc_entry.local_table,
+                _ => unreachable!(),
+            }
             let Some(Entry::ProcedureEntry(proc_entry)) = table.borrow().lookup(proc_name) else {
                 unreachable!()
             };
             let local_table = &proc_entry.local_table;
-            let mut bg = BlockGraph::from_tac(code);
-
-            bg.common_subexpression_elimination(&table.borrow());
 
             ReachingDefinitions::run(&mut bg, local_table);
 

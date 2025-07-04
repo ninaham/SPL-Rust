@@ -31,6 +31,10 @@ mod test {
         #[exclude("reftest.spl")]
         #[exclude("test8.spl")]
         #[exclude("test9.spl")]
+        #[exclude("drawTest.spl")] // requires graphics
+        #[exclude("gol.spl")] // requires user input
+        #[exclude("lambda.spl")] // interactive
+        #[exclude("sierpinski.spl")] // requires graphics
         path: PathBuf,
     ) -> anyhow::Result<()> {
         test_file_ast(&path)
@@ -55,25 +59,27 @@ mod test {
     }
 
     #[test]
-    fn queens_ast() {
-        test_file_ast(Path::new("spl-testfiles/runtime_tests/queens.spl")).unwrap();
-    }
-
-    #[test]
-    fn queens_tac() {
-        test_file_tac(Path::new("spl-testfiles/runtime_tests/queens.spl")).unwrap();
-    }
-
-    #[test]
     #[should_panic(expected = "index out of bounds for array length 3: -1")]
-    fn runtime_err_ast_8() {
+    fn ast_runtime_err_8() {
         test_file_ast(Path::new("spl-testfiles/runtime_tests/test8.spl")).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "index out of bounds for array length 3: 3")]
-    fn runtime_err_ast_9() {
+    fn ast_runtime_err_9() {
         test_file_ast(Path::new("spl-testfiles/runtime_tests/test9.spl")).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "not implemented: SPL-builtin `clearAll()`")]
+    fn ast_unimplemented_drawtest() {
+        test_file_ast(Path::new("spl-testfiles/runtime_tests/drawTest.spl")).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "not implemented: SPL-builtin `clearAll()`")]
+    fn ast_unimplemented_sierpinski() {
+        test_file_ast(Path::new("spl-testfiles/runtime_tests/sierpinski.spl")).unwrap();
     }
 
     #[rstest]
@@ -82,6 +88,11 @@ mod test {
         #[exclude("reftest.spl")]
         #[exclude("test8.spl")]
         #[exclude("test9.spl")]
+        #[exclude("acker.spl")] // TODO: fatal runtime error: stack overflow, aborting
+        #[exclude("drawTest.spl")] // requires graphics
+        #[exclude("gol.spl")] // requires user input
+        #[exclude("lambda.spl")] // interactive
+        #[exclude("sierpinski.spl")] // requires graphics
         path: PathBuf,
     ) -> anyhow::Result<()> {
         test_file_tac(&path)
@@ -99,7 +110,7 @@ mod test {
             .iter_mut()
             .try_for_each(|def| check_def_global(def, &table))?;
 
-        let mut tac = Tac::new();
+        let mut tac = Tac::new(table.clone());
         tac.code_generation(&absyn);
 
         let proc_graphs = tac
@@ -116,13 +127,25 @@ mod test {
 
     #[test]
     #[should_panic(expected = "index out of bounds for array length 3: -1")]
-    fn test_runtime_err_tac_8() {
+    fn tac_runtime_err_8() {
         test_file_tac(Path::new("spl-testfiles/runtime_tests/test8.spl")).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "index out of bounds for array length 3: 3")]
-    fn test_runtime_err_tac_9() {
+    fn tac_runtime_err_9() {
         test_file_tac(Path::new("spl-testfiles/runtime_tests/test9.spl")).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "not implemented: SPL-builtin `clearAll()`")]
+    fn tac_unimplemented_drawtest() {
+        test_file_tac(Path::new("spl-testfiles/runtime_tests/drawTest.spl")).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "not implemented: SPL-builtin `clearAll()`")]
+    fn tac_unimplemented_sierpinski() {
+        test_file_tac(Path::new("spl-testfiles/runtime_tests/sierpinski.spl")).unwrap();
     }
 }

@@ -18,6 +18,7 @@ pub struct ProcedureEntry {
 #[derive(Debug, Clone)]
 pub struct VariableEntry {
     pub typ: Type,
+    pub is_reference: bool,
 }
 
 #[derive(Debug, Clone)]

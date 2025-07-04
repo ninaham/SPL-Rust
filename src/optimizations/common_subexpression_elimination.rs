@@ -5,11 +5,15 @@ use crate::{
     code_gen::quadrupel::{
         Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar, quad,
     },
-    table::symbol_table::SymbolTable,
+    table::{
+        entry::{Entry, VariableEntry},
+        symbol_table::SymbolTable,
+        types::Type,
+    },
 };
 
 impl BlockGraph {
-    pub fn common_subexpression_elimination(&mut self, symbol_table: &SymbolTable) {
+    pub fn common_subexpression_elimination(&mut self, local_table: &mut SymbolTable) {
         let mut tmp_last_num = self
             .blocks
             .iter()
@@ -31,14 +35,14 @@ impl BlockGraph {
 
         self.blocks
             .iter_mut()
-            .for_each(|b| optimize_block(b, &mut tmp_next_num, symbol_table));
+            .for_each(|b| optimize_block(b, &mut tmp_next_num, local_table));
     }
 }
 
 fn optimize_block(
     block: &mut Block,
     tmp_next_num: &mut impl FnMut() -> usize,
-    symbol_table: &SymbolTable,
+    local_table: &mut SymbolTable,
 ) {
     let BlockContent::Code(quads) = &mut block.content else {
         return;
@@ -63,6 +67,7 @@ fn optimize_block(
                 if let Some(entry) = aeb.iter_mut().find(|e| e.cmp(&quad)) {
                     let tmp = entry.tmp.get_or_insert_with(|| {
                         let tmp = QuadrupelVar::Tmp(tmp_next_num());
+                        local_table.enter(tmp.to_identifier(), Entry::VariableEntry(VariableEntry{typ:Type::INT,is_reference:false})).unwrap();
                         let mut q = entry.quad.clone();
                         q.result = QuadrupelResult::Var(tmp.clone());
                         code_new[entry.pos - 1] = Some(q);
@@ -79,7 +84,7 @@ fn optimize_block(
                 }
             }
             QuadrupelOp::Param => {
-                let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
+                let param = Quadrupel::find_param_declaration(quads, i, local_table);
 
                 if param.is_reference {
                     ref_param = Some(&quad.arg1);

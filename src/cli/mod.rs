@@ -24,7 +24,7 @@ use crate::{
     optimizations::worklist::{Lattice, Worklist},
     parser::parse_everything_else::parse,
     semant::{build_symbol_table::build_symbol_table, check_def_global},
-    table::entry::{Entry, ProcedureEntry},
+    table::entry::Entry,
     table::symbol_table::SymbolTable,
 };
 
@@ -91,7 +91,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let mut address_code = Tac::new();
+    let mut address_code = Tac::new(table.clone());
     address_code.code_generation(&absyn);
 
     if phase == "tac" {
@@ -117,10 +117,6 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     };
     let proc_name = graphs[sel_proc];
     let mut graph = BlockGraph::from_tac(address_code.proc_table.get(proc_name).unwrap());
-    let proc_def = table.borrow().lookup(proc_name);
-    let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
-        unreachable!()
-    };
 
     if phase == "interprettac" {
         let proc_graphs = address_code
@@ -134,7 +130,7 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     }
 
     if let Some(optis) = matches.get_many::<String>("optis") {
-        graph.run_optimizations(optis, &table, &proc_def, proc_name, matches, &theme)?;
+        graph.run_optimizations(optis, &table, proc_name, matches, &theme)?;
     }
 
     if phase == "dot" {
@@ -150,12 +146,16 @@ impl BlockGraph {
         &mut self,
         optis: impl Iterator<Item = &'a String>,
         symbol_table: &Rc<RefCell<SymbolTable>>,
-        proc_def: &ProcedureEntry,
         proc_name: &str,
         matches: &clap::ArgMatches,
         theme: &impl dialoguer::theme::Theme,
     ) -> anyhow::Result<()> {
         for opti in optis {
+            let proc_def = symbol_table.borrow().lookup(proc_name);
+            let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
+                unreachable!()
+            };
+
             match opti.as_str() {
                 "dot" => {
                     println!("{}", ">>> Showing Dot Graph...".green());
@@ -163,7 +163,12 @@ impl BlockGraph {
                 }
                 "cse" => {
                     eprintln!("{}", ">>> Common Subexpression Elimination".green());
-                    self.common_subexpression_elimination(&symbol_table.borrow());
+                    let mut local_table = proc_def.local_table.clone();
+                    self.common_subexpression_elimination(&mut local_table);
+                    match symbol_table.borrow_mut().entries.get_mut(proc_name) {
+                        Some(Entry::ProcedureEntry(pe)) => pe.local_table = local_table,
+                        _ => unreachable!(),
+                    }
                 }
                 "rch" => {
                     eprintln!("{}", ">>> Reaching Definitions:".green());
