@@ -128,7 +128,7 @@ Options:
 * Optimierungen durchführen und Blockgraph exportieren:
 
   ```bash
-  cargo run -- -O licm -d graph.dot examples/beispiel1.spl
+  cargo run -- -O licm -d=graph.dot examples/beispiel1.spl
   ```
 
 ## Beispiele & Tests
