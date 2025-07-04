@@ -24,7 +24,7 @@ impl Worklist for LiveVariables {
 
     const EDGE_DIRECTION: worklist::EdgeDirection = worklist::EdgeDirection::Backward;
 
-    fn init(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self {
+    fn init(graph: &BlockGraph, local_table: &SymbolTable) -> Self {
         let defs_in_proc = graph.definitions(local_table);
         let vars = defs_in_proc
             .iter()

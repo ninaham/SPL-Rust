@@ -1,7 +1,7 @@
 use colored::Colorize;
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QuadrupelOp {
     Add,
     Sub,
@@ -20,6 +20,7 @@ pub enum QuadrupelOp {
     Goto,       // let the fun begin
     Param,
     Call, // call p, n
+    #[default]
     Default,
 }
 
@@ -37,10 +38,11 @@ impl fmt::Display for QuadrupelOp {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub enum QuadrupelArg {
     Var(QuadrupelVar),
     Const(i32),
+    #[default]
     Empty,
 }
 impl PartialEq for QuadrupelArg {
@@ -81,10 +83,11 @@ impl fmt::Display for QuadrupelVar {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub enum QuadrupelResult {
     Var(QuadrupelVar),
     Label(String),
+    #[default]
     Empty,
 }
 
@@ -111,7 +114,7 @@ impl fmt::Display for QuadrupelResult {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Quadrupel {
     pub op: QuadrupelOp,
     pub arg1: QuadrupelArg,
