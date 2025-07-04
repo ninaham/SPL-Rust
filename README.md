@@ -96,15 +96,18 @@ Arguments:
   <file>  Path to SPL code
 
 Options:
-  -p, --parse             Parse input file, returns the abstract syntax tree
-  -t, --tables            Fills symbol tables and prints them
-  -s, --semant            Semantic analysis
-  -3, --tac               Generates three address code
-  -P, --proc <name>       Name of the procedure to be examined
-  -O, --optis <optis>...  Optimizations to apply: [cse, rch, lv, dead, gcp, scc, licm]
-  -d, --dot[=<output>]    Generates block graph
-  -h, --help              Print help
-  -V, --version           Print version
+  -p, --parse                Parse input file, returns the abstract syntax tree
+  -t, --tables               Fills symbol tables and prints them
+  -s, --semant               Semantic analysis
+  -3, --tac                  Generates three address code
+  -P, --proc <name>          Name of the procedure to be examined
+  -i, --interpret            SPL Interpreter
+  -j, --interpret_optimized  TAC Interpreter with optimizations
+  -I, --interprettac         TAC Interpreter
+  -O, --optis <optis>...     Optimizations to apply: [cse, rch, lv, dead, gcp, scc, licm]
+  -d, --dot[=<output>]       Generates block graph
+  -h, --help                 Print help
+  -V, --version              Print version
 
 ```
 
