@@ -41,7 +41,7 @@ pub fn load_program_data() -> Command {
             arg!(interprettac: -I --interprettac "TAC Interpreter"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
-            arg!(optis: -O --optis <optis> "Optimizations to apply: [cse, rch, lv, dead, gcp, scc]")
+            arg!(optis: -O --optis <optis> "Optimizations to apply: [cse, rch, lv, dead, gcp, scc, licm]")
                 .num_args(1..)
                 .value_delimiter(','),
             arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
@@ -163,8 +163,8 @@ impl BlockGraph {
                 }
                 "cse" => {
                     eprintln!("{}", ">>> Common Subexpression Elimination".green());
-                    let mut local_table = proc_def.local_table.clone();
-                    self.common_subexpression_elimination(&mut local_table);
+                    let local_table = proc_def.local_table.clone();
+                    self.common_subexpression_elimination(&local_table);
                     match symbol_table.borrow_mut().entries.get_mut(proc_name) {
                         Some(Entry::ProcedureEntry(pe)) => pe.local_table = local_table,
                         _ => unreachable!(),
@@ -233,6 +233,14 @@ impl BlockGraph {
                     eprintln!("{}", ">>> Strongly Connected Components:".green());
                     let scc = self.tarjan();
                     eprintln!("{scc:#?}");
+                }
+                "licm" => {
+                    eprintln!("{}", ">>> Loop Invariant Code Motion:".green());
+                    self.loop_optimization(&proc_def.local_table);
+                }
+                "licm+" => {
+                    eprintln!("{}", ">>> Loop Invariant Code Motion:".green());
+                    while self.loop_optimization(&proc_def.local_table) {}
                 }
                 _ => panic!("Unknown optimization: {opti}"),
             }

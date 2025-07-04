@@ -43,26 +43,25 @@ pub trait Worklist {
 
     const EDGE_DIRECTION: self::EdgeDirection;
 
-    fn init(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self;
+    fn init(graph: &BlockGraph, local_table: &SymbolTable) -> Self;
     fn meet_override(lhs: &Self::Lattice, rhs: &Self::Lattice) -> Self::Lattice {
         lhs.meet(rhs)
     }
     fn state(&mut self) -> State<'_, Self>;
 
-    fn run(graph: &mut BlockGraph, local_table: &SymbolTable) -> Self
+    fn run(graph: &BlockGraph, local_table: &SymbolTable) -> Self
     where
         Self: Sized,
     {
         graph.run_worklist(local_table)
     }
-
-    fn init_in_out(graph: &mut BlockGraph, info_all: &[Self::D]) -> Vec<Self::Lattice> {
+    fn init_in_out(graph: &BlockGraph, info_all: &[Self::D]) -> Vec<Self::Lattice> {
         vec![Self::Lattice::init(info_all.len()); graph.blocks.len()]
     }
 }
 
 impl BlockGraph {
-    fn run_worklist<W: Worklist>(&mut self, local_table: &SymbolTable) -> W {
+    fn run_worklist<W: Worklist>(&self, local_table: &SymbolTable) -> W {
         let mut state_res = W::init(self, local_table);
         let mut state = state_res.state();
 
@@ -113,7 +112,7 @@ impl BlockGraph {
             .collect()
     }
 
-    fn edges_prev(&self) -> Vec<HashSet<usize>> {
+    pub fn edges_prev(&self) -> Vec<HashSet<usize>> {
         let mut edges_prev = vec![HashSet::new(); self.blocks.len()];
 
         self.edges()

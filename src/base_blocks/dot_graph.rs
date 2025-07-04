@@ -23,7 +23,10 @@ impl fmt::Display for BlockGraph {
 
         let re = Regex::new(REGEX_TEMINAL_COLORS).unwrap();
         self.blocks.iter().enumerate().try_for_each(|(i, b)| {
-            let dot_html = to_dot_html(&b.to_string(), &re);
+            let mut dot_html = to_dot_html(&b.to_string(), &re);
+            if dot_html.is_empty() {
+                dot_html = " ".to_string();
+            }
             writeln!(f, "{i} [xlabel=\"B{i}\",label=<{dot_html}>];")
         })?;
 
