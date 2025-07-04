@@ -45,6 +45,7 @@ pub fn load_program_data() -> Command {
                 .num_args(1..)
                 .value_delimiter(','),
             arg!(dot: -d --dot ["output"] "Generates block graph").require_equals(true),
+            arg!(optimization: -o --optimize "All optimizations"),
         ])
         .group(
             ArgGroup::new("phase")
