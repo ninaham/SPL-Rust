@@ -32,31 +32,21 @@ impl BlockGraph {
                     .unwrap_or_else(|| panic!("the world is mean to me"));
 
                 // Only process blocks containing code (i.e., not entry/exit/other metadata blocks)
-                match &mut block.content {
-                    BlockContent::Code(quads) => {
-                        for quad in quads.iter() {
-                            // Check if both operands are loop-invariant
-                            if is_var_invariant(extract_var(&quad.arg1), &sccs[sccid], &reachdef)
-                                && is_var_invariant(
-                                    extract_var(&quad.arg2),
-                                    &sccs[sccid],
-                                    &reachdef,
-                                )
-                            {
-                                // If the result is a variable, collect it for hoisting
-                                match quad.result {
-                                    QuadrupelResult::Var(_) => {
-                                        block_content.push(quad.clone());
-                                    }
-                                    _ => {}
-                                }
+                if let BlockContent::Code(quads) = &mut block.content {
+                    for quad in quads.iter() {
+                        // Check if both operands are loop-invariant
+                        if is_var_invariant(extract_var(&quad.arg1), &sccs[sccid], &reachdef)
+                            && is_var_invariant(extract_var(&quad.arg2), &sccs[sccid], &reachdef)
+                        {
+                            // If the result is a variable, collect it for hoisting
+                            if let QuadrupelResult::Var(_) = quad.result {
+                                block_content.push(quad.clone());
                             }
                         }
-
-                        // Remove the hoisted instructions from the original block
-                        quads.retain_mut(|quad| !block_content.contains(&quad));
                     }
-                    _ => {}
+
+                    // Remove the hoisted instructions from the original block
+                    quads.retain_mut(|quad| !block_content.contains(quad));
                 }
             }
 
@@ -79,7 +69,7 @@ impl BlockGraph {
                 for &parent in parent_edges {
                     if !sccs[sccid].nodes.contains(&parent) {
                         self.remove_edge(parent, sccs[sccid].nodes[0]);
-                        self.add_edge(parent, new_id.clone());
+                        self.add_edge(parent, new_id);
                     }
                 }
 
@@ -111,10 +101,8 @@ fn is_var_invariant(
         for (i, bit) in rchin.iter().enumerate() {
             if *bit {
                 let def = &reaching.defs[i];
-                if &def.var == var {
-                    if blocks.nodes.contains(&def.block_id) {
-                        return false; // Variable is defined inside the loop — not invariant
-                    }
+                if &def.var == var && blocks.nodes.contains(&def.block_id) {
+                    return false; // Variable is defined inside the loop — not invariant
                 }
             }
         }
@@ -123,7 +111,7 @@ fn is_var_invariant(
 }
 
 /// Extracts a variable from a `QuadrupelArg`, if it is a variable.
-fn extract_var(arg: &QuadrupelArg) -> Option<&QuadrupelVar> {
+const fn extract_var(arg: &QuadrupelArg) -> Option<&QuadrupelVar> {
     if let QuadrupelArg::Var(var) = arg {
         Some(var)
     } else {

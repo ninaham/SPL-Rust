@@ -1,0 +1,307 @@
+use std::{cell::RefCell, collections::HashMap, mem, rc::Rc};
+
+use crate::{
+    base_blocks::{BlockContent, BlockGraph},
+    code_gen::quadrupel::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar},
+    interpreter::{
+        environment::Environment,
+        expression_evaluator,
+        value::{Value, ValueFunction, ValueRef},
+    },
+    spl_builtins,
+    table::{entry::Entry, symbol_table::SymbolTable},
+};
+
+pub fn eval_tac(proc_graphs: &HashMap<String, BlockGraph>, symbol_table: &SymbolTable) {
+    let procs = proc_graphs.iter().map(|(name, graph)| {
+        let Some(Entry::ProcedureEntry(proc_entry)) = symbol_table.lookup(name) else {
+            unreachable!("function not found: {name}");
+        };
+        (
+            name.to_string(),
+            Value::new_refcell(Value::Function(ValueFunction::Tac(proc_entry, graph))),
+        )
+    });
+    let global_env = Rc::new(Environment::new_global(procs, symbol_table));
+
+    spl_builtins::init_start_time();
+
+    eval_function("main", &mut Vec::new(), global_env);
+}
+
+pub fn eval_function<'a>(
+    fun: &str,
+    args: &mut Vec<ValueRef<'a>>,
+    parent_env: Rc<Environment<'a, '_>>,
+) {
+    let Some(Value::Function(proc)) = parent_env.get(fun).map(|v| v.borrow().clone()) else {
+        unimplemented!("SPL-builtin `{fun}()`");
+    };
+
+    match proc {
+        ValueFunction::Tac(_, proc_graph) => {
+            let vars_param = args
+                .drain(..)
+                .zip(&proc.entry().parameters)
+                .map(|(arg, param)| {
+                    let param_name = param.name.to_string();
+                    if param.is_reference {
+                        (param_name, arg.clone())
+                    } else {
+                        (param_name, Value::new_refcell(arg.borrow().clone()))
+                    }
+                });
+
+            let vars_param_names = proc
+                .entry()
+                .parameters
+                .iter()
+                .map(|p| p.name.clone())
+                .collect::<Vec<_>>();
+
+            let vars_local = proc
+                .entry()
+                .local_table
+                .entries
+                .iter()
+                .filter(|(n, _)| !vars_param_names.contains(n))
+                .filter_map(|(name, entry)| {
+                    let Entry::VariableEntry(var_entry) = entry else {
+                        return None;
+                    };
+                    let default =
+                        Rc::new(RefCell::new(var_entry.typ.default_value().flatten_value()));
+                    Some((name.to_string(), default))
+                });
+
+            let env = Rc::new(Environment::new(
+                parent_env,
+                vars_param.chain(vars_local),
+                &proc.entry().local_table,
+            ));
+
+            let blocks = &proc_graph.blocks;
+            let mut next_block = 0;
+
+            while next_block < blocks.len() {
+                match &blocks[next_block].content {
+                    BlockContent::Start => {
+                        next_block += 1;
+                    }
+                    BlockContent::Code(quads) => {
+                        for quad in quads {
+                            if let Some(l) = &eval_quad(args, quad, env.clone()) {
+                                next_block = *proc_graph.label_to_id.get(l).unwrap() - 1;
+                            }
+                        }
+                        next_block += 1;
+                    }
+                    BlockContent::Stop => {
+                        break;
+                    }
+                }
+            }
+        }
+        ValueFunction::BuiltIn(_, f) => f.call(args),
+        ValueFunction::Spl(_, _) => unreachable!(),
+    }
+}
+
+#[expect(clippy::too_many_lines)]
+pub fn eval_quad<'a>(
+    args: &mut Vec<ValueRef<'a>>,
+    quad: &Quadrupel,
+    env: Rc<Environment<'a, '_>>,
+) -> Option<String> {
+    match quad.op {
+        QuadrupelOp::Add => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let res = parse_result(&quad.result);
+            *env.get(&res).unwrap().borrow_mut() = i + j;
+            None
+        }
+        QuadrupelOp::Sub => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let res = parse_result(&quad.result);
+            *env.get(&res).unwrap().borrow_mut() = i - j;
+            None
+        }
+        QuadrupelOp::Mul => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let res = parse_result(&quad.result);
+            *env.get(&res)
+                .unwrap_or_else(|| panic!("var not found: {res} {env:#?}"))
+                .borrow_mut() = i * j;
+            None
+        }
+        QuadrupelOp::Div => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let res = parse_result(&quad.result);
+            *env.get(&res).unwrap().borrow_mut() = i / j;
+            None
+        }
+        QuadrupelOp::Neg => {
+            let i = parse_arg(&quad.arg1, &env);
+            let res = parse_result(&quad.result);
+            *env.get(&res).unwrap().borrow_mut() = -i;
+            None
+        }
+        QuadrupelOp::Equ => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let label = parse_result(&quad.result);
+
+            if i == j { Some(label) } else { None }
+        }
+        QuadrupelOp::Neq => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let label = parse_result(&quad.result);
+
+            if i == j { None } else { Some(label) }
+        }
+        QuadrupelOp::Lst => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let label = parse_result(&quad.result);
+
+            if i < j { Some(label) } else { None }
+        }
+        QuadrupelOp::Lse => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let label = parse_result(&quad.result);
+
+            if i <= j { Some(label) } else { None }
+        }
+        QuadrupelOp::Grt => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let label = parse_result(&quad.result);
+
+            if i > j { Some(label) } else { None }
+        }
+        QuadrupelOp::Gre => {
+            let i = parse_arg(&quad.arg1, &env);
+            let j = parse_arg(&quad.arg2, &env);
+            let label = parse_result(&quad.result);
+
+            if i >= j { Some(label) } else { None }
+        }
+        QuadrupelOp::Assign => {
+            let val = parse_arg(&quad.arg1, &env);
+            let target = parse_result(&quad.result);
+
+            *env.get(&target).unwrap().borrow_mut() = val;
+            None
+        }
+        QuadrupelOp::ArrayLoad => {
+            let arr = parse_arg(&quad.arg1, &env);
+            let Value::Array(arr) = arr else {
+                unreachable!();
+            };
+            let Value::Int(index) = parse_arg(&quad.arg2, &env) else {
+                unreachable!();
+            };
+            let res_id = parse_result(&quad.result);
+
+            let index = eval_array_index(index, arr.len());
+
+            let (res, is_ref) = env.get1(&res_id).unwrap();
+
+            if matches!(&*res.borrow(), Value::Int(_)) {
+                let ref_val = arr[index].clone();
+                if is_ref {
+                    mem::drop(res);
+                    env.vars.borrow_mut().insert(res_id, ref_val);
+                } else {
+                    *res.borrow_mut() = ref_val.borrow().clone();
+                }
+            } else if matches!(&*res.borrow(), Value::Array(_)) {
+                let mut arr_slice = arr[index..].to_vec();
+                if !is_ref {
+                    for ele in &mut arr_slice {
+                        let v = ele.borrow().clone();
+                        *ele = Value::new_refcell(v);
+                    }
+                }
+                *res.borrow_mut() = Value::Array(arr_slice);
+            } else {
+                unreachable!();
+            }
+
+            None
+        }
+        QuadrupelOp::ArrayStore => {
+            let value = parse_arg(&quad.arg1, &env);
+            let Value::Int(index) = parse_arg(&quad.arg2, &env) else {
+                unreachable!();
+            };
+            let arr = parse_result(&quad.result);
+            let array = env.get(&arr).expect("array not found");
+
+            let &mut Value::Array(ref mut array) = &mut *array.borrow_mut() else {
+                unreachable!();
+            };
+            let index = eval_array_index(index, array.len());
+            *array[index].borrow_mut() = value;
+
+            None
+        }
+        QuadrupelOp::Goto => {
+            let label = parse_result(&quad.result);
+            Some(label)
+        }
+        QuadrupelOp::Param => {
+            let arg = parse_arg_ref(&quad.arg1, &env);
+            args.push(arg);
+            None
+        }
+        QuadrupelOp::Call => {
+            let fun = parse_fun(&quad.arg1);
+            eval_function(&fun, args, env);
+            args.clear();
+            None
+        }
+        QuadrupelOp::Default => None,
+    }
+}
+
+fn eval_array_index(index: i32, arr_len: usize) -> usize {
+    expression_evaluator::eval_array_index(index / 4, arr_len)
+}
+
+pub fn parse_arg<'a>(arg: &QuadrupelArg, env: &Rc<Environment<'a, '_>>) -> Value<'a> {
+    parse_arg_ref(arg, env).borrow().clone()
+}
+pub fn parse_arg_ref<'a>(arg: &QuadrupelArg, env: &Rc<Environment<'a, '_>>) -> ValueRef<'a> {
+    match &arg {
+        QuadrupelArg::Var(quadrupel_var) => env
+            .get(&quadrupel_var.to_identifier())
+            .unwrap_or_else(|| panic!("{arg:?} not found")),
+        QuadrupelArg::Const(i) => Value::new_refcell(Value::Int(*i)),
+        QuadrupelArg::Empty => unreachable!(),
+    }
+}
+
+pub fn parse_fun(arg: &QuadrupelArg) -> String {
+    match arg.clone() {
+        QuadrupelArg::Var(quadrupel_var) => match quadrupel_var {
+            QuadrupelVar::Spl(name) => name,
+            QuadrupelVar::Tmp(_) => unreachable!(),
+        },
+        _ => unreachable!(),
+    }
+}
+
+pub fn parse_result(res: &QuadrupelResult) -> String {
+    match &res {
+        QuadrupelResult::Var(quadrupel_var) => quadrupel_var.to_identifier(),
+        QuadrupelResult::Label(l) => l.to_string(),
+        QuadrupelResult::Empty => unreachable!(),
+    }
+}

@@ -1,137 +1,25 @@
-use std::{collections::HashMap, rc::Rc, sync::Mutex};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+use crate::spl_builtins::{NAMED_TYPES, PROCEDURES};
 use crate::table::{
-    entry::{Entry, Parameter, ProcedureEntry, TypeEntry},
+    entry::{Entry, ProcedureEntry, TypeEntry},
     symbol_table::SymbolTable,
-    types::{PrimitiveType, Type},
+    types::Type,
 };
 
-const TYPES: [&str; 1] = ["int"];
+pub fn init_symbol_table(s_t: &Rc<RefCell<SymbolTable>>) {
+    let mut symbol_table = s_t.borrow_mut();
 
-const PROCEDURES: [(&str, &[Parameter]); 10] = [
-    (
-        "printi",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: false,
-        }],
-    ),
-    (
-        "printc",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: false,
-        }],
-    ),
-    (
-        "readi",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: true,
-        }],
-    ),
-    (
-        "readc",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: true,
-        }],
-    ),
-    ("exit", &[]),
-    (
-        "time",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: true,
-        }],
-    ),
-    (
-        "clearAll",
-        &[Parameter {
-            typ: Type::PrimitiveType(PrimitiveType::Int),
-            is_reference: false,
-        }],
-    ),
-    (
-        "setPixel",
-        &[
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-        ],
-    ),
-    (
-        "drawLine",
-        &[
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-        ],
-    ),
-    (
-        "drawCircle",
-        &[
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-            Parameter {
-                typ: Type::PrimitiveType(PrimitiveType::Int),
-                is_reference: false,
-            },
-        ],
-    ),
-];
-
-pub fn init_symbol_table(s_t: &Rc<Mutex<SymbolTable>>) {
-    let mut symbol_table = s_t.lock().unwrap();
-
-    for t in TYPES {
+    for t in NAMED_TYPES {
         symbol_table
             .enter(
                 t.to_string(),
-                Entry::TypeEntry(TypeEntry {
-                    typ: Type::PrimitiveType(PrimitiveType::Int),
-                }),
+                Entry::TypeEntry(TypeEntry { typ: Type::INT }),
             )
             .unwrap();
     }
 
-    for (name, params) in PROCEDURES {
+    for (name, params, _) in PROCEDURES {
         symbol_table
             .enter(
                 name.to_string(),
@@ -140,7 +28,7 @@ pub fn init_symbol_table(s_t: &Rc<Mutex<SymbolTable>>) {
                         entries: HashMap::new(),
                         upper_level: Some(Rc::downgrade(s_t)),
                     },
-                    parameters: params.into(),
+                    parameters: params.to_vec(),
                 }),
             )
             .unwrap();

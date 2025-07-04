@@ -1,8 +1,10 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::{self, Display, Write as _};
 use std::io::{IsTerminal, Write as _};
 use std::path::Path;
 use std::process::Stdio;
-use std::sync::Mutex;
+use std::rc::Rc;
 use std::{fs::File, process};
 
 use anyhow::{anyhow, bail};
@@ -11,6 +13,8 @@ use clap::{ArgGroup, Command, Id, arg};
 use colored::Colorize;
 use dialoguer::{Select, theme::ColorfulTheme};
 
+use crate::interpreter::definition_evaluator::start_main;
+use crate::interpreter::tac_interpreter::eval_tac;
 use crate::{
     base_blocks::BlockGraph,
     code_gen::Tac,
@@ -20,7 +24,7 @@ use crate::{
     optimizations::worklist::{Lattice, Worklist},
     parser::parse_everything_else::parse,
     semant::{build_symbol_table::build_symbol_table, check_def_global},
-    table::entry::{Entry, ProcedureEntry},
+    table::entry::Entry,
     table::symbol_table::SymbolTable,
 };
 
@@ -33,6 +37,8 @@ pub fn load_program_data() -> Command {
             arg!(parse: -p --parse "Parse input file, returns the abstract syntax tree"),
             arg!(tables: -t --tables "Fills symbol tables and prints them"),
             arg!(semant: -s --semant "Semantic analysis"),
+            arg!(interpret: -i --interpret "SPL Interpreter"),
+            arg!(interprettac: -I --interprettac "TAC Interpreter"),
             arg!(tac: -'3' --tac "Generates three address code"),
             arg!(proc: -P --proc <name> "Name of the procedure to be examined"),
             arg!(optis: -O --optis <optis> "Optimizations to apply: [cse, rch, lv, dead, gcp, scc, licm]")
@@ -44,7 +50,7 @@ pub fn load_program_data() -> Command {
             ArgGroup::new("phase")
                 .required(false)
                 .multiple(false)
-                .args(["parse", "tables", "semant", "tac", "dot"]),
+                .args(["parse", "tables", "semant", "interpret", "interprettac", "tac", "dot"]),
         )
 }
 
@@ -52,11 +58,11 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
     let file = matches.get_one::<String>("file").unwrap();
     let input = std::fs::read_to_string(file)?.leak();
 
+    let mut absyn = parse(input)?;
+
     let Some(phase) = matches.get_one::<Id>("phase") else {
         bail!("Code Generation for ECO32 not yet implemented")
     };
-
-    let mut absyn = parse(input)?;
 
     if phase == "parse" {
         eprintln!("{absyn:#?}");
@@ -76,6 +82,12 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         .try_for_each(|def| check_def_global(def, &table))?;
 
     if phase == "semant" {
+        return Ok(());
+    }
+
+    if phase == "interpret" {
+        let t = table.borrow();
+        start_main(&absyn, &t);
         return Ok(());
     }
 
@@ -103,15 +115,22 @@ pub fn process_matches(matches: &clap::ArgMatches) -> anyhow::Result<()> {
             .default(0)
             .interact()?
     };
-    let mut graph = BlockGraph::from_tac(address_code.proc_table.get(graphs[sel_proc]).unwrap());
     let proc_name = graphs[sel_proc];
-    let proc_def = table.lock().unwrap().lookup(proc_name);
-    let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
-        unreachable!()
-    };
+    let mut graph = BlockGraph::from_tac(address_code.proc_table.get(proc_name).unwrap());
+
+    if phase == "interprettac" {
+        let proc_graphs = address_code
+            .proc_table
+            .into_iter()
+            .map(|(proc_name, quads)| (proc_name, BlockGraph::from_tac(&quads)))
+            .collect::<HashMap<_, _>>();
+        let t = table.borrow();
+        eval_tac(&proc_graphs, &t);
+        return Ok(());
+    }
 
     if let Some(optis) = matches.get_many::<String>("optis") {
-        graph.run_optimizations(optis, &table, &proc_def, proc_name, matches, &theme)?;
+        graph.run_optimizations(optis, &table, proc_name, matches, &theme)?;
     }
 
     if phase == "dot" {
@@ -126,13 +145,17 @@ impl BlockGraph {
     fn run_optimizations<'a>(
         &mut self,
         optis: impl Iterator<Item = &'a String>,
-        symbol_table: &Mutex<SymbolTable>,
-        proc_def: &ProcedureEntry,
+        symbol_table: &Rc<RefCell<SymbolTable>>,
         proc_name: &str,
         matches: &clap::ArgMatches,
         theme: &impl dialoguer::theme::Theme,
     ) -> anyhow::Result<()> {
         for opti in optis {
+            let proc_def = symbol_table.borrow().lookup(proc_name);
+            let Some(Entry::ProcedureEntry(proc_def)) = proc_def else {
+                unreachable!()
+            };
+
             match opti.as_str() {
                 "dot" => {
                     println!("{}", ">>> Showing Dot Graph...".green());
@@ -140,7 +163,12 @@ impl BlockGraph {
                 }
                 "cse" => {
                     eprintln!("{}", ">>> Common Subexpression Elimination".green());
-                    self.common_subexpression_elimination(&symbol_table.lock().unwrap());
+                    let local_table = proc_def.local_table.clone();
+                    self.common_subexpression_elimination(&local_table);
+                    match symbol_table.borrow_mut().entries.get_mut(proc_name) {
+                        Some(Entry::ProcedureEntry(pe)) => pe.local_table = local_table,
+                        _ => unreachable!(),
+                    }
                 }
                 "rch" => {
                     eprintln!("{}", ">>> Reaching Definitions:".green());
@@ -189,14 +217,13 @@ impl BlockGraph {
                 "cf" => {
                     println!("{}", ">>> Constant Folding (×1)".green());
                     let mut gcp = ConstantPropagation::run(self, &proc_def.local_table);
-                    _ = self.constant_folding(&mut gcp, &symbol_table.lock().unwrap());
+                    _ = self.constant_folding(&mut gcp, &symbol_table.borrow());
                 }
                 "cf+" => {
                     println!("{}", ">>> Constant Folding (until stable)".green());
                     let mut gcp = ConstantPropagation::run(self, &proc_def.local_table);
                     let mut iterations = 0;
-                    while { self.constant_folding(&mut gcp, &symbol_table.lock().unwrap()) }
-                        .is_continue()
+                    while { self.constant_folding(&mut gcp, &symbol_table.borrow()) }.is_continue()
                     {
                         iterations += 1;
                     }
@@ -229,7 +256,7 @@ impl BlockGraph {
         matches: &clap::ArgMatches,
         theme: &impl dialoguer::theme::Theme,
     ) -> Result<(), anyhow::Error> {
-        let mut filename = format!("{}.dot", proc_name);
+        let mut filename = format!("{proc_name}.dot");
         let outputname = format!("as file: {filename}");
         let outputs = ["print", &outputname, "dot Tx11", "xdot"];
 

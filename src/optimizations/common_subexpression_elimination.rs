@@ -42,7 +42,7 @@ impl BlockGraph {
 fn optimize_block(
     block: &mut Block,
     tmp_next_num: &mut impl FnMut() -> usize,
-    symbol_table: &SymbolTable,
+    local_table: &SymbolTable,
 ) {
     // Only process blocks that contain code.
     let BlockContent::Code(quads) = &mut block.content else {
@@ -97,7 +97,7 @@ fn optimize_block(
             }
             // Handle parameter passing for function calls.
             QuadrupelOp::Param => {
-                let param = Quadrupel::find_param_declaration(quads, i, symbol_table);
+                let param = Quadrupel::find_param_declaration(quads, i, local_table);
 
                 if param.is_reference {
                     // If passed by reference, remember the argument as potentially changed.

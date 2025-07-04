@@ -1,0 +1,60 @@
+proc main() {
+	// ein paar Variable auf Vorrat
+	var a : int;
+	var b : int;
+	var c : int;
+	var d : int;
+	var e : int;
+	var f : int;
+
+	readi(a);
+
+	// Common Sub-expression elimination
+	b:=(a+1)*2;
+	c:=(a+1)*3;
+
+	// Ergebnis:
+	// T1:=a+1
+	// b:=t1*2
+	// c:=t1*3
+
+	// Algebraic Identities
+	d:=(a+0)*a*1-0;
+	// Ergebnis:
+	// d:=a*a;
+
+	// Vollständige Auswertung
+	e:=5;
+	e:=e*e-e-1+9;
+	// Ergebnis:
+	// e:=28;
+
+	// Live-Variable Analysis & Dead-Code Elim.
+	// Constant Propagation
+	if (e+b>c) {
+		e:=a;
+		f:=117;
+	}
+	else {
+		f:=116+1;
+	}
+
+	printi(a+b+c+d);
+	printc('\n');
+	// Ergebnis Live-Code Analysis & Dead-Code Elim. :
+	// Alle Zuweisungen an e können entfernt werden
+
+	// Nochmal Constant Propagation
+	// In printi-Aufruf kann a+f durch a+117 ersetzt werden
+	printi(a+f);
+	printc('\n');
+
+	// Die folgende Bedingung ist immer wahr, daher kann a auf 42 gesetzt werden.
+	if ((116+1)*(2-1)=f)
+	a:=42;
+	else a:=-42;
+
+	// Dann kann hier PARAM 42 stehen
+	printi(a);
+	printc('\n');
+}

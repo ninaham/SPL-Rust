@@ -4,9 +4,11 @@ mod absyn; // Abstract Syntax Tree structures
 mod base_blocks; // Control flow graph and basic block handling
 mod cli; // CLI parsing and argument handling
 mod code_gen; // Code generation (e.g. TAC)
+mod interpreter;
 mod optimizations; // Compiler optimizations
 mod parser; // SPL parser implementation
 mod semant; // Semantic checks and symbol table generation
+mod spl_builtins;
 mod table; // Symbol table and entry types
 
 fn main() -> anyhow::Result<()> {
@@ -32,25 +34,29 @@ mod test {
     use crate::table::entry::Entry;
 
     #[rstest]
-    fn test_all_files(
-        #[files("spl-testfiles/runtime_tests/*.spl")] // Run test for each SPL file
-        #[exclude("reftest.spl")] // ...except this one
-        path: PathBuf,
+    fn optimizations(
+        #[files("spl-testfiles/optimizations/*.spl")] path: PathBuf,
     ) -> anyhow::Result<()> {
-        test_file(&path)
+        file(&path)
     }
 
     #[rstest]
-    fn test_syntax_errors(#[files("spl-testfiles/syntax_errors/*.spl")] path: PathBuf) {
-        // Read the SPL source file
+    fn runtime_tests(
+        #[files("spl-testfiles/runtime_tests/*.spl")]
+        #[exclude("reftest.spl")]
+        path: PathBuf,
+    ) -> anyhow::Result<()> {
+        file(&path)
+    }
+
+    #[rstest]
+    fn syntax_errors(#[files("spl-testfiles/syntax_errors/*.spl")] path: PathBuf) {
         let code = fs::read_to_string(path).unwrap();
         // Parsing should fail (on purpose)
         parse(&code).expect_err("Parsing should fail");
     }
 
-    // Complete end-to-end test for one SPL file
-    fn test_file(path: &Path) -> anyhow::Result<()> {
-        // Load the SPL source code
+    fn file(path: &Path) -> anyhow::Result<()> {
         let code = fs::read_to_string(path).unwrap();
 
         // Parse into abstract syntax tree
@@ -65,7 +71,6 @@ mod test {
             .iter_mut()
             .try_for_each(|def| check_def_global(def, &table))?;
 
-        // Generate intermediate code (Three Address Code)
         let mut address_code = Tac::new(table.clone());
         address_code.code_generation(&absyn);
 
@@ -74,31 +79,48 @@ mod test {
 
         // Process each procedure independently
         for (proc_name, code) in &address_code.proc_table {
-            let Some(Entry::ProcedureEntry(proc_entry)) = table.lock().unwrap().lookup(proc_name)
-            else {
-                unreachable!() // Procedure must exist in symbol table
+            let Some(Entry::ProcedureEntry(proc_entry)) = table.borrow().lookup(proc_name) else {
+                unreachable!()
+            };
+            let mut bg = BlockGraph::from_tac(code);
+
+            println!("HALLOOOOO");
+
+            bg.common_subexpression_elimination(&proc_entry.local_table);
+
+            match table.borrow_mut().entries.get_mut(proc_name) {
+                Some(Entry::ProcedureEntry(pe)) => pe.local_table = proc_entry.local_table,
+                _ => unreachable!(),
+            }
+            let Some(Entry::ProcedureEntry(proc_entry)) = table.borrow().lookup(proc_name) else {
+                unreachable!()
             };
 
-            let local_table = &proc_entry.local_table;
-            let mut bg = BlockGraph::from_tac(code); // Build CFG from TAC
+            let mut bg = BlockGraph::from_tac(code);
 
-            // Perform Common Subexpression Elimination
-            bg.common_subexpression_elimination(&table.lock().unwrap());
+            bg.common_subexpression_elimination(&table.borrow());
+
+            match table.borrow_mut().entries.get_mut(proc_name) {
+                Some(Entry::ProcedureEntry(pe)) => pe.local_table = proc_entry.local_table,
+                _ => unreachable!(),
+            }
+            let Some(Entry::ProcedureEntry(proc_entry)) = table.borrow().lookup(proc_name) else {
+                unreachable!()
+            };
+            let local_table = &proc_entry.local_table;
 
             // Compute Reaching Definitions (used for many other analyses)
-            ReachingDefinitions::run(&mut bg, local_table);
+            ReachingDefinitions::run(&bg, local_table);
 
             // Run liveness analysis to find unused variables
-            let live_variables = LiveVariables::run(&mut bg, local_table);
+            let live_variables = LiveVariables::run(&bg, local_table);
 
             // Eliminate dead code based on liveness information
             bg.dead_code_elimination(&live_variables);
 
             // Run constant propagation analysis
-            let mut const_prop = ConstantPropagation::run(&mut bg, local_table);
-
-            // Perform constant folding repeatedly until fixpoint is reached
-            while { bg.constant_folding(&mut const_prop, &table.lock().unwrap()) }.is_continue() {}
+            let mut const_prop = ConstantPropagation::run(&bg, local_table);
+            while { bg.constant_folding(&mut const_prop, &table.borrow()) }.is_continue() {}
 
             // (Optional) Debug print or to trigger formatting
             bg.to_string();

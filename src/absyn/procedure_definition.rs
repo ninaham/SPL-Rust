@@ -12,5 +12,5 @@ pub struct ProcedureDefinition {
     pub name: String,
     pub parameters: LinkedList<ParameterDefinition>,
     pub body: LinkedList<Statement>,
-    pub variales: LinkedList<VariableDefinition>,
+    pub variables: LinkedList<VariableDefinition>,
 }

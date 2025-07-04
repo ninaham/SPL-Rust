@@ -90,10 +90,10 @@ impl BlockGraph {
 impl ConstantPropagation {
     /// Replaces a variable with a constant if the variable is known to be constant.
     fn constant_folding(&self, arg: &mut QuadrupelArg, const_state: &[Constness]) {
-        if let QuadrupelArg::Var(arg_var) = &arg {
-            if let Constness::Constant(c) = self.get_constness(arg_var, const_state) {
-                *arg = QuadrupelArg::Const(c);
-            }
+        if let QuadrupelArg::Var(arg_var) = &arg
+            && let Constness::Constant(c) = self.get_constness(arg_var, const_state)
+        {
+            *arg = QuadrupelArg::Const(c);
         }
     }
 }

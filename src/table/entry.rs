@@ -18,7 +18,6 @@ pub struct ProcedureEntry {
 #[derive(Debug, Clone)]
 pub struct VariableEntry {
     pub typ: Type,
-    #[expect(unused)]
     pub is_reference: bool,
 }
 
@@ -29,6 +28,17 @@ pub struct TypeEntry {
 
 #[derive(Debug, Clone)]
 pub struct Parameter {
+    pub name: String,
     pub typ: Type,
     pub is_reference: bool,
+}
+
+impl Parameter {
+    pub const fn new(name: String, typ: Type, is_reference: bool) -> Self {
+        Self {
+            name,
+            typ,
+            is_reference,
+        }
+    }
 }

@@ -120,7 +120,7 @@ impl BlockGraph {
 impl Block {
     fn gcp_gen(&self, vars: &[QuadrupelVar], local_table: &SymbolTable) -> Vec<Constness> {
         let symbol_table = local_table.upper_level();
-        let symbol_table = symbol_table.lock().unwrap();
+        let symbol_table = symbol_table.borrow();
 
         let var_idx = |var| ConstantPropagation::get_var_idx_in(vars, var).unwrap();
 

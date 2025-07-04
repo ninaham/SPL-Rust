@@ -1,4 +1,4 @@
-use crate::code_gen::quadrupel::{quad, quad_match, Quadrupel, QuadrupelArg};
+use crate::code_gen::quadrupel::{Quadrupel, QuadrupelArg, quad, quad_match};
 
 impl Quadrupel {
     pub fn simplify(self) -> Option<Self> {

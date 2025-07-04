@@ -96,7 +96,7 @@ impl BlockGraph {
         self.edges[start].insert(end);
     }
 
-    pub fn edges(&self) -> &[HashSet<BlockId>] {
+    pub fn edges(&self) -> &[HashSet<usize>] {
         &self.edges
     }
 

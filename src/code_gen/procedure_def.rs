@@ -1,13 +1,19 @@
-use crate::absyn::{
-    absyn::{Expression, Statement, Variable},
-    array_access::ArrayAccess,
-    assign_statement::AssignStatement,
-    binary_expression::Operator,
-    call_statement::CallStatement,
-    if_statement::IfStatement,
-    procedure_definition::ProcedureDefinition,
-    unary_expression::UnaryOperator,
-    while_statement::WhileStatement,
+use crate::{
+    absyn::{
+        absyn::{Expression, Statement, Variable},
+        array_access::ArrayAccess,
+        assign_statement::AssignStatement,
+        binary_expression::Operator,
+        call_statement::CallStatement,
+        if_statement::IfStatement,
+        procedure_definition::ProcedureDefinition,
+        unary_expression::UnaryOperator,
+        while_statement::WhileStatement,
+    },
+    table::{
+        entry::{Entry, VariableEntry},
+        types::Type,
+    },
 };
 
 use super::{Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar, Tac};
@@ -71,8 +77,8 @@ impl<'a> Tac {
                 assign_quad = Quadrupel::new();
                 assign_quad.op = QuadrupelOp::ArrayStore;
                 assign_quad.result = QuadrupelResult::Var(var);
-                assign_quad.arg2 = self.into_tmp(offset);
-                assign_quad.arg1 = self.into_tmp(val);
+                assign_quad.arg2 = self.into_tmp(offset, &Type::INT, false);
+                assign_quad.arg1 = self.into_tmp(val, &Type::INT, false);
             }
         }
         self.quadrupels.push(assign_quad);
@@ -113,8 +119,8 @@ impl<'a> Tac {
                 let right = self.eval_expression(&binex.right);
 
                 if_quad.op = QuadrupelOp::from(binex.operator).inv();
-                if_quad.arg1 = self.into_tmp(left);
-                if_quad.arg2 = self.into_tmp(right);
+                if_quad.arg1 = self.into_tmp(left, &Type::INT, false);
+                if_quad.arg2 = self.into_tmp(right, &Type::INT, false);
                 if_quad.result = else_label.clone();
                 self.quadrupels.push(if_quad);
             }
@@ -151,8 +157,8 @@ impl<'a> Tac {
                 let right = self.eval_expression(&binex.right);
 
                 while_quad.op = QuadrupelOp::from(binex.operator).inv();
-                while_quad.arg1 = self.into_tmp(left);
-                while_quad.arg2 = self.into_tmp(right);
+                while_quad.arg1 = self.into_tmp(left, &Type::INT, false);
+                while_quad.arg2 = self.into_tmp(right, &Type::INT, false);
                 while_quad.result = jmp_label.clone();
                 self.quadrupels.push(while_quad);
             }
@@ -171,12 +177,16 @@ impl<'a> Tac {
     fn eval_call_statement(&mut self, call_state: &'a CallStatement) {
         let mut count = 0;
         let name = call_state.name.clone();
-        for param in &call_state.arguments {
+        let Some(Entry::ProcedureEntry(proc_entry)) = self.global_table.borrow().lookup(&name)
+        else {
+            unreachable!()
+        };
+        for (param, param_entry) in call_state.arguments.iter().zip(proc_entry.parameters) {
             count += 1;
             let param = self.eval_expression(param);
             let mut quad = Quadrupel::new();
             quad.op = QuadrupelOp::Param;
-            quad.arg1 = self.into_tmp(param);
+            quad.arg1 = self.into_tmp(param, &param_entry.typ, param_entry.is_reference);
             self.quadrupels.push(quad);
         }
         let mut quad = Quadrupel::new();
@@ -218,22 +228,22 @@ impl<'a> Tac {
         let mut quad = Quadrupel::new();
         quad.op = QuadrupelOp::ArrayLoad;
         quad.arg1 = QuadrupelArg::Var(array_var);
-        quad.arg2 = self.into_tmp(offset);
+        quad.arg2 = self.into_tmp(offset, &Type::INT, false);
         Expr::Quad(quad)
     }
 
     fn emit_expression_bin(&mut self, op: Operator, left: Expr, right: Expr) -> Expr {
         let mut quad = Quadrupel::new();
         quad.op = op.into();
-        quad.arg1 = self.into_tmp(left);
-        quad.arg2 = self.into_tmp(right);
+        quad.arg1 = self.into_tmp(left, &Type::INT, false);
+        quad.arg2 = self.into_tmp(right, &Type::INT, false);
         Expr::Quad(quad)
     }
 
     fn emit_expression_un(&mut self, op: UnaryOperator, left: Expr) -> Expr {
         let mut quad = Quadrupel::new();
         quad.op = op.into();
-        quad.arg1 = self.into_tmp(left);
+        quad.arg1 = self.into_tmp(left, &Type::INT, false);
         Expr::Quad(quad)
     }
 
@@ -255,21 +265,33 @@ impl<'a> Tac {
         self.quadrupels.push(new_quad);
     }
 
-    const fn create_tmp_var(&mut self) -> QuadrupelVar {
+    fn create_tmp_var(&mut self, typ: &Type, is_ref: bool) -> QuadrupelVar {
         let n = self.temp_var_count;
         self.temp_var_count += 1;
 
-        QuadrupelVar::Tmp(n)
+        let var = QuadrupelVar::Tmp(n);
+
+        self.local_table()
+            .enter(
+                var.to_identifier(),
+                Entry::VariableEntry(VariableEntry {
+                    typ: typ.clone(),
+                    is_reference: is_ref,
+                }),
+            )
+            .unwrap();
+
+        var
     }
 
     #[expect(clippy::wrong_self_convention)]
-    fn into_tmp(&mut self, expr: Expr) -> QuadrupelArg {
+    fn into_tmp(&mut self, expr: Expr, typ: &Type, is_ref: bool) -> QuadrupelArg {
         match expr {
             Expr::Quad(mut quad) => {
-                let tmp = self.create_tmp_var();
-                quad.result = QuadrupelResult::Var(tmp.clone());
+                let tmp_var = self.create_tmp_var(typ, is_ref);
+                quad.result = QuadrupelResult::Var(tmp_var.clone());
                 self.quadrupels.push(quad);
-                QuadrupelArg::Var(tmp)
+                QuadrupelArg::Var(tmp_var)
             }
             Expr::Arg(arg) => arg,
         }

@@ -2,7 +2,7 @@ pub mod build_symbol_table;
 pub mod table_initializer;
 mod utils;
 
-use std::{fmt, rc::Rc, sync::Mutex};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{
     absyn::{
@@ -36,7 +36,7 @@ impl std::error::Error for SemanticError {}
 
 pub fn check_def_global(
     def: &mut Definition,
-    table: &Rc<Mutex<SymbolTable>>,
+    table: &Rc<RefCell<SymbolTable>>,
 ) -> Result<(), SemanticError> {
     match def {
         Definition::TypeDefinition(_) => Ok(()),
@@ -46,9 +46,9 @@ pub fn check_def_global(
 
 fn check_def_proc(
     proc: &mut ProcedureDefinition,
-    table: &Rc<Mutex<SymbolTable>>,
+    table: &Rc<RefCell<SymbolTable>>,
 ) -> Result<(), SemanticError> {
-    let table = table.lock().unwrap();
+    let table = table.borrow();
     let local_table: &SymbolTable = &table
         .lookup(&proc.name)
         .and_then(|e| {

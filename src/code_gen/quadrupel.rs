@@ -74,6 +74,15 @@ pub enum QuadrupelVar {
     Tmp(usize),
 }
 
+impl QuadrupelVar {
+    pub fn to_identifier(&self) -> String {
+        match self {
+            Self::Spl(name) => name.to_string(),
+            Self::Tmp(t) => format!("T{t}"),
+        }
+    }
+}
+
 impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

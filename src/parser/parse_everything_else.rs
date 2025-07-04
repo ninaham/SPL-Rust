@@ -143,7 +143,7 @@ fn procedure_definition(input: &str) -> IResult<&str, Definition> {
         name,
         parameters: pl,
         body: stl,
-        variales: vl,
+        variables: vl,
     };
 
     Ok((rem, Definition::ProcedureDefinition(Box::new(pd))))
