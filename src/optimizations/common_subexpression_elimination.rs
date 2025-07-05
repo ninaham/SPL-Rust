@@ -5,7 +5,11 @@ use crate::{
     code_gen::quadrupel::{
         Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar, quad,
     },
-    table::{entry::Entry, symbol_table::SymbolTable, types::Type},
+    table::{
+        entry::{Entry, VariableEntry},
+        symbol_table::SymbolTable,
+        types::Type,
+    },
 };
 
 impl BlockGraph {
@@ -28,7 +32,7 @@ impl BlockGraph {
 
         // Function to generate new unique temporary variable numbers.
         let mut tmp_next_num = || -> usize {
-            tmp_last_num += 1;
+            tmp_last_num += 10;
             tmp_last_num
         };
 
@@ -74,7 +78,9 @@ fn optimize_block(
                     let tmp = entry.tmp.get_or_insert_with(|| {
                         let tmp = QuadrupelVar::Tmp(tmp_next_num());
 
-                        local_table.enter(tmp.to_identifier(), Entry::VariableEntry(crate::table::entry::VariableEntry { typ: Type::INT, is_reference: false })).unwrap();
+                        local_table.enter(tmp.to_identifier(),
+                            Entry::VariableEntry(VariableEntry
+                            { typ: Type::INT, is_reference: false })).unwrap();
 
                         // Rewrite the original expression to assign to the temp variable.
                         let mut q = entry.quad.clone();
