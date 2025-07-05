@@ -5,12 +5,12 @@ use crate::{
     code_gen::quadrupel::{
         Quadrupel, QuadrupelArg, QuadrupelOp, QuadrupelResult, QuadrupelVar, quad,
     },
-    table::symbol_table::SymbolTable,
+    table::{entry::Entry, symbol_table::SymbolTable, types::Type},
 };
 
 impl BlockGraph {
     // Applies Common Subexpression Elimination (CSE) to all basic blocks in the graph.
-    pub fn common_subexpression_elimination(&mut self, symbol_table: &SymbolTable) {
+    pub fn common_subexpression_elimination(&mut self, symbol_table: &mut SymbolTable) {
         // Find the highest temporary variable number used so far.
         let mut tmp_last_num = self
             .blocks
@@ -42,7 +42,7 @@ impl BlockGraph {
 fn optimize_block(
     block: &mut Block,
     tmp_next_num: &mut impl FnMut() -> usize,
-    local_table: &SymbolTable,
+    local_table: &mut SymbolTable,
 ) {
     // Only process blocks that contain code.
     let BlockContent::Code(quads) = &mut block.content else {
@@ -73,6 +73,8 @@ fn optimize_block(
                     // Reuse the result of the existing expression.
                     let tmp = entry.tmp.get_or_insert_with(|| {
                         let tmp = QuadrupelVar::Tmp(tmp_next_num());
+
+                        local_table.enter(tmp.to_identifier(), Entry::VariableEntry(crate::table::entry::VariableEntry { typ: Type::INT, is_reference: false })).unwrap();
 
                         // Rewrite the original expression to assign to the temp variable.
                         let mut q = entry.quad.clone();

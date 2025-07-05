@@ -79,12 +79,13 @@ mod test {
 
         // Process each procedure independently
         for (proc_name, code) in &address_code.proc_table {
-            let Some(Entry::ProcedureEntry(proc_entry)) = table.borrow().lookup(proc_name) else {
+            let Some(Entry::ProcedureEntry(mut proc_entry)) = table.borrow().lookup(proc_name)
+            else {
                 unreachable!()
             };
             let mut bg = BlockGraph::from_tac(code);
 
-            bg.common_subexpression_elimination(&proc_entry.local_table);
+            bg.common_subexpression_elimination(&mut proc_entry.local_table);
 
             match table.borrow_mut().entries.get_mut(proc_name) {
                 Some(Entry::ProcedureEntry(pe)) => pe.local_table = proc_entry.local_table,
@@ -96,7 +97,7 @@ mod test {
 
             let mut bg = BlockGraph::from_tac(code);
 
-            bg.common_subexpression_elimination(&table.borrow());
+            bg.common_subexpression_elimination(&mut *table.borrow_mut());
 
             match table.borrow_mut().entries.get_mut(proc_name) {
                 Some(Entry::ProcedureEntry(pe)) => pe.local_table = proc_entry.local_table,

@@ -189,8 +189,8 @@ impl BlockGraph {
                 }
                 "cse" => {
                     eprintln!("{}", ">>> Common Subexpression Elimination".green());
-                    let local_table = proc_def.local_table.clone();
-                    self.common_subexpression_elimination(&local_table);
+                    let mut local_table = proc_def.local_table.clone();
+                    self.common_subexpression_elimination(&mut local_table);
                     match symbol_table.borrow_mut().entries.get_mut(proc_name) {
                         Some(Entry::ProcedureEntry(pe)) => pe.local_table = local_table,
                         _ => unreachable!(),
