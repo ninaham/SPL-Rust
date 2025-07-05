@@ -75,10 +75,12 @@ pub enum QuadrupelVar {
 }
 
 impl QuadrupelVar {
+    pub const TMP_PREFIX: &str = "T:";
+
     pub fn to_identifier(&self) -> String {
         match self {
             Self::Spl(name) => name.to_string(),
-            Self::Tmp(t) => format!("T{t}"),
+            Self::Tmp(t) => format!("{}{t}", Self::TMP_PREFIX),
         }
     }
 }
@@ -87,7 +89,7 @@ impl fmt::Display for QuadrupelVar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Spl(var) => write!(f, "{var:<15}"),
-            Self::Tmp(val) => write!(f, "T:{val:<13}"),
+            Self::Tmp(val) => write!(f, "{}{val:<13}", Self::TMP_PREFIX),
         }
     }
 }

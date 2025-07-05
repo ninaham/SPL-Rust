@@ -16,23 +16,17 @@ impl BlockGraph {
     // Applies Common Subexpression Elimination (CSE) to all basic blocks in the graph.
     pub fn common_subexpression_elimination(&mut self, symbol_table: &mut SymbolTable) {
         // Find the highest temporary variable number used so far.
-        let mut tmp_last_num = self
-            .blocks
-            .iter()
-            .filter_map(|b| match &b.content {
-                BlockContent::Code(quads) => Some(quads.iter().filter_map(|q| match q.result {
-                    QuadrupelResult::Var(QuadrupelVar::Tmp(n)) => Some(n),
-                    _ => None,
-                })),
-                _ => None,
-            })
-            .flatten()
+        let mut tmp_last_num = symbol_table
+            .entries
+            .keys()
+            .filter_map(|k| k.strip_prefix(QuadrupelVar::TMP_PREFIX))
+            .map(|k| str::parse::<usize>(k).unwrap())
             .max()
             .unwrap_or(0);
 
         // Function to generate new unique temporary variable numbers.
         let mut tmp_next_num = || -> usize {
-            tmp_last_num += 10;
+            tmp_last_num += 1;
             tmp_last_num
         };
 

@@ -97,7 +97,7 @@ mod test {
 
             let mut bg = BlockGraph::from_tac(code);
 
-            bg.common_subexpression_elimination(&mut *table.borrow_mut());
+            bg.common_subexpression_elimination(&mut table.borrow_mut());
 
             match table.borrow_mut().entries.get_mut(proc_name) {
                 Some(Entry::ProcedureEntry(pe)) => pe.local_table = proc_entry.local_table,
